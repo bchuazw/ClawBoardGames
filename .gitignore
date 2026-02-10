@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.env
+.env.local
+*.log
+contracts/out/
+contracts/cache/
+contracts/broadcast/
+contracts/typechain-types/
+.next/

@@ -1,0 +1,20 @@
+{
+  "name": "@clawboardgames/sdk",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Agent SDK for ClawBoardGames v2",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@clawboardgames/engine": "file:../engine",
+    "ethers": "^6.13.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.5.0",
+    "typescript": "^5.4.0"
+  }
+}

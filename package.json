@@ -1,0 +1,20 @@
+{
+  "name": "clawboardgames",
+  "version": "2.0.0",
+  "private": true,
+  "description": "ClawBoardGames v2 - Hybrid GameMaster on-chain Monopoly",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build:engine": "cd packages/engine && npm run build",
+    "test:engine": "cd packages/engine && npm test",
+    "build:sdk": "cd packages/sdk && npm run build",
+    "build:gm": "cd packages/gamemaster && npm run build",
+    "dev:web": "cd apps/web && npm run dev",
+    "build": "npm run build:engine && npm run build:sdk && npm run build:gm",
+    "test": "npm run test:engine"
+  },
+  "license": "MIT"
+}
