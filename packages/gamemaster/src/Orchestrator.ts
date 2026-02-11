@@ -1,6 +1,7 @@
 import { GameProcess, GameProcessConfig } from "./GameProcess";
 import { SettlementClient } from "./SettlementClient";
 import { WebSocket } from "ws";
+import { keccak256, toUtf8Bytes } from "ethers";
 
 /**
  * Orchestrator: manages all active game processes.
@@ -9,14 +10,19 @@ import { WebSocket } from "ws";
  */
 export class Orchestrator {
   private games: Map<number, GameProcess> = new Map();
-  private settlement: SettlementClient;
+  private settlement: SettlementClient | null;
+  private nextLocalGameId = 0;
 
-  constructor(settlement: SettlementClient) {
+  constructor(settlement: SettlementClient | null) {
     this.settlement = settlement;
   }
 
-  /** Start listening for new game events. */
+  /** Start listening for new game events (skipped in local mode). */
   startListening(): void {
+    if (!this.settlement) {
+      console.log("[Orchestrator] LOCAL_MODE: Skipping chain event listener");
+      return;
+    }
     console.log("[Orchestrator] Listening for GameStarted events...");
     this.settlement.onGameStarted(async (gameId, diceSeed) => {
       console.log(`[Orchestrator] GameStarted: gameId=${gameId}, diceSeed=${diceSeed}`);
@@ -24,11 +30,15 @@ export class Orchestrator {
     });
   }
 
-  /** Spawn a new game process. */
+  /** Spawn a new game process (reads game info from chain). */
   async spawnGame(gameId: number, diceSeed?: string): Promise<GameProcess> {
     if (this.games.has(gameId)) {
       console.log(`[Orchestrator] Game ${gameId} already running`);
       return this.games.get(gameId)!;
+    }
+
+    if (!this.settlement) {
+      throw new Error("Cannot spawnGame from chain in LOCAL_MODE. Use createLocalGame instead.");
     }
 
     // Read game info from chain
@@ -62,6 +72,27 @@ export class Orchestrator {
     this.games.set(gameId, process);
     console.log(`[Orchestrator] Game ${gameId} spawned (${this.games.size} active)`);
     return process;
+  }
+
+  /**
+   * Create a local game (no chain interaction).
+   * Returns the assigned gameId.
+   */
+  createLocalGame(players: [string, string, string, string], diceSeed?: string): number {
+    const gameId = this.nextLocalGameId++;
+    const seed = diceSeed || keccak256(toUtf8Bytes(`local-game-${gameId}-${Date.now()}`));
+
+    const config: GameProcessConfig = {
+      gameId,
+      players,
+      diceSeed: seed,
+      settlement: null,
+    };
+
+    const process = new GameProcess(config);
+    this.games.set(gameId, process);
+    console.log(`[Orchestrator] Local game ${gameId} created for players: ${players.map(p => p.slice(0, 10)).join(", ")}`);
+    return gameId;
   }
 
   /** Route a WebSocket connection to the right game. */

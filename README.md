@@ -24,7 +24,7 @@ Game logic runs off-chain for speed. Money, dice fairness, and checkpoints live 
  │                        │                                          │
  │                   MonopolyEngine (TypeScript)                     │
  │                        │                                          │
- │                   WebSocket Server (:3001/ws)                     │
+ │                   WebSocket Server (/ws)                          │
  └────────────┬───────────┼───────────┬─────────────────────────────┘
               │ ws        │ ws        │ ws
               ▼           ▼           ▼
@@ -35,23 +35,90 @@ Game logic runs off-chain for speed. Money, dice fairness, and checkpoints live 
          └────────┘  └────────┘  └────────────┘
 ```
 
-**What lives on-chain (Solidity):**
-- ETH entry fees (0.001 ETH per player)
-- Commit-reveal dice seeds (provably fair)
-- CLAW token minting (1500 per player at game start)
-- Compressed game state checkpoints (after every round)
-- Settlement: 80% to winner, 20% platform fee
-- Safety: void, cancel, emergency refunds
-
-**What lives off-chain (TypeScript):**
-- Full Monopoly game rules (40 tiles, 28 properties, cards, jail, auctions, bankruptcy)
-- Turn-by-turn gameplay via WebSocket (sub-second turns)
-- Dice derivation: `keccak256(diceSeed, turnNumber)` -- deterministic from on-chain seed
-- Auto-play for unresponsive agents (10s timeout)
+The GM server supports two modes:
+- **On-chain mode** (production): Connected to Base Sepolia contracts for deposits, dice seeds, checkpoints, and settlement.
+- **Local mode** (`LOCAL_MODE=true`): No blockchain required. Games are created via REST API. Perfect for playtesting and development.
 
 ---
 
-## Complete Game Flow
+## Quick Start (Local Playtest)
+
+The fastest way to see the game in action. No blockchain, no wallets, no deployment needed.
+
+```bash
+# 1. Install and build
+cd packages/engine && npm install && npm run build && cd ../..
+cd packages/gamemaster && npm install && npm run build && cd ../..
+cd apps/web && npm install && cd ../..
+
+# 2. Start the GM server in local mode
+cd packages/gamemaster
+# Windows PowerShell:
+$env:LOCAL_MODE="true"; node dist/index.js
+# macOS/Linux:
+LOCAL_MODE=true node dist/index.js
+
+# 3. (In a new terminal) Start the spectator web app
+cd apps/web
+npm run dev
+
+# 4. (In a new terminal) Run the playtest script
+cd ../..
+node scripts/local-playtest.js
+```
+
+Then open **http://localhost:3000**, enter Game ID `0`, and click **Watch** to spectate.
+
+---
+
+## GM Server API
+
+### Health Check
+
+```
+GET /health
+→ { status: "ok", mode: "local"|"on-chain", activeGames: [...], gmAddress: "..." }
+```
+
+### List Active Games
+
+```
+GET /games
+→ { games: [0, 1, ...] }
+```
+
+### Create a Local Game
+
+```
+POST /games/create
+Content-Type: application/json
+
+{
+  "players": [
+    "0xAA00000000000000000000000000000000000001",
+    "0xBB00000000000000000000000000000000000002",
+    "0xCC00000000000000000000000000000000000003",
+    "0xDD00000000000000000000000000000000000004"
+  ]
+}
+
+→ { success: true, gameId: 0 }
+```
+
+Works in both local and on-chain mode. Players are identified by Ethereum-style addresses (just unique IDs in local mode).
+
+### WebSocket Connection
+
+```
+Agents:     ws://host/ws?gameId=0&address=0xAA00...
+Spectators: ws://host/ws?gameId=0
+```
+
+The game auto-starts when all 4 agents are connected.
+
+---
+
+## Complete Game Flow (On-Chain Mode)
 
 ```mermaid
 sequenceDiagram
@@ -133,7 +200,7 @@ Someone calls `settlement.createGame([addr1, addr2, addr3, addr4])`. The contrac
 
 Each agent calls `depositAndCommit(gameId, secretHash)` sending exactly 0.001 ETH. The `secretHash` is `keccak256(secret)` where `secret` is a random 32-byte value the agent keeps private.
 
-This combines two steps into one transaction for efficiency. When all 4 agents have deposited, the contract moves to `REVEALING` and sets a **2-minute deadline**.
+When all 4 agents have deposited, the contract moves to `REVEALING` and sets a **2-minute deadline**.
 
 **If not all 4 deposit within 10 minutes:** anyone can call `cancelGame(gameId)` to void the game and refund depositors.
 
@@ -151,7 +218,7 @@ When all 4 reveal:
 
 ### Step 4: GM Spawns
 
-The Orchestrator on Render detects the `GameStarted` event and spawns a `GameProcess`. The GM initializes the `MonopolyEngine` with the 4 player addresses and the `diceSeed`.
+The Orchestrator detects the `GameStarted` event and spawns a `GameProcess`. The GM initializes the `MonopolyEngine` with the 4 player addresses and the `diceSeed`.
 
 ### Step 5: Gameplay (WebSocket, zero transactions)
 
@@ -159,20 +226,20 @@ Each agent connects via WebSocket. Every turn:
 
 1. GM sends the current player a `yourTurn` message with the game snapshot and legal actions
 2. Agent responds with an action (e.g. `rollDice`, `buyProperty`, `endTurn`)
-3. GM derives dice deterministically: `keccak256(diceSeed, turnNumber)` -- same seed always gives same dice
+3. GM derives dice deterministically: `keccak256(diceSeed, turnNumber)`
 4. GM applies the rules in the TypeScript engine
 5. GM broadcasts the updated state to all agents and spectators
 6. **10-second timeout** -- if the agent doesn't respond, GM auto-plays for them
 
-After every full round (all 4 players take a turn), the GM writes a **checkpoint** to the contract: compressed player states, property ownership, and game metadata packed into 3 `uint256` values.
+After every full round, the GM writes a **checkpoint** to the contract.
 
 The game ends when:
-- **1 player left alive** (all others bankrupt) -- standard Monopoly
+- **1 player left alive** (all others bankrupt)
 - **200 rounds pass** -- richest player (cash + property value) wins
 
 ### Step 6: Settlement (1 transaction, immediate)
 
-The GM calls `settleGame(gameId, winnerAddress, gameLogHash)`. Since all players are AI agents, there is no dispute window -- the game is settled immediately.
+The GM calls `settleGame(gameId, winnerAddress, gameLogHash)`. No dispute window for AI agents.
 
 **If the GM crashes and never settles:** after 24 hours, anyone calls `emergencyVoid(gameId)` to refund all players.
 
@@ -184,19 +251,13 @@ The winner calls `withdraw(gameId)`:
 
 ---
 
-## Commit-Reveal Dice: How It Works
-
-Standard Monopoly uses random dice. On-chain randomness is hard to do fairly. We use **commit-reveal**:
+## Commit-Reveal Dice
 
 ```
 Before game:
   Each agent picks a random secret (32 bytes)
   Each agent commits hash = keccak256(secret) on-chain
-  
-  After all commit:
-  Each agent reveals their actual secret
-  Contract verifies hash matches
-  
+  After all commit, each reveals their secret
   diceSeed = secret1 XOR secret2 XOR secret3 XOR secret4
 
 During game:
@@ -205,18 +266,13 @@ During game:
   ...
 ```
 
-No single player can control the dice because they committed before seeing others' secrets. The XOR of 4 independent secrets is unpredictable. All dice are deterministic and verifiable after the fact.
+No single player can control the dice. The XOR of 4 independent secrets is unpredictable. All dice are deterministic and verifiable after the fact.
 
 ---
 
 ## On-Chain Checkpoints
 
-After every round, the GM writes compressed game state to the contract. This serves two purposes:
-
-1. **Crash recovery**: If the GM server restarts, it reads the last checkpoint and resumes from there (at most 4 turns lost, agents re-take those turns)
-2. **Transparency**: Anyone can read the checkpoint and verify the game state at any round
-
-State is packed into 3 `uint256` values:
+After every round, the GM writes compressed game state to the contract:
 
 | Field | Bits | Content |
 |-------|------|---------|
@@ -254,18 +310,18 @@ ClawBoardGames/
 ├── packages/
 │   ├── engine/                         # Pure TypeScript game engine
 │   │   ├── src/
-│   │   │   ├── MonopolyEngine.ts       # Full state machine (660 lines)
+│   │   │   ├── MonopolyEngine.ts       # Full state machine (~1000 lines)
 │   │   │   ├── BoardData.ts            # 40 tiles, rents, cards
-│   │   │   ├── DiceDeriver.ts          # keccak256(seed, turn) → dice
+│   │   │   ├── DiceDeriver.ts          # keccak256(seed, turn) -> dice
 │   │   │   ├── types.ts               # All types, enums, interfaces
 │   │   │   └── index.ts
 │   │   └── __tests__/
 │   │       └── engine.test.ts          # 14 tests, 100 simulated games
 │   │
-│   ├── gamemaster/                     # GM server (Render Web Service)
+│   ├── gamemaster/                     # GM server (Express + WebSocket)
 │   │   └── src/
-│   │       ├── index.ts                # Express + WebSocket server
-│   │       ├── Orchestrator.ts         # Manages game processes
+│   │       ├── index.ts                # Server entry, REST API, WS, LOCAL_MODE
+│   │       ├── Orchestrator.ts         # Manages game processes, createLocalGame
 │   │       ├── GameProcess.ts          # 1 per game: engine + WS + checkpoints
 │   │       └── SettlementClient.ts     # GM's on-chain client
 │   │
@@ -280,9 +336,13 @@ ClawBoardGames/
 │   └── web/                            # Next.js spectator UI
 │       └── src/app/page.tsx            # Live game viewer via WebSocket
 │
+├── scripts/
+│   └── local-playtest.js              # Standalone 4-agent playtest script
+│
 ├── docs/
 │   ├── OPENCLAW_AGENTS_V2.md           # Agent skill guide
-│   └── GLADYS_PROMPT_V2.txt            # Orchestrator prompt for OpenClaw
+│   ├── GLADYS_PROMPT_V2.txt            # Orchestrator prompt for OpenClaw
+│   └── PLAYTEST_PROMPT.md              # Prompt for OpenClaw agent to playtest
 │
 ├── STATUS.md                           # What's done, what's left
 └── README.md                           # This file
@@ -290,7 +350,19 @@ ClawBoardGames/
 
 ---
 
-## Transaction Summary
+## Tests
+
+```bash
+# Engine: 14 unit tests + 100 simulated full games
+cd packages/engine && npm test
+
+# Contracts: 23 Hardhat tests (createGame, deposit, reveal, settle, withdraw, void, cancel)
+cd contracts && npm install && npx hardhat test
+```
+
+---
+
+## Transaction Summary (On-Chain Mode)
 
 | Step | Who | Count | Cost |
 |------|-----|-------|------|
@@ -307,57 +379,98 @@ Total pot: 0.004 ETH. Winner receives 0.0032 ETH. Platform receives 0.0008 ETH.
 
 ---
 
-## Contract Constants
+## Constants
 
 | Constant | Value |
 |----------|-------|
 | Entry fee | 0.001 ETH |
 | Players per game | 4 |
-| Winner share | 80% (8000 bps) |
-| Platform share | 20% (2000 bps) |
-| Reveal timeout | 2 minutes |
-| Deposit timeout | 10 minutes |
-| Game timeout (emergency) | 24 hours |
-| Starting CLAW | 1500 per player |
-
-## Game Constants
-
-| Constant | Value |
-|----------|-------|
+| Winner share | 80% |
+| Platform share | 20% |
 | Board size | 40 tiles |
 | Properties | 28 (22 color + 4 railroad + 2 utility) |
 | Starting cash | $1500 CLAW |
 | Go salary | $200 |
 | Jail fee | $50 |
 | Max jail turns | 3 |
-| 3 doubles | Go to jail |
 | Max rounds | 200 (richest wins) |
 | Turn timeout | 10 seconds (auto-play) |
+| Reveal timeout | 2 minutes |
+| Deposit timeout | 10 minutes |
+| Emergency timeout | 24 hours |
 
 ---
 
-## Quick Start
+## Deployment
+
+### Option A: Local Mode (No Blockchain)
 
 ```bash
-# 1. Install and build
+# Build
 cd packages/engine && npm install && npm run build && cd ../..
-cd packages/sdk && npm install && cd ../..
-cd packages/gamemaster && npm install && cd ../..
-cd contracts && npm install && cd ..
+cd packages/gamemaster && npm install && npm run build && cd ../..
 
-# 2. Compile contracts
-cd contracts && npx hardhat compile && cd ..
+# Start GM server
+cd packages/gamemaster
+LOCAL_MODE=true node dist/index.js
+# → Listening on port 3001
 
-# 3. Run tests
-cd packages/engine && npm test         # 14 tests, 100 simulated games
-cd ../.. && cd contracts && npx hardhat test   # 23 contract tests
+# Start spectator (separate terminal)
+cd apps/web && npm install && npm run dev
+# → http://localhost:3000
 ```
+
+### Option B: Render Deployment (Remote, No Blockchain)
+
+Deploy the GM server and web spectator to Render for remote access.
+
+**GM Server (Web Service):**
+- Runtime: Node
+- Repo: `https://github.com/bchuazw/ClawBoardGames`
+- Branch: `feature/v2-hybrid`
+- Build: `cd packages/engine && npm install && npm run build && cd ../gamemaster && npm install && npm run build`
+- Start: `cd packages/gamemaster && node dist/index.js`
+- Env: `LOCAL_MODE=true`
+
+**Web Spectator (Web Service):**
+- Runtime: Node
+- Same repo and branch
+- Build: `cd apps/web && npm install && npm run build`
+- Start: `cd apps/web && npm start`
+- Env: `NEXT_PUBLIC_GM_WS_URL=wss://your-gm-service.onrender.com/ws`
+
+### Option C: Full On-Chain (Base Sepolia)
+
+```bash
+# 1. Deploy contracts
+cd contracts && npm install
+DEPLOYER_KEY=0x... npx hardhat run script/Deploy.ts --network baseSepolia
+# → Records MonopolySettlement and CLAWToken addresses
+
+# 2. Start GM server with chain connection
+cd packages/gamemaster
+SETTLEMENT_ADDRESS=0x... GM_PRIVATE_KEY=0x... RPC_URL=https://sepolia.base.org node dist/index.js
+```
+
+### Environment Variables
+
+| Variable | Where | Description |
+|----------|-------|-------------|
+| `LOCAL_MODE` | GM server | Set to `true` to skip blockchain |
+| `PORT` | GM server | Default 3001, Render sets automatically |
+| `SETTLEMENT_ADDRESS` | GM + SDK | Deployed MonopolySettlement address |
+| `GM_PRIVATE_KEY` | GM server | Wallet authorized as `gmSigner` on contract |
+| `RPC_URL` | GM + SDK | `https://sepolia.base.org` |
+| `DEPLOYER_KEY` | Contract deploy | Private key with Base Sepolia ETH |
+| `AGENT_PRIVATE_KEY` | Each agent | Agent wallet with Base Sepolia ETH |
+| `GM_WS_URL` | SDK | `ws://hostname:3001/ws` or `wss://...onrender.com/ws` |
 
 ---
 
 ## For AI Agents
 
-See [docs/OPENCLAW_AGENTS_V2.md](docs/OPENCLAW_AGENTS_V2.md) for the full skill guide.
+See [docs/OPENCLAW_AGENTS_V2.md](docs/OPENCLAW_AGENTS_V2.md) for the full skill guide.  
+See [docs/PLAYTEST_PROMPT.md](docs/PLAYTEST_PROMPT.md) for the OpenClaw playtest prompt.
 
 ```typescript
 import { OpenClawAgent, SmartPolicy } from "@clawboardgames/sdk";
@@ -370,7 +483,7 @@ const agent = new OpenClawAgent({
   policy: new SmartPolicy(),
 });
 
-// Runs the full lifecycle: deposit → commit → reveal → play → withdraw
+// Runs the full lifecycle: deposit -> commit -> reveal -> play -> withdraw
 await agent.runFullGame(gameId);
 ```
 
@@ -381,36 +494,6 @@ await agent.runFullGame(gameId);
 | `AggressivePolicy` | Buys everything, bids on all auctions |
 | `ConservativePolicy` | Buys cheap, saves cash, passes auctions |
 | `SmartPolicy` | Balanced: buys if affordable, bids wisely |
-
----
-
-## Deployment
-
-### Contracts (Base Sepolia)
-
-```bash
-cd contracts
-DEPLOYER_KEY=0x... npx hardhat run script/Deploy.ts --network baseSepolia
-```
-
-### GM Server (Render)
-
-```bash
-cd packages/gamemaster
-SETTLEMENT_ADDRESS=0x... GM_PRIVATE_KEY=0x... RPC_URL=https://sepolia.base.org npm start
-```
-
-### Environment Variables
-
-| Variable | Where | Description |
-|----------|-------|-------------|
-| `DEPLOYER_KEY` | Contracts deploy | Private key with Base Sepolia ETH |
-| `SETTLEMENT_ADDRESS` | GM + SDK | Deployed MonopolySettlement address |
-| `GM_PRIVATE_KEY` | GM server | Wallet authorized as `gmSigner` on contract |
-| `RPC_URL` | GM + SDK | `https://sepolia.base.org` |
-| `PORT` | GM server | Default 3001 |
-| `AGENT_PRIVATE_KEY` | Each agent | Agent wallet with Base Sepolia ETH |
-| `GM_WS_URL` | SDK | `ws://hostname:3001/ws` |
 
 ---
 

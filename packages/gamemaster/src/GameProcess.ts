@@ -9,7 +9,7 @@ export interface GameProcessConfig {
   gameId: number;
   players: [string, string, string, string];
   diceSeed: string;
-  settlement: SettlementClient;
+  settlement: SettlementClient | null; // null in LOCAL_MODE
 }
 
 /**
@@ -188,8 +188,12 @@ export class GameProcess {
     this.afterAction();
   }
 
-  /** Write checkpoint to on-chain contract. */
+  /** Write checkpoint to on-chain contract (skipped in local mode). */
   private async writeCheckpoint(round: number): Promise<void> {
+    if (!this.config.settlement) {
+      console.log(`[Game ${this.config.gameId}] Checkpoint round ${round} (local mode, skipped on-chain)`);
+      return;
+    }
     try {
       const { playersPacked, propertiesPacked, metaPacked } = this.engine.packForCheckpoint();
       const txHash = await this.config.settlement.writeCheckpoint(
@@ -221,13 +225,18 @@ export class GameProcess {
       snapshot: this.engine.getSnapshot(),
     });
 
-    // Settle on-chain
-    try {
-      const txHash = await this.config.settlement.settleGame(this.config.gameId, winnerAddr, logHash);
-      console.log(`[Game ${this.config.gameId}] Settled on-chain: ${txHash}`);
-      this.broadcastAll({ type: "settled", txHash });
-    } catch (err) {
-      console.error(`[Game ${this.config.gameId}] Settlement failed:`, err);
+    // Settle on-chain (skipped in local mode)
+    if (!this.config.settlement) {
+      console.log(`[Game ${this.config.gameId}] Game settled (local mode, skipped on-chain)`);
+      this.broadcastAll({ type: "settled", txHash: "local-mode" });
+    } else {
+      try {
+        const txHash = await this.config.settlement.settleGame(this.config.gameId, winnerAddr, logHash);
+        console.log(`[Game ${this.config.gameId}] Settled on-chain: ${txHash}`);
+        this.broadcastAll({ type: "settled", txHash });
+      } catch (err) {
+        console.error(`[Game ${this.config.gameId}] Settlement failed:`, err);
+      }
     }
   }
 

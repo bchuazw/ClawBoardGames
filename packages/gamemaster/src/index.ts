@@ -8,29 +8,46 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const PORT = parseInt(process.env.PORT || "3001", 10);
+const LOCAL_MODE = process.env.LOCAL_MODE === "true";
 const RPC_URL = process.env.RPC_URL || "https://sepolia.base.org";
 const SETTLEMENT_ADDRESS = process.env.SETTLEMENT_ADDRESS || "";
 const GM_PRIVATE_KEY = process.env.GM_PRIVATE_KEY || "";
 
-if (!SETTLEMENT_ADDRESS || !GM_PRIVATE_KEY) {
-  console.error("Missing SETTLEMENT_ADDRESS or GM_PRIVATE_KEY");
-  process.exit(1);
+let settlement: SettlementClient | null = null;
+
+if (LOCAL_MODE) {
+  console.log("[GM Server] Running in LOCAL_MODE (no blockchain)");
+} else {
+  if (!SETTLEMENT_ADDRESS || !GM_PRIVATE_KEY) {
+    console.error("Missing SETTLEMENT_ADDRESS or GM_PRIVATE_KEY. Use LOCAL_MODE=true for testing.");
+    process.exit(1);
+  }
+  settlement = new SettlementClient(RPC_URL, SETTLEMENT_ADDRESS, GM_PRIVATE_KEY);
 }
 
 // ========== Setup ==========
 
-const settlement = new SettlementClient(RPC_URL, SETTLEMENT_ADDRESS, GM_PRIVATE_KEY);
 const orchestrator = new Orchestrator(settlement);
 
 const app = express();
 app.use(express.json());
 
+// CORS for local development
+app.use((_req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Headers", "Content-Type");
+  res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  if (_req.method === "OPTIONS") { res.sendStatus(200); return; }
+  next();
+});
+
 // Health check
 app.get("/health", (_req, res) => {
   res.json({
     status: "ok",
+    mode: LOCAL_MODE ? "local" : "on-chain",
     activeGames: orchestrator.getActiveGames(),
-    gmAddress: settlement.address,
+    gmAddress: settlement?.address || "local-mode",
   });
 });
 
@@ -39,7 +56,33 @@ app.get("/games", (_req, res) => {
   res.json({ games: orchestrator.getActiveGames() });
 });
 
-// Manually spawn a game (for testing)
+// Create a local game (LOCAL_MODE or general testing)
+app.post("/games/create", (req, res) => {
+  try {
+    const { players, diceSeed } = req.body;
+    if (!players || !Array.isArray(players) || players.length !== 4) {
+      res.status(400).json({ error: "Provide exactly 4 player addresses in 'players' array" });
+      return;
+    }
+    // Validate addresses are hex strings
+    for (const p of players) {
+      if (typeof p !== "string" || !p.match(/^0x[0-9a-fA-F]{40}$/)) {
+        res.status(400).json({ error: `Invalid address: ${p}` });
+        return;
+      }
+    }
+    const gameId = orchestrator.createLocalGame(
+      players as [string, string, string, string],
+      diceSeed,
+    );
+    console.log(`[GM Server] Created local game ${gameId}`);
+    res.json({ success: true, gameId });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Manually spawn a game from chain (non-local mode)
 app.post("/games/:gameId/spawn", async (req, res) => {
   try {
     const gameId = parseInt(req.params.gameId, 10);
@@ -75,8 +118,12 @@ wss.on("connection", (socket: WebSocket, req) => {
 
 server.listen(PORT, () => {
   console.log(`[GM Server] Listening on port ${PORT}`);
-  console.log(`[GM Server] Settlement: ${SETTLEMENT_ADDRESS}`);
-  console.log(`[GM Server] GM Signer: ${settlement.address}`);
+  if (LOCAL_MODE) {
+    console.log(`[GM Server] LOCAL_MODE active — POST /games/create to start a game`);
+  } else {
+    console.log(`[GM Server] Settlement: ${SETTLEMENT_ADDRESS}`);
+    console.log(`[GM Server] GM Signer: ${settlement!.address}`);
+  }
   orchestrator.startListening();
 });
 
