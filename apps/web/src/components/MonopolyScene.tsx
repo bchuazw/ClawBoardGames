@@ -50,8 +50,8 @@ function GameBoard({ propertyOwners }: { propertyOwners: Record<number, number> 
         <boxGeometry args={[11.6, 0.06, 11.6]} />
         <meshStandardMaterial color="#2E8B3C" metalness={0.05} roughness={0.92} />
       </mesh>
-      {/* Inner play area */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.11, 0]}>
+      {/* Inner play area — slightly below tiles to prevent clipping */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.103, 0]}>
         <planeGeometry args={[8.4, 8.4]} />
         <meshStandardMaterial color="#1E7832" />
       </mesh>
@@ -205,12 +205,39 @@ function BoardTile({ tile, position, ownerIndex }: { tile: typeof TILE_DATA[0]; 
           {tile.price > 0 && (
             <Text position={[0, 0.08, edge === 'bottom' ? 0.12 : (edge === 'top' ? -0.12 : 0)]} rotation={tRot} fontSize={0.06} color="#7A6B50" anchorX="center" anchorY="middle">${tile.price}</Text>
           )}
-          {tile.type === 'chance' && <Text position={[0, 0.08, 0]} rotation={tRot} fontSize={0.22} color="#FF9100" anchorX="center" anchorY="middle">?</Text>}
-          {tile.type === 'community' && <Text position={[0, 0.08, 0]} rotation={tRot} fontSize={0.16} color="#4FC3F7" anchorX="center" anchorY="middle">CC</Text>}
-          {tile.type === 'tax' && <Text position={[0, 0.08, 0]} rotation={tRot} fontSize={0.16} color="#EF5350" anchorX="center" anchorY="middle">TAX</Text>}
+          {/* 3D tile decorations for special types */}
+          {tile.type === 'chance' && (
+            <group position={[0, 0.04, 0]}>
+              <mesh rotation={[-Math.PI / 2, 0, 0]}><boxGeometry args={[0.2, 0.28, 0.02]} /><meshStandardMaterial color="#FF9100" emissive="#FF9100" emissiveIntensity={0.15} /></mesh>
+              <Text position={[0, 0.04, 0]} rotation={tRot} fontSize={0.16} color="#fff" anchorX="center" anchorY="middle" fontWeight={800}>?</Text>
+            </group>
+          )}
+          {tile.type === 'community' && (
+            <group position={[0, 0.05, 0]}>
+              <mesh><boxGeometry args={[0.16, 0.08, 0.12]} /><meshStandardMaterial color="#42A5F5" /></mesh>
+              <mesh position={[0, 0.05, 0]}><boxGeometry args={[0.18, 0.03, 0.14]} /><meshStandardMaterial color="#1E88E5" /></mesh>
+              <Text position={[0, 0.09, 0]} rotation={tRot} fontSize={0.05} color="#fff" anchorX="center" anchorY="middle">CHEST</Text>
+            </group>
+          )}
+          {tile.type === 'tax' && (
+            <group position={[0, 0.04, 0]}>
+              <mesh rotation={[-Math.PI / 2, 0, 0]}><circleGeometry args={[0.12, 12]} /><meshStandardMaterial color="#EF5350" emissive="#EF5350" emissiveIntensity={0.15} side={THREE.DoubleSide} /></mesh>
+              <Text position={[0, 0.04, 0]} rotation={tRot} fontSize={0.12} color="#fff" anchorX="center" anchorY="middle" fontWeight={800}>$</Text>
+            </group>
+          )}
         </group>
       )}
-      {ownerIndex >= 0 && !tile.isCorner && <SmallHouse position={[0, 0.04, edge === 'bottom' ? -0.15 : (edge === 'top' ? 0.15 : 0)]} color={PLAYER_COLORS[ownerIndex]} />}
+      {/* Owner flag — consistent outer-edge placement per side */}
+      {ownerIndex >= 0 && !tile.isCorner && (
+        <OwnerFlag
+          position={[
+            edge === 'right' ? w * 0.28 : (edge === 'left' ? -w * 0.28 : 0),
+            0.02,
+            edge === 'bottom' ? d * 0.28 : (edge === 'top' ? -d * 0.28 : 0),
+          ]}
+          color={PLAYER_COLORS[ownerIndex]}
+        />
+      )}
     </group>
   );
 }
@@ -252,21 +279,37 @@ function CornerFreeParking({ rotation }: { rotation: [number, number, number] })
 }
 
 function CornerGoToJail({ rotation }: { rotation: [number, number, number] }) {
+  const redRef = useRef<THREE.Mesh>(null);
+  const blueRef = useRef<THREE.Mesh>(null);
+  useFrame(({ clock }) => {
+    const on = Math.sin(clock.elapsedTime * 3) > 0;
+    if (redRef.current) (redRef.current.material as THREE.MeshStandardMaterial).emissiveIntensity = on ? 2 : 0.1;
+    if (blueRef.current) (blueRef.current.material as THREE.MeshStandardMaterial).emissiveIntensity = on ? 0.1 : 2;
+  });
   return (
     <group>
       <mesh position={[0, 0.02, 0]}><boxGeometry args={[1.2, 0.04, 1.2]} /><meshStandardMaterial color="#FFCDD2" /></mesh>
-      <mesh position={[0, 0.08, 0.05]} rotation={[-Math.PI / 2, 0, 0]}><circleGeometry args={[0.28, 16]} /><meshStandardMaterial color="#E53935" emissive="#E53935" emissiveIntensity={0.2} side={THREE.DoubleSide} /></mesh>
-      <Text position={[0, 0.09, -0.1]} rotation={rotation} fontSize={0.12} color="#C62828" anchorX="center" fontWeight={800}>GO TO</Text>
-      <Text position={[0, 0.09, 0.12]} rotation={rotation} fontSize={0.16} color="#C62828" anchorX="center" fontWeight={800}>JAIL</Text>
+      {/* Siren bar */}
+      <mesh position={[0, 0.18, 0.1]}><boxGeometry args={[0.5, 0.04, 0.08]} /><meshStandardMaterial color="#333" metalness={0.6} /></mesh>
+      <mesh ref={redRef} position={[-0.18, 0.22, 0.1]}><sphereGeometry args={[0.05, 8, 8]} /><meshStandardMaterial color="#E53935" emissive="#E53935" emissiveIntensity={2} /></mesh>
+      <mesh ref={blueRef} position={[0.18, 0.22, 0.1]}><sphereGeometry args={[0.05, 8, 8]} /><meshStandardMaterial color="#1565C0" emissive="#1565C0" emissiveIntensity={0.1} /></mesh>
+      {/* Bars */}
+      {[-0.12, 0, 0.12].map((x, i) => (
+        <mesh key={i} position={[x, 0.15, -0.15]}><cylinderGeometry args={[0.012, 0.012, 0.2, 6]} /><meshStandardMaterial color="#555" metalness={0.6} /></mesh>
+      ))}
+      <Text position={[0, 0.08, -0.35]} rotation={rotation} fontSize={0.1} color="#C62828" anchorX="center" fontWeight={800}>GO TO</Text>
+      <Text position={[0, 0.08, 0.35]} rotation={rotation} fontSize={0.13} color="#C62828" anchorX="center" fontWeight={800}>JAIL</Text>
     </group>
   );
 }
 
-function SmallHouse({ position, color }: { position: [number, number, number]; color: string }) {
+/* Owner flag — colored, visible, clearly shows who owns the tile */
+function OwnerFlag({ position, color }: { position: [number, number, number]; color: string }) {
   return (
-    <group position={position} scale={[0.12, 0.12, 0.12]}>
-      <mesh position={[0, 0.3, 0]}><boxGeometry args={[0.5, 0.5, 0.4]} /><meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.3} /></mesh>
-      <mesh position={[0, 0.65, 0]} rotation={[0, Math.PI / 4, 0]}><coneGeometry args={[0.4, 0.35, 4]} /><meshStandardMaterial color="#D32F2F" /></mesh>
+    <group position={position}>
+      <mesh position={[0, 0.04, 0]}><cylinderGeometry args={[0.045, 0.055, 0.05, 8]} /><meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.4} metalness={0.4} /></mesh>
+      <mesh position={[0, 0.18, 0]}><cylinderGeometry args={[0.007, 0.007, 0.22, 4]} /><meshStandardMaterial color="#333" metalness={0.5} /></mesh>
+      <mesh position={[0.035, 0.26, 0]}><boxGeometry args={[0.055, 0.04, 0.01]} /><meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.6} /></mesh>
     </group>
   );
 }
@@ -624,8 +667,31 @@ function MoneyParticle({ fx, onDone }: { fx: FxDef; onDone: () => void }) {
 /* ================================================================ */
 /*  SCENE                                                            */
 /* ================================================================ */
+/* Jail siren effect — flashing red/blue around a player being sent to jail */
+function JailSiren({ playerPos }: { playerPos: [number, number, number] }) {
+  const ref = useRef<THREE.Group>(null);
+  const start = useRef(Date.now());
+  useFrame(() => {
+    if (!ref.current) return;
+    const t = (Date.now() - start.current) / 1000;
+    if (t > 2.5) { ref.current.visible = false; return; }
+    ref.current.visible = true;
+    const pulse = 1 + Math.sin(t * 10) * 0.25;
+    ref.current.scale.set(pulse, pulse, pulse);
+    ref.current.rotation.y = t * 3;
+  });
+  return (
+    <group ref={ref} position={[playerPos[0], 0.3, playerPos[2]]}>
+      <mesh position={[-0.35, 0.3, 0]}><sphereGeometry args={[0.07, 8, 8]} /><meshStandardMaterial color="#E53935" emissive="#E53935" emissiveIntensity={3} /></mesh>
+      <mesh position={[0.35, 0.3, 0]}><sphereGeometry args={[0.07, 8, 8]} /><meshStandardMaterial color="#1565C0" emissive="#1565C0" emissiveIntensity={3} /></mesh>
+      <mesh position={[0, 0.15, 0]} rotation={[-Math.PI / 2, 0, 0]}><ringGeometry args={[0.4, 0.55, 16]} /><meshStandardMaterial color="#E53935" emissive="#E53935" emissiveIntensity={2} transparent opacity={0.5} side={THREE.DoubleSide} /></mesh>
+    </group>
+  );
+}
+
 function Scene({ snapshot, latestEvents, activeCard }: { snapshot: Snapshot | null; latestEvents: GameEvent[]; activeCard: { text: string; type: string } | null }) {
   const [effects, setEffects] = useState<FxDef[]>([]);
+  const [jailTarget, setJailTarget] = useState<number | null>(null);
   const fxId = useRef(0);
 
   const owners = useMemo(() => {
@@ -639,12 +705,18 @@ function Scene({ snapshot, latestEvents, activeCard }: { snapshot: Snapshot | nu
     if (!snapshot || !latestEvents.length) return;
     const nf: FxDef[] = [];
     for (const ev of latestEvents) {
-      if ((ev.type === 'PAID_RENT' || ev.type === 'PAID_TAX') && ev.player !== undefined) {
+      /* Money effects — uses engine camelCase types */
+      if ((ev.type === 'rentPaid' || ev.type === 'taxPaid') && ev.player !== undefined) {
         const fp = snapshot.players[ev.player], tp = ev.toPlayer !== undefined ? snapshot.players[ev.toPlayer] : null;
         if (fp) {
           const fb = BOARD_POSITIONS[fp.position] || BOARD_POSITIONS[0], tb = tp ? (BOARD_POSITIONS[tp.position] || BOARD_POSITIONS[0]) : [0, 0, 0] as [number, number, number];
           for (let c = 0; c < 4; c++) nf.push({ id: fxId.current++, from: [fb[0], 0, fb[2]], to: [tb[0], 0, tb[2]], start: Date.now() + c * 100 });
         }
+      }
+      /* Jail siren effect */
+      if (ev.type === 'sentToJail' && ev.player !== undefined) {
+        setJailTarget(ev.player);
+        setTimeout(() => setJailTarget(null), 2600);
       }
     }
     if (nf.length) setEffects(p => [...p.slice(-12), ...nf]);
@@ -669,6 +741,11 @@ function Scene({ snapshot, latestEvents, activeCard }: { snapshot: Snapshot | nu
       {snapshot?.players.map((p, i) => (
         <AnimatedToken key={i} pi={i} pos={p.position} color={PLAYER_COLORS[i]} active={i === snapshot.currentPlayerIndex} alive={p.alive} />
       ))}
+
+      {/* Jail siren effect on player being arrested */}
+      {jailTarget !== null && snapshot?.players[jailTarget] && (
+        <JailSiren playerPos={BOARD_POSITIONS[snapshot.players[jailTarget].position] || BOARD_POSITIONS[0]} />
+      )}
 
       {snapshot?.lastDice && <AnimatedDice d1={snapshot.lastDice.d1} d2={snapshot.lastDice.d2} isDoubles={snapshot.lastDice.isDoubles} />}
 

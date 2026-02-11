@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState, useRef, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import { PLAYER_COLORS, PLAYER_NAMES, PLAYER_EMOJIS, TILE_DATA } from '@/lib/boardPositions';
+import { PLAYER_COLORS, PLAYER_NAMES, PLAYER_EMOJIS, TILE_DATA, GROUP_COLORS } from '@/lib/boardPositions';
 import { sfx } from '@/lib/soundFx';
 
 const MonopolyScene = dynamic(() => import('@/components/MonopolyScene'), {
@@ -32,24 +32,28 @@ interface Snapshot {
 }
 interface GameEvent { type: string; [key: string]: any; }
 
+/* Tile lookup by position */
+const TILE_BY_POS: Record<number, typeof TILE_DATA[0]> = {};
+TILE_DATA.forEach(t => { TILE_BY_POS[t.position] = t; });
+
 /* ---------------------------------------------------------------- */
-/*  Mood emoji system                                                */
+/*  Mood emoji system — uses engine camelCase event types            */
 /* ---------------------------------------------------------------- */
-const DEFAULT_MOOD = '\u{1F610}'; // 😐
+const DEFAULT_MOOD = '\u{1F610}';
 const MOOD_MAP: Record<string, { self?: string; other?: string; payer?: string; receiver?: string }> = {
-  DICE_ROLLED:     { self: '\u{1F3B2}' },   // 🎲
-  BOUGHT_PROPERTY: { self: '\u{1F929}', other: '\u{1F612}' }, // 🤩 😒
-  PAID_RENT:       { payer: '\u{1F624}', receiver: '\u{1F911}' }, // 😤 🤑
-  PAID_TAX:        { self: '\u{1F62E}' },    // 😮
-  PASSED_GO:       { self: '\u{1F60E}' },    // 😎
-  SENT_TO_JAIL:    { self: '\u{1F631}', other: '\u{1F60F}' }, // 😱 😏
-  LEFT_JAIL:       { self: '\u{1F389}' },    // 🎉
-  BANKRUPT:        { self: '\u{1F480}', other: '\u{1F62E}' }, // 💀 😮
-  DREW_CARD:       { self: '\u{1F914}' },    // 🤔
+  diceRolled:      { self: '\u{1F3B2}' },
+  propertyBought:  { self: '\u{1F929}', other: '\u{1F612}' },
+  rentPaid:        { payer: '\u{1F624}', receiver: '\u{1F911}' },
+  taxPaid:         { self: '\u{1F62E}' },
+  passedGo:        { self: '\u{1F60E}' },
+  sentToJail:      { self: '\u{1F631}', other: '\u{1F60F}' },
+  freedFromJail:   { self: '\u{1F389}' },
+  playerBankrupt:  { self: '\u{1F480}', other: '\u{1F62E}' },
+  cardDrawn:       { self: '\u{1F914}' },
 };
 
 /* ---------------------------------------------------------------- */
-/*  Human-readable event text                                        */
+/*  Human-readable event text — engine camelCase types               */
 /* ---------------------------------------------------------------- */
 function humanEvent(e: GameEvent): { text: string; color: string } {
   const n = e.player !== undefined ? PLAYER_NAMES[e.player] : '';
@@ -57,30 +61,53 @@ function humanEvent(e: GameEvent): { text: string; color: string } {
   const pc = e.player !== undefined ? PLAYER_COLORS[e.player] : '#D4A84B';
 
   switch (e.type) {
-    case 'DICE_ROLLED': {
-      const dbl = e.isDoubles ? '  DOUBLES!' : '';
-      return { text: `\u{1F3B2}  ${emoji} ${n} rolled ${e.sum}!  (${e.d1} + ${e.d2})${dbl}`, color: e.isDoubles ? '#FFD54F' : pc };
+    case 'diceRolled': {
+      const sum = e.sum ?? (e.d1 + e.d2);
+      const dbl = e.isDoubles ? ' \u2014 DOUBLES!' : '';
+      return { text: `\uD83C\uDFB2 ${emoji} ${n} rolled ${sum}! (${e.d1} + ${e.d2})${dbl}`, color: e.isDoubles ? '#FFD54F' : pc };
     }
-    case 'MOVED':
-      return { text: `${emoji} ${n} landed on ${e.tileName || TILE_DATA[e.newPosition]?.name || `tile ${e.newPosition}`}`, color: pc };
-    case 'PASSED_GO':
-      return { text: `\u{2728} ${emoji} ${n} passed GO and collected $200!`, color: '#66BB6A' };
-    case 'BOUGHT_PROPERTY':
-      return { text: `\u{1F3E0} ${emoji} ${n} bought ${e.tileName} for $${e.price}!`, color: pc };
-    case 'PAID_RENT':
-      return { text: `\u{1F4B0} ${emoji} ${n} paid $${e.amount} rent to ${PLAYER_EMOJIS[e.toPlayer]} ${PLAYER_NAMES[e.toPlayer]}`, color: '#FF9100' };
-    case 'PAID_TAX':
-      return { text: `\u{1F4B8} ${emoji} ${n} paid $${e.amount} in taxes`, color: '#EF5350' };
-    case 'DREW_CARD':
-      return { text: `\u{1F0CF} ${emoji} ${n} drew a card: ${e.description || e.cardType}`, color: '#AB47BC' };
-    case 'SENT_TO_JAIL':
-      return { text: `\u{1F6A8} ${emoji} ${n} was sent to JAIL!`, color: '#EF5350' };
-    case 'LEFT_JAIL':
-      return { text: `\u{1F513} ${emoji} ${n} got out of jail!`, color: '#66BB6A' };
-    case 'BANKRUPT':
-      return { text: `\u{1F4A5} ${emoji} ${n} went BANKRUPT!`, color: '#EF5350' };
-    case 'GAME_OVER':
-      return { text: `\u{1F3C6} GAME OVER — ${e.winner} wins!`, color: '#FFD54F' };
+    case 'playerMoved': {
+      const dest = e.to ?? e.newPosition;
+      const tile = TILE_BY_POS[dest];
+      const tileName = e.tileName || tile?.name || `tile ${dest}`;
+      const spaces = e.from !== undefined ? ((dest - e.from + 40) % 40) : 0;
+      const sp = spaces > 0 ? `moved ${spaces} spaces and ` : '';
+      return { text: `${emoji} ${n} ${sp}landed on ${tileName}`, color: pc };
+    }
+    case 'passedGo':
+      return { text: `\u2728 ${emoji} ${n} passed GO and collected $${e.amount || 200}!`, color: '#66BB6A' };
+    case 'propertyBought':
+      return { text: `\uD83C\uDFE0 ${emoji} ${n} bought ${e.tileName} for $${e.price}!`, color: pc };
+    case 'propertyDeclined':
+      return { text: `${emoji} ${n} passed on ${e.tileName}`, color: '#888' };
+    case 'rentPaid': {
+      const toE = e.toPlayer !== undefined ? PLAYER_EMOJIS[e.toPlayer] : '';
+      const toN = e.toPlayer !== undefined ? PLAYER_NAMES[e.toPlayer] : 'the bank';
+      return { text: `\uD83D\uDCB0 ${emoji} ${n} paid $${e.amount} rent to ${toE} ${toN}`, color: '#FF9100' };
+    }
+    case 'taxPaid':
+      return { text: `\uD83D\uDCB8 ${emoji} ${n} paid $${e.amount} in taxes`, color: '#EF5350' };
+    case 'cardDrawn':
+      return { text: `\uD83C\uDCCF ${emoji} ${n} drew a ${e.cardType || 'card'}: ${e.description || 'Unknown'}`, color: '#AB47BC' };
+    case 'sentToJail':
+      return { text: `\uD83D\uDEA8 ${emoji} ${n} was sent to JAIL!`, color: '#EF5350' };
+    case 'freedFromJail':
+      return { text: `\uD83D\uDD13 ${emoji} ${n} got out of jail!`, color: '#66BB6A' };
+    case 'playerBankrupt':
+      return { text: `\uD83D\uDCA5 ${emoji} ${n} went BANKRUPT!`, color: '#EF5350' };
+    case 'gameEnded':
+      return { text: `\uD83C\uDFC6 GAME OVER \u2014 ${e.winner !== undefined ? `${PLAYER_EMOJIS[e.winner]} ${PLAYER_NAMES[e.winner]}` : 'Unknown'} wins!`, color: '#FFD54F' };
+    case 'auctionStarted':
+      return { text: `\uD83D\uDD28 Auction started for ${e.tileName}!`, color: '#AB47BC' };
+    case 'auctionEnded':
+      return { text: `\uD83D\uDD28 ${e.winner !== undefined ? PLAYER_NAMES[e.winner] : '?'} won the auction for $${e.price}`, color: '#AB47BC' };
+    case 'turnStarted':
+      return { text: `\uD83D\uDCCD ${emoji} ${n}'s turn (Round ${e.round ?? ''})`, color: pc };
+    case 'cashChange':
+      return { text: `${emoji} ${n} ${(e.amount ?? 0) >= 0 ? 'received' : 'paid'} $${Math.abs(e.amount ?? 0)} \u2014 ${e.reason || ''}`, color: (e.amount ?? 0) >= 0 ? '#66BB6A' : '#EF5350' };
+    case 'turnEnded': case 'gameStarted': case 'auctionEndedNoBids': case 'bidPlaced':
+    case 'propertyMortgaged': case 'propertyUnmortgaged': case 'autoMortgage':
+      return { text: '', color: '#555' }; // minor events — hide
     default:
       return { text: `${e.type}${n ? ` (${n})` : ''}`, color: '#888' };
   }
@@ -122,46 +149,39 @@ function WatchPage() {
 
   useEffect(() => { sfx.muted = muted; }, [muted]);
 
-  // Update moods from events
   function updateMoods(evts: GameEvent[]) {
     const newMoods = { ...moods };
     for (const ev of evts) {
       const mm = MOOD_MAP[ev.type];
       if (!mm) continue;
       if (ev.player !== undefined) {
-        if (ev.type === 'PAID_RENT') {
+        if (ev.type === 'rentPaid') {
           if (mm.payer) newMoods[ev.player] = mm.payer;
           if (mm.receiver && ev.toPlayer !== undefined) newMoods[ev.toPlayer] = mm.receiver;
         } else {
           if (mm.self) newMoods[ev.player] = mm.self;
-          if (mm.other) {
-            for (let i = 0; i < 4; i++) { if (i !== ev.player) newMoods[i] = mm.other; }
-          }
+          if (mm.other) { for (let i = 0; i < 4; i++) { if (i !== ev.player) newMoods[i] = mm.other; } }
         }
       }
     }
     setMoods(newMoods);
-    // Reset moods after 4 seconds
     for (let i = 0; i < 4; i++) {
       clearTimeout(moodTimers.current[i]);
-      moodTimers.current[i] = setTimeout(() => {
-        setMoods(prev => ({ ...prev, [i]: DEFAULT_MOOD }));
-      }, 4000);
+      moodTimers.current[i] = setTimeout(() => { setMoods(prev => ({ ...prev, [i]: DEFAULT_MOOD })); }, 4000);
     }
   }
 
-  // Play sounds for events
   function playSounds(evts: GameEvent[]) {
     for (const ev of evts) {
       switch (ev.type) {
-        case 'DICE_ROLLED': sfx.diceRoll(); if (ev.isDoubles) setTimeout(() => sfx.doubles(), 400); break;
-        case 'MOVED': sfx.tokenHop(); break;
-        case 'BOUGHT_PROPERTY': sfx.buyProperty(); break;
-        case 'PAID_RENT': case 'PAID_TAX': sfx.payRent(); break;
-        case 'PASSED_GO': sfx.passGo(); break;
-        case 'SENT_TO_JAIL': sfx.goToJail(); break;
-        case 'BANKRUPT': sfx.bankrupt(); break;
-        case 'DREW_CARD': sfx.cardDraw(); break;
+        case 'diceRolled': sfx.diceRoll(); if (ev.isDoubles) setTimeout(() => sfx.doubles(), 400); break;
+        case 'playerMoved': sfx.tokenHop(); break;
+        case 'propertyBought': sfx.buyProperty(); break;
+        case 'rentPaid': case 'taxPaid': sfx.payRent(); break;
+        case 'passedGo': sfx.passGo(); break;
+        case 'sentToJail': sfx.goToJail(); break;
+        case 'playerBankrupt': sfx.bankrupt(); break;
+        case 'cardDrawn': sfx.cardDraw(); break;
       }
     }
   }
@@ -169,14 +189,14 @@ function WatchPage() {
   const connect = useCallback(() => {
     if (!gameId) return;
     disconnect();
-    sfx.init(); // Unlock audio on user click
+    sfx.init();
     const ws = new WebSocket(`${gmUrl}?gameId=${gameId}`);
     wsRef.current = ws;
     ws.onopen = () => setConnected(true);
     ws.onclose = () => setConnected(false);
     ws.onerror = () => setConnected(false);
-    ws.onmessage = (e) => {
-      const msg = JSON.parse(e.data);
+    ws.onmessage = (ev) => {
+      const msg = JSON.parse(ev.data);
       if (msg.type === 'snapshot') {
         setSnapshot(msg.snapshot);
       } else if (msg.type === 'events') {
@@ -186,23 +206,26 @@ function WatchPage() {
         playSounds(msg.events);
 
         // Card display
-        const cardEv = msg.events.find((ev: GameEvent) => ev.type === 'DREW_CARD');
+        const cardEv = msg.events.find((e: GameEvent) => e.type === 'cardDrawn');
         if (cardEv) {
           setActiveCard({ text: cardEv.description || 'Card drawn', type: cardEv.cardType === 'chance' ? 'chance' : 'community' });
           setTimeout(() => setActiveCard(null), 3500);
         }
 
-        // Notification — pick the most interesting event
-        const priority = ['BANKRUPT', 'SENT_TO_JAIL', 'BOUGHT_PROPERTY', 'PAID_RENT', 'DREW_CARD', 'PASSED_GO', 'DICE_ROLLED'];
-        const notable = priority.reduce<GameEvent | null>((best, type) => best || msg.events.find((ev: GameEvent) => ev.type === type) || null, null) || msg.events[0];
+        // Notification — pick the most notable event
+        const priority = ['playerBankrupt', 'sentToJail', 'propertyBought', 'rentPaid', 'cardDrawn', 'passedGo', 'diceRolled'];
+        const notable = priority.reduce<GameEvent | null>((best, type) => best || msg.events.find((e: GameEvent) => e.type === type) || null, null) || msg.events[0];
         if (notable) {
-          setNotification(humanEvent(notable));
-          clearTimeout(notifTimer.current);
-          notifTimer.current = setTimeout(() => setNotification(null), 2600);
+          const h = humanEvent(notable);
+          if (h.text) {
+            setNotification(h);
+            clearTimeout(notifTimer.current);
+            notifTimer.current = setTimeout(() => setNotification(null), 2800);
+          }
         }
       } else if (msg.type === 'gameEnded') {
         setSnapshot(msg.snapshot);
-        setNotification({ text: `\u{1F3C6} GAME OVER — P${msg.winner} wins!`, color: '#FFD54F' });
+        setNotification({ text: `\uD83C\uDFC6 GAME OVER \u2014 ${PLAYER_NAMES[msg.winner] || 'P' + msg.winner} wins!`, color: '#FFD54F' });
       }
     };
   }, [gameId, gmUrl]);
@@ -210,7 +233,18 @@ function WatchPage() {
   const disconnect = useCallback(() => { wsRef.current?.close(); wsRef.current = null; setConnected(false); }, []);
   useEffect(() => { eventsEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [events]);
 
-  const propCounts = snapshot?.properties.reduce((a, p) => { if (p.ownerIndex >= 0) a[p.ownerIndex] = (a[p.ownerIndex] || 0) + 1; return a; }, {} as Record<number, number>) || {};
+  /* Build per-player property list */
+  const playerProps: Record<number, { name: string; color: string }[]> = {};
+  if (snapshot) {
+    for (const prop of snapshot.properties) {
+      if (prop.ownerIndex < 0) continue;
+      if (!playerProps[prop.ownerIndex]) playerProps[prop.ownerIndex] = [];
+      const tile = TILE_DATA.find(t => t.name === prop.tileName);
+      const gc = tile ? GROUP_COLORS[tile.group] || '#888' : '#888';
+      const short = prop.tileName?.replace(' Avenue', '').replace(' Place', ' Pl').replace(' Gardens', ' Gdn').split(' ').slice(0, 2).join(' ') || '?';
+      playerProps[prop.ownerIndex].push({ name: short, color: gc });
+    }
+  }
 
   return (
     <div style={{ width: '100vw', height: '100vh', display: 'flex', overflow: 'hidden', background: '#0C1B3A' }}>
@@ -239,7 +273,6 @@ function WatchPage() {
             {connected ? 'Disconnect' : 'Watch'}
           </button>
           {connected && <span style={{ padding: '2px 8px', borderRadius: 4, fontSize: 10, fontWeight: 800, background: '#2E7D32', color: '#fff', animation: 'livePulse 2s infinite' }}>LIVE</span>}
-          {/* Audio toggle */}
           <button onClick={() => setMuted(m => !m)}
             style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid rgba(212,168,75,0.15)', background: 'rgba(255,255,255,0.04)', cursor: 'pointer', fontSize: 16 }}>
             {muted ? '\u{1F507}' : '\u{1F50A}'}
@@ -263,7 +296,6 @@ function WatchPage() {
           </div>
         )}
 
-        {/* Empty state */}
         {!snapshot && !connected && (
           <div style={{ position: 'absolute', bottom: 100, left: 0, right: 0, zIndex: 10, textAlign: 'center', pointerEvents: 'none' }}>
             <div style={{ fontSize: 22, color: '#D4A84B', fontWeight: 800, marginBottom: 8 }}>Enter a Game ID and click Watch</div>
@@ -303,7 +335,7 @@ function WatchPage() {
           </div>
         )}
 
-        {/* Player cards with emoji moods */}
+        {/* Player cards with properties */}
         {snapshot?.players.map((p) => (
           <div key={p.index} style={{
             borderRadius: 10, padding: '10px 12px', opacity: p.alive ? 1 : 0.35,
@@ -314,14 +346,12 @@ function WatchPage() {
             boxShadow: p.index === snapshot.currentPlayerIndex ? `0 0 15px ${PLAYER_COLORS[p.index]}15` : 'none',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-              {/* Animal avatar with mood overlay */}
               <div style={{
                 width: 38, height: 38, borderRadius: '50%', flexShrink: 0, position: 'relative',
                 background: `${PLAYER_COLORS[p.index]}20`, border: `2px solid ${PLAYER_COLORS[p.index]}`,
                 display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20,
               }}>
                 {PLAYER_EMOJIS[p.index]}
-                {/* Mood emoji badge */}
                 <span style={{
                   position: 'absolute', bottom: -4, right: -4,
                   fontSize: 14, width: 20, height: 20,
@@ -342,24 +372,35 @@ function WatchPage() {
                     <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 3, background: '#C62828', color: '#fff', fontWeight: 800, marginLeft: 'auto' }}>OUT</span>
                   )}
                 </div>
-                <div style={{ fontSize: 11, color: '#7B8AA0', marginTop: 1 }}>{p.tileName || TILE_DATA[p.position]?.name}</div>
+                <div style={{ fontSize: 11, color: '#7B8AA0', marginTop: 1 }}>{p.tileName || TILE_BY_POS[p.position]?.name}</div>
               </div>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, paddingLeft: 46 }}>
               <span style={{ fontWeight: 700, color: '#E8E8E8', fontFamily: 'var(--font-mono)', fontSize: 15 }}>${p.cash.toLocaleString()}</span>
-              <span style={{ fontSize: 10, color: '#5A6B8A' }}>{propCounts[p.index] || 0} props</span>
               {p.inJail && <span style={{ fontSize: 10, color: '#FF8A65' }}>JAIL ({p.jailTurns}/3)</span>}
             </div>
+            {/* Owned properties */}
+            {playerProps[p.index] && playerProps[p.index].length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, paddingLeft: 46, marginTop: 4 }}>
+                {playerProps[p.index].map((pr, j) => (
+                  <span key={j} style={{
+                    fontSize: 8, padding: '1px 5px', borderRadius: 3, lineHeight: 1.3,
+                    background: `${pr.color}20`, border: `1px solid ${pr.color}40`, color: pr.color,
+                  }}>{pr.name}</span>
+                ))}
+              </div>
+            )}
           </div>
         ))}
 
-        {/* Event log — human readable */}
+        {/* Event log — human-readable */}
         <div style={{ borderRadius: 10, padding: '8px 12px', flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', minHeight: 80 }}>
           <div style={{ fontSize: 10, fontWeight: 800, color: '#4A5568', marginBottom: 4, letterSpacing: 1.5 }}>GAME LOG</div>
           <div style={{ flex: 1, overflowY: 'auto', fontSize: 11 }}>
             {events.length === 0 && <div style={{ color: '#3B4A6B', padding: 12, textAlign: 'center' }}>{connected ? 'Waiting for events...' : 'Connect to spectate'}</div>}
             {events.slice(-50).map((e, i) => {
               const h = humanEvent(e);
+              if (!h.text) return null; // skip minor events
               return (
                 <div key={i} style={{ padding: '3px 0', color: h.color, borderBottom: '1px solid rgba(255,255,255,0.02)', lineHeight: 1.4 }}>
                   {h.text}
