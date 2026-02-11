@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: true,
+  reactStrictMode: false, // Three.js works better without strict mode
+  transpilePackages: ['three'],
 };
 
 module.exports = nextConfig;

@@ -4,6 +4,7 @@ import { SettlementClient } from "./SettlementClient";
 import { ethers } from "ethers";
 
 const TURN_TIMEOUT_MS = 10_000; // 10 seconds per agent response
+const SPECTATE_DELAY_MS = parseInt(process.env.SPECTATE_DELAY_MS || "0", 10); // delay between actions for spectators
 
 export interface GameProcessConfig {
   gameId: number;
@@ -174,6 +175,11 @@ export class GameProcess {
     if (currentRound > this.lastCheckpointRound) {
       await this.writeCheckpoint(currentRound);
       this.lastCheckpointRound = currentRound;
+    }
+
+    // Spectate delay: pause between actions so spectators can follow
+    if (SPECTATE_DELAY_MS > 0) {
+      await new Promise(resolve => setTimeout(resolve, SPECTATE_DELAY_MS));
     }
 
     // Prompt next player (or current if still their turn)
