@@ -46,7 +46,9 @@ export default function Home() {
   const [connected, setConnected] = useState(false);
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [events, setEvents] = useState<GameEvent[]>([]);
-  const [gmUrl, setGmUrl] = useState("ws://localhost:3001/ws");
+  const [gmUrl, setGmUrl] = useState(
+    process.env.NEXT_PUBLIC_GM_WS_URL || "wss://clawboardgames-gm.onrender.com/ws"
+  );
   const wsRef = useRef<WebSocket | null>(null);
   const eventsEndRef = useRef<HTMLDivElement>(null);
 
