@@ -64,10 +64,14 @@ app.post("/games/create", (req, res) => {
       res.status(400).json({ error: "Provide exactly 4 player addresses in 'players' array" });
       return;
     }
-    // Validate addresses are hex strings
+    // Validate addresses - strict hex in on-chain mode, any string in local mode
     for (const p of players) {
-      if (typeof p !== "string" || !p.match(/^0x[0-9a-fA-F]{40}$/)) {
+      if (typeof p !== "string" || p.length === 0) {
         res.status(400).json({ error: `Invalid address: ${p}` });
+        return;
+      }
+      if (!LOCAL_MODE && !p.match(/^0x[0-9a-fA-F]{40}$/)) {
+        res.status(400).json({ error: `Invalid hex address: ${p}` });
         return;
       }
     }
