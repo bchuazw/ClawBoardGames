@@ -706,11 +706,19 @@ function Scene({ snapshot, latestEvents, activeCard }: { snapshot: Snapshot | nu
     const nf: FxDef[] = [];
     for (const ev of latestEvents) {
       /* Money effects — uses engine camelCase types */
-      if ((ev.type === 'rentPaid' || ev.type === 'taxPaid') && ev.player !== undefined) {
-        const fp = snapshot.players[ev.player], tp = ev.toPlayer !== undefined ? snapshot.players[ev.toPlayer] : null;
+      if (ev.type === 'rentPaid' && (ev.from !== undefined || ev.player !== undefined)) {
+        const payerIdx = ev.from ?? ev.player;
+        const recvIdx = ev.to ?? ev.toPlayer;
+        const fp = snapshot.players[payerIdx], tp = recvIdx !== undefined ? snapshot.players[recvIdx] : null;
         if (fp) {
           const fb = BOARD_POSITIONS[fp.position] || BOARD_POSITIONS[0], tb = tp ? (BOARD_POSITIONS[tp.position] || BOARD_POSITIONS[0]) : [0, 0, 0] as [number, number, number];
           for (let c = 0; c < 4; c++) nf.push({ id: fxId.current++, from: [fb[0], 0, fb[2]], to: [tb[0], 0, tb[2]], start: Date.now() + c * 100 });
+        }
+      } else if (ev.type === 'taxPaid' && ev.player !== undefined) {
+        const fp = snapshot.players[ev.player];
+        if (fp) {
+          const fb = BOARD_POSITIONS[fp.position] || BOARD_POSITIONS[0];
+          for (let c = 0; c < 3; c++) nf.push({ id: fxId.current++, from: [fb[0], 0, fb[2]], to: [0, 0, 0], start: Date.now() + c * 100 });
         }
       }
       /* Jail siren effect */

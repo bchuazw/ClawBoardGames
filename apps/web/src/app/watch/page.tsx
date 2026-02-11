@@ -81,14 +81,18 @@ function humanEvent(e: GameEvent): { text: string; color: string } {
     case 'propertyDeclined':
       return { text: `${emoji} ${n} passed on ${e.tileName}`, color: '#888' };
     case 'rentPaid': {
-      const toE = e.toPlayer !== undefined ? PLAYER_EMOJIS[e.toPlayer] : '';
-      const toN = e.toPlayer !== undefined ? PLAYER_NAMES[e.toPlayer] : 'the bank';
-      return { text: `\uD83D\uDCB0 ${emoji} ${n} paid $${e.amount} rent to ${toE} ${toN}`, color: '#FF9100' };
+      const payerIdx = e.from ?? e.player;
+      const recvIdx = e.to ?? e.toPlayer;
+      const payerE = payerIdx !== undefined ? PLAYER_EMOJIS[payerIdx] : '';
+      const payerN = payerIdx !== undefined ? PLAYER_NAMES[payerIdx] : '?';
+      const recvE = recvIdx !== undefined ? PLAYER_EMOJIS[recvIdx] : '';
+      const recvN = recvIdx !== undefined ? PLAYER_NAMES[recvIdx] : 'the bank';
+      return { text: `\uD83D\uDCB0 ${payerE} ${payerN} paid $${e.amount} rent to ${recvE} ${recvN}`, color: '#FF9100' };
     }
     case 'taxPaid':
       return { text: `\uD83D\uDCB8 ${emoji} ${n} paid $${e.amount} in taxes`, color: '#EF5350' };
     case 'cardDrawn':
-      return { text: `\uD83C\uDCCF ${emoji} ${n} drew a ${e.cardType || 'card'}: ${e.description || 'Unknown'}`, color: '#AB47BC' };
+      return { text: `\uD83C\uDCCF ${emoji} ${n} drew a ${e.deck || e.cardType || 'card'}: ${e.description || 'Unknown'}`, color: '#AB47BC' };
     case 'sentToJail':
       return { text: `\uD83D\uDEA8 ${emoji} ${n} was sent to JAIL!`, color: '#EF5350' };
     case 'freedFromJail':
@@ -154,10 +158,12 @@ function WatchPage() {
     for (const ev of evts) {
       const mm = MOOD_MAP[ev.type];
       if (!mm) continue;
-      if (ev.player !== undefined) {
+      if (ev.player !== undefined || ev.from !== undefined) {
         if (ev.type === 'rentPaid') {
-          if (mm.payer) newMoods[ev.player] = mm.payer;
-          if (mm.receiver && ev.toPlayer !== undefined) newMoods[ev.toPlayer] = mm.receiver;
+          const payer = ev.from ?? ev.player;
+          const recv = ev.to ?? ev.toPlayer;
+          if (mm.payer && payer !== undefined) newMoods[payer] = mm.payer;
+          if (mm.receiver && recv !== undefined) newMoods[recv] = mm.receiver;
         } else {
           if (mm.self) newMoods[ev.player] = mm.self;
           if (mm.other) { for (let i = 0; i < 4; i++) { if (i !== ev.player) newMoods[i] = mm.other; } }
@@ -208,7 +214,7 @@ function WatchPage() {
         // Card display
         const cardEv = msg.events.find((e: GameEvent) => e.type === 'cardDrawn');
         if (cardEv) {
-          setActiveCard({ text: cardEv.description || 'Card drawn', type: cardEv.cardType === 'chance' ? 'chance' : 'community' });
+          setActiveCard({ text: cardEv.description || 'Card drawn', type: (cardEv.deck || cardEv.cardType) === 'chance' ? 'chance' : 'community' });
           setTimeout(() => setActiveCard(null), 3500);
         }
 
