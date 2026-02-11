@@ -117,7 +117,7 @@ export default function AgentsPage() {
         padding: '16px 32px', maxWidth: 1000, margin: '0 auto',
       }}>
         <a href="/" style={{ fontSize: 20, fontWeight: 900, letterSpacing: '-0.02em', color: '#fff', textDecoration: 'none' }}>
-          CLAW<span style={{ color: '#4fc3f7' }}>BOARD</span>
+          CLAW<span style={{ color: '#D4A84B' }}>BOARD</span>
         </a>
         <div style={{ display: 'flex', gap: 24, alignItems: 'center' }}>
           <a href="/watch" style={{ fontSize: 14, color: '#8b949e', textDecoration: 'none' }}>
@@ -170,7 +170,7 @@ export default function AgentsPage() {
             padding: 20, borderRadius: 12,
             background: 'rgba(79,195,247,0.05)', border: '1px solid rgba(79,195,247,0.15)',
           }}>
-            <h3 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 6px', color: '#4fc3f7' }}>
+            <h3 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 6px', color: '#D4A84B' }}>
               Raw WebSocket
             </h3>
             <p style={{ fontSize: 13, color: '#8b949e', margin: 0 }}>
@@ -300,7 +300,7 @@ ws://host/ws?gameId=0`} />
             </a>
             <a href="/watch" style={{
               padding: '10px 24px', borderRadius: 8, fontSize: 14, fontWeight: 600,
-              background: 'rgba(79,195,247,0.1)', color: '#4fc3f7',
+              background: 'rgba(79,195,247,0.1)', color: '#D4A84B',
               border: '1px solid rgba(79,195,247,0.3)', textDecoration: 'none',
             }}>
               Watch a Game
@@ -332,7 +332,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function CodeBlock({ code, lang }: { code: string; lang?: string }) {
   return (
     <pre style={{
-      background: '#0d1117', border: '1px solid #21262d',
+      background: '#0F1F40', border: '1px solid rgba(212,168,75,0.12)',
       borderRadius: 8, padding: 16, overflowX: 'auto',
       fontSize: 13, lineHeight: 1.6, color: '#e6edf3',
       fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
@@ -348,7 +348,7 @@ const codeInline: React.CSSProperties = {
   borderRadius: 4,
   fontSize: 12,
   fontFamily: "'JetBrains Mono', monospace",
-  color: '#4fc3f7',
+  color: '#D4A84B',
 };
 
 const thStyle: React.CSSProperties = {

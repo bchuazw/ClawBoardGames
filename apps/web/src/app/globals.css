@@ -10,20 +10,21 @@ html, body {
 }
 
 :root {
-  --bg-primary: #050510;
-  --bg-secondary: #0a0f1a;
-  --bg-card: rgba(13, 17, 23, 0.85);
-  --bg-card-solid: #0d1117;
-  --bg-card-hover: #161b22;
-  --border: rgba(33, 38, 45, 0.8);
-  --border-bright: rgba(79, 195, 247, 0.3);
-  --text-primary: #e6edf3;
-  --text-secondary: #8b949e;
-  --text-muted: #484f58;
-  --accent-cyan: #4fc3f7;
-  --accent-green: #00E676;
+  --bg-primary: #0C1B3A;
+  --bg-secondary: #0F1F40;
+  --bg-card: rgba(15, 31, 64, 0.8);
+  --bg-card-solid: #0F1F40;
+  --bg-card-hover: #152850;
+  --border: rgba(212, 168, 75, 0.1);
+  --border-bright: rgba(212, 168, 75, 0.3);
+  --text-primary: #e8e8e8;
+  --text-secondary: #8B9AB5;
+  --text-muted: #5A6B8A;
+  --accent-cyan: #00B8D4;
+  --accent-green: #76FF03;
   --accent-orange: #FF9100;
   --accent-red: #FF1744;
+  --accent-gold: #D4A84B;
   --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
 }
 
@@ -35,11 +36,11 @@ html, body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(79, 195, 247, 0.2);
+  background: rgba(212, 168, 75, 0.2);
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(79, 195, 247, 0.4);
+  background: rgba(212, 168, 75, 0.4);
 }
 
 /* Animations */
@@ -109,7 +110,7 @@ html, body {
 
 /* Selection */
 ::selection {
-  background: rgba(79, 195, 247, 0.3);
+  background: rgba(212, 168, 75, 0.3);
   color: #fff;
 }
 
@@ -118,5 +119,5 @@ a, button {
   transition: all 0.2s ease;
 }
 
-a { color: var(--accent-cyan); text-decoration: none; }
+a { color: var(--accent-gold); text-decoration: none; }
 a:hover { text-decoration: underline; }

@@ -122,8 +122,10 @@ export const GROUP_COLORS: Record<number, string> = {
 };
 
 // Player token colors (vibrant, distinct)
-export const PLAYER_COLORS = ['#00E5FF', '#00E676', '#FF9100', '#FF1744'];
-export const PLAYER_NAMES = ['Diamond', 'Crown', 'Ring', 'Crystal'];
+export const PLAYER_COLORS = ['#FF9100', '#E040FB', '#00B8D4', '#76FF03'];
+export const PLAYER_NAMES = ['Rex', 'Whiskers', 'Bruno', 'Fiona'];
+export const PLAYER_ANIMALS = ['dog', 'cat', 'bear', 'fox'] as const;
+export const PLAYER_EMOJIS = ['\u{1F415}', '\u{1F431}', '\u{1F43B}', '\u{1F98A}'];
 export const PLAYER_LABELS = ['P0', 'P1', 'P2', 'P3'];
 
 // Token positional offsets so 4 tokens on same tile don't overlap
