@@ -54,8 +54,11 @@ async function main() {
       to: agents[i].wallet.address,
       value: fundAmount,
     });
-    await tx.wait();
+    const receipt = await tx.wait();
+    if (!receipt) throw new Error(`Funding agent ${i} failed`);
+    await new Promise((r) => setTimeout(r, 1200)); // let nonce + balance propagate on RPC
     const bal = await provider.getBalance(agents[i].wallet.address);
+    if (bal < fundAmount) throw new Error(`Agent ${i} balance too low: ${ethers.formatEther(bal)} ETH`);
     console.log(`  Agent ${i} funded: ${ethers.formatEther(bal)} ETH`);
   }
 
@@ -103,9 +106,11 @@ async function main() {
     const tx = await agentSettlement.depositAndCommit(0, agents[i].secretHash, { value: entryFee });
     const receipt = await tx.wait();
     console.log(`  Agent ${i} deposited (tx: ${receipt!.hash.slice(0, 20)}...)`);
+    await new Promise((r) => setTimeout(r, 800)); // avoid nonce/ordering issues
   }
 
   game = await settlement.getGame(0);
+  if (Number(game.depositCount) !== 4) throw new Error(`Expected 4 deposits, got ${game.depositCount}`);
   console.log(`  Status: ${["PENDING", "DEPOSITING", "REVEALING", "STARTED", "SETTLED", "VOIDED"][Number(game.status)]}`);
   console.log(`  Deposits: ${game.depositCount}/4`);
 
@@ -163,14 +168,28 @@ async function main() {
       // Write checkpoint to chain at intervals (and always at game end)
       if (roundCount % CHECKPOINT_INTERVAL === 0 || snap.status === "ENDED") {
         const { playersPacked, propertiesPacked, metaPacked } = engine.packForCheckpoint();
-        try {
-          const cpTx = await settlement.checkpoint(0, roundCount, playersPacked, propertiesPacked, metaPacked);
-          await cpTx.wait();
+        const writeCheckpoint = async (retries = 2): Promise<boolean> => {
+          for (let r = 0; r <= retries; r++) {
+            try {
+              if (r > 0) await new Promise((resolve) => setTimeout(resolve, 2000)); // delay before retry
+              const cpTx = await settlement.checkpoint(0, roundCount, playersPacked, propertiesPacked, metaPacked);
+              await cpTx.wait();
+              await new Promise((resolve) => setTimeout(resolve, 1500)); // let nonce update before next tx
+              return true;
+            } catch (err: any) {
+              const msg = err.message?.slice(0, 60) ?? "";
+              if (r === retries) {
+                console.log(`  Round ${roundCount}: Checkpoint failed (${msg})`);
+                return false;
+              }
+            }
+          }
+          return false;
+        };
+        if (await writeCheckpoint()) {
           checkpointCount++;
           const aliveNames = snap.players.filter(p => p.alive).map(p => `P${p.index}($${p.cash})`);
           console.log(`  Round ${roundCount}: ${aliveNames.join(', ')} | Checkpoint #${checkpointCount}`);
-        } catch (err: any) {
-          console.log(`  Round ${roundCount}: Checkpoint failed (${err.message?.slice(0, 50)})`);
         }
       }
     }
@@ -196,7 +215,11 @@ async function main() {
   console.log(`  Settled (tx: ${settleReceipt!.hash.slice(0, 20)}...)`);
 
   game = await settlement.getGame(0);
-  console.log(`  Status: ${["PENDING", "DEPOSITING", "REVEALING", "STARTED", "SETTLED", "VOIDED"][Number(game.status)]}`);
+  const statusNames = ["PENDING", "DEPOSITING", "REVEALING", "STARTED", "SETTLED", "VOIDED"];
+  const statusIdx = Number(game.status);
+  if (statusIdx !== 4) throw new Error(`Expected status SETTLED (4), got ${statusIdx} (${statusNames[statusIdx]})`);
+  if ((game.winner as string).toLowerCase() !== winnerAddr.toLowerCase()) throw new Error(`Expected winner ${winnerAddr}, got ${game.winner}`);
+  console.log(`  Status: ${statusNames[statusIdx]}`);
   console.log(`  Winner: ${game.winner}`);
 
   // ========== Step 7: Winner Withdraws ==========

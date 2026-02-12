@@ -1,5 +1,6 @@
 // Board position data for 3D rendering
 // Maps Monopoly position (0-39) to 3D coordinates and tile metadata
+// Board scaled 1.2x for breathing room between corners and tiles
 
 export interface TileInfo {
   position: number;
@@ -12,55 +13,55 @@ export interface TileInfo {
 }
 
 // 3D coordinates for each board position [x, y, z]
-// Board is 10x10, centered at origin, y=0 is board surface
+// Board centered at origin, y=0 is board surface, 1.2-unit spacing
 export const BOARD_POSITIONS: [number, number, number][] = [
   // Bottom edge: Go (right) to Jail (left)
-  [5, 0, 5],     // 0:  Go
-  [4, 0, 5],     // 1:  Mediterranean
-  [3, 0, 5],     // 2:  Community Chest
-  [2, 0, 5],     // 3:  Baltic
-  [1, 0, 5],     // 4:  Income Tax
-  [0, 0, 5],     // 5:  Reading Railroad
-  [-1, 0, 5],    // 6:  Oriental
-  [-2, 0, 5],    // 7:  Chance
-  [-3, 0, 5],    // 8:  Vermont
-  [-4, 0, 5],    // 9:  Connecticut
-  [-5, 0, 5],    // 10: Jail
+  [6, 0, 6],       // 0:  Go
+  [4.8, 0, 6],     // 1:  Mediterranean
+  [3.6, 0, 6],     // 2:  Community Chest
+  [2.4, 0, 6],     // 3:  Baltic
+  [1.2, 0, 6],     // 4:  Income Tax
+  [0, 0, 6],       // 5:  Reading Railroad
+  [-1.2, 0, 6],    // 6:  Oriental
+  [-2.4, 0, 6],    // 7:  Chance
+  [-3.6, 0, 6],    // 8:  Vermont
+  [-4.8, 0, 6],    // 9:  Connecticut
+  [-6, 0, 6],      // 10: Jail
 
   // Left edge: bottom to top
-  [-5, 0, 4],    // 11: St. Charles
-  [-5, 0, 3],    // 12: Electric Company
-  [-5, 0, 2],    // 13: States
-  [-5, 0, 1],    // 14: Virginia
-  [-5, 0, 0],    // 15: Pennsylvania Railroad
-  [-5, 0, -1],   // 16: St. James
-  [-5, 0, -2],   // 17: Community Chest
-  [-5, 0, -3],   // 18: Tennessee
-  [-5, 0, -4],   // 19: New York
-  [-5, 0, -5],   // 20: Free Parking
+  [-6, 0, 4.8],    // 11: St. Charles
+  [-6, 0, 3.6],    // 12: Electric Company
+  [-6, 0, 2.4],    // 13: States
+  [-6, 0, 1.2],    // 14: Virginia
+  [-6, 0, 0],      // 15: Pennsylvania Railroad
+  [-6, 0, -1.2],   // 16: St. James
+  [-6, 0, -2.4],   // 17: Community Chest
+  [-6, 0, -3.6],   // 18: Tennessee
+  [-6, 0, -4.8],   // 19: New York
+  [-6, 0, -6],     // 20: Free Parking
 
   // Top edge: left to right
-  [-4, 0, -5],   // 21: Kentucky
-  [-3, 0, -5],   // 22: Chance
-  [-2, 0, -5],   // 23: Indiana
-  [-1, 0, -5],   // 24: Illinois
-  [0, 0, -5],    // 25: B&O Railroad
-  [1, 0, -5],    // 26: Atlantic
-  [2, 0, -5],    // 27: Ventnor
-  [3, 0, -5],    // 28: Water Works
-  [4, 0, -5],    // 29: Marvin Gardens
-  [5, 0, -5],    // 30: Go To Jail
+  [-4.8, 0, -6],   // 21: Kentucky
+  [-3.6, 0, -6],   // 22: Chance
+  [-2.4, 0, -6],   // 23: Indiana
+  [-1.2, 0, -6],   // 24: Illinois
+  [0, 0, -6],      // 25: B&O Railroad
+  [1.2, 0, -6],    // 26: Atlantic
+  [2.4, 0, -6],    // 27: Ventnor
+  [3.6, 0, -6],    // 28: Water Works
+  [4.8, 0, -6],    // 29: Marvin Gardens
+  [6, 0, -6],      // 30: Go To Jail
 
   // Right edge: top to bottom
-  [5, 0, -4],    // 31: Pacific
-  [5, 0, -3],    // 32: North Carolina
-  [5, 0, -2],    // 33: Community Chest
-  [5, 0, -1],    // 34: Pennsylvania Ave
-  [5, 0, 0],     // 35: Short Line Railroad
-  [5, 0, 1],     // 36: Chance
-  [5, 0, 2],     // 37: Park Place
-  [5, 0, 3],     // 38: Luxury Tax
-  [5, 0, 4],     // 39: Boardwalk
+  [6, 0, -4.8],    // 31: Pacific
+  [6, 0, -3.6],    // 32: North Carolina
+  [6, 0, -2.4],    // 33: Community Chest
+  [6, 0, -1.2],    // 34: Pennsylvania Ave
+  [6, 0, 0],       // 35: Short Line Railroad
+  [6, 0, 1.2],     // 36: Chance
+  [6, 0, 2.4],     // 37: Park Place
+  [6, 0, 3.6],     // 38: Luxury Tax
+  [6, 0, 4.8],     // 39: Boardwalk
 ];
 
 export const TILE_DATA: TileInfo[] = [
@@ -108,20 +109,19 @@ export const TILE_DATA: TileInfo[] = [
 
 // Property group colors
 export const GROUP_COLORS: Record<number, string> = {
-  0:  '#1a2a1a',  // Special (dark green, blends with board)
-  1:  '#8B4513',  // Brown
-  2:  '#4fc3f7',  // Light Blue
-  3:  '#E91E63',  // Pink
-  4:  '#FF9800',  // Orange
-  5:  '#f44336',  // Red
-  6:  '#FFEB3B',  // Yellow
-  7:  '#4CAF50',  // Green
-  8:  '#1565C0',  // Dark Blue
-  9:  '#78909C',  // Railroad (steel)
-  10: '#B0BEC5',  // Utility (silver)
+  0:  '#1a2a1a',
+  1:  '#8B4513',
+  2:  '#4fc3f7',
+  3:  '#E91E63',
+  4:  '#FF9800',
+  5:  '#f44336',
+  6:  '#FFEB3B',
+  7:  '#4CAF50',
+  8:  '#1565C0',
+  9:  '#78909C',
+  10: '#B0BEC5',
 };
 
-// Player token colors (vibrant, distinct)
 export const PLAYER_COLORS = ['#FF9100', '#E040FB', '#00B8D4', '#76FF03'];
 export const PLAYER_NAMES = ['Rex', 'Whiskers', 'Bruno', 'Fiona'];
 export const PLAYER_ANIMALS = ['dog', 'cat', 'bear', 'fox'] as const;
@@ -130,24 +130,31 @@ export const PLAYER_LABELS = ['P0', 'P1', 'P2', 'P3'];
 
 // Token positional offsets so 4 tokens on same tile don't overlap
 export const TOKEN_OFFSETS: [number, number, number][] = [
-  [-0.2, 0, -0.2],
-  [0.2, 0, -0.2],
-  [-0.2, 0, 0.2],
-  [0.2, 0, 0.2],
+  [-0.22, 0, -0.22],
+  [0.22, 0, -0.22],
+  [-0.22, 0, 0.22],
+  [0.22, 0, 0.22],
+];
+
+// Jail cell offset for players who are IN jail (relative to jail tile center)
+export const JAIL_CELL_OFFSETS: [number, number, number][] = [
+  [0.1, 0, 0.15],
+  [0.3, 0, 0.15],
+  [0.1, 0, 0.35],
+  [0.3, 0, 0.35],
 ];
 
 // Property index (0-27) to tile position (0-39) mapping
 export const PROPERTY_TO_TILE: number[] = [
-  1, 3, 5, 6, 8, 9,           // Brown + LightBlue + Reading RR
-  11, 12, 13, 14, 15,         // Pink + Electric + Penn RR
-  16, 18, 19,                  // Orange
-  21, 23, 24, 25,              // Red + B&O RR
-  26, 27, 28, 29,              // Yellow + Water Works
-  31, 32, 34, 35,              // Green + Short Line RR
-  37, 39,                      // Dark Blue
+  1, 3, 5, 6, 8, 9,
+  11, 12, 13, 14, 15,
+  16, 18, 19,
+  21, 23, 24, 25,
+  26, 27, 28, 29,
+  31, 32, 34, 35,
+  37, 39,
 ];
 
-// Get which edge a tile is on
 export function getTileEdge(position: number): 'bottom' | 'left' | 'top' | 'right' | 'corner' {
   if ([0, 10, 20, 30].includes(position)) return 'corner';
   if (position < 10) return 'bottom';
