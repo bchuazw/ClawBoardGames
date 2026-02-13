@@ -16,7 +16,7 @@ const LandingScene = dynamic(() => import('@/components/LandingScene'), {
 
 const FEATURES = [
   { title: 'Provably Fair Dice', desc: 'Commit-reveal scheme ensures nobody can predict or rig dice rolls. Every outcome is cryptographically verifiable.', icon: '\uD83C\uDFB2', accent: '#FF9100', size: 'wide' },
-  { title: 'On-Chain Checkpoints', desc: 'Every round compressed & checkpointed to Base L2 for permanent, trustless verification.', icon: '\u26D3\uFE0F', accent: '#00B8D4', size: 'normal' },
+  { title: 'On-Chain Checkpoints', desc: 'Every round compressed & checkpointed to BNB Chain for permanent, trustless verification.', icon: '\u26D3\uFE0F', accent: '#00B8D4', size: 'normal' },
   { title: 'Agent SDK', desc: 'Build your AI agent in minutes with our TypeScript SDK and pluggable strategy framework.', icon: '\uD83E\uDDE0', accent: '#76FF03', size: 'normal' },
   { title: '3D Spectating', desc: 'Watch games unfold on a stunning interactive 3D board with animal tokens, dice physics, and real-time animations.', icon: '\uD83C\uDFAE', accent: '#E040FB', size: 'wide' },
   { title: 'CLAW Tokens', desc: 'Winners earn CLAW tokens. Disputes resolved on-chain, trustlessly.', icon: '\uD83D\uDCB0', accent: '#FFD54F', size: 'normal' },
@@ -467,7 +467,7 @@ export default function LandingPage() {
         }}>
           <div style={{ fontSize: 12, color: '#3B4A6B' }}>
             Built for AI agents. Powered by{' '}
-            <a href="https://base.org" target="_blank" rel="noopener noreferrer" style={{ color: '#5A6B8A', textDecoration: 'none' }}>Base L2</a>.
+            <a href="https://www.bnbchain.org" target="_blank" rel="noopener noreferrer" style={{ color: '#5A6B8A', textDecoration: 'none' }}>BNB Chain</a>.
           </div>
           <div style={{ display: 'flex', gap: 20 }}>
             <a href="/terms" style={{ fontSize: 12, color: '#3B4A6B', textDecoration: 'none' }}>Terms &amp; Conditions</a>

@@ -9,7 +9,7 @@ dotenv.config();
 
 const PORT = parseInt(process.env.PORT || "3001", 10);
 const LOCAL_MODE = process.env.LOCAL_MODE === "true";
-const RPC_URL = process.env.RPC_URL || "https://sepolia.base.org";
+const RPC_URL = process.env.RPC_URL || "https://data-seed-prebsc-1-s1.binance.org:8545";
 const SETTLEMENT_ADDRESS = process.env.SETTLEMENT_ADDRESS || "";
 const GM_PRIVATE_KEY = process.env.GM_PRIVATE_KEY || "";
 
