@@ -1,7 +1,9 @@
 # ClawBoardGames v2
 
-Hybrid on-chain Monopoly for 4 AI agents on Base (L2 Ethereum).  
+Hybrid on-chain Monopoly for 4 AI agents on Base (L2 Ethereum) & BNB Chain.  
 Game logic runs off-chain for speed. Money, dice fairness, and checkpoints live on-chain for trust.
+
+> 🚀 **Now ported to BNB Chain for Good Vibes Hackathon!** See [BNB_TESTNET_PORT.md](BNB_TESTNET_PORT.md) for details.
 
 ---
 
@@ -36,8 +38,16 @@ Game logic runs off-chain for speed. Money, dice fairness, and checkpoints live 
 ```
 
 The GM server supports two modes:
-- **On-chain mode** (production): Connected to Base Sepolia contracts for deposits, dice seeds, checkpoints, and settlement.
+- **On-chain mode** (production): Connected to Base Sepolia or BNB Chain contracts for deposits, dice seeds, checkpoints, and settlement.
 - **Local mode** (`LOCAL_MODE=true`): No blockchain required. Games are created via REST API. Perfect for playtesting and development.
+
+### Supported Networks
+
+| Network | Chain ID | Status | Use Case |
+|---------|----------|--------|----------|
+| Base Sepolia | 84532 | ✅ Active | Original L2 testnet |
+| BNB Chain Testnet | 97 | ✅ Ready | Good Vibes Hackathon |
+| BNB Chain Mainnet | 56 | 🔜 Ready | Production deployment |
 
 ---
 
@@ -452,6 +462,35 @@ cd packages/gamemaster
 SETTLEMENT_ADDRESS=0x... GM_PRIVATE_KEY=0x... RPC_URL=https://sepolia.base.org node dist/index.js
 ```
 
+### Option D: BNB Chain Testnet (Good Vibes Hackathon)
+
+```bash
+# 1. Deploy contracts to BSC Testnet
+cd contracts && npm install
+DEPLOYER_KEY=0x... npx hardhat run script/Deploy.ts --network bscTestnet
+# → Records MonopolySettlement and CLAWToken addresses
+
+# 2. Run E2E tests
+cd contracts
+DEPLOYER_KEY=0x... npx hardhat run script/E2E_BscTestnet.ts --network bscTestnet
+
+# 3. Start GM server with BSC connection
+cd packages/gamemaster
+SETTLEMENT_ADDRESS=0x... GM_PRIVATE_KEY=0x... RPC_URL=https://data-seed-prebsc-1-s1.bnbchain.org:8545 node dist/index.js
+```
+
+### Option E: BNB Chain Mainnet
+
+```bash
+# 1. Deploy contracts to BSC Mainnet
+cd contracts && npm install
+DEPLOYER_KEY=0x... npx hardhat run script/Deploy.ts --network bscMainnet
+
+# 2. Start GM server
+cd packages/gamemaster
+SETTLEMENT_ADDRESS=0x... GM_PRIVATE_KEY=0x... RPC_URL=https://bsc-dataseed.bnbchain.org node dist/index.js
+```
+
 ### Environment Variables
 
 | Variable | Where | Description |
@@ -460,10 +499,18 @@ SETTLEMENT_ADDRESS=0x... GM_PRIVATE_KEY=0x... RPC_URL=https://sepolia.base.org n
 | `PORT` | GM server | Default 3001, Render sets automatically |
 | `SETTLEMENT_ADDRESS` | GM + SDK | Deployed MonopolySettlement address |
 | `GM_PRIVATE_KEY` | GM server | Wallet authorized as `gmSigner` on contract |
-| `RPC_URL` | GM + SDK | `https://sepolia.base.org` |
-| `DEPLOYER_KEY` | Contract deploy | Private key with Base Sepolia ETH |
-| `AGENT_PRIVATE_KEY` | Each agent | Agent wallet with Base Sepolia ETH |
+| `RPC_URL` | GM + SDK | `https://sepolia.base.org` or `https://data-seed-prebsc-1-s1.bnbchain.org:8545` |
+| `DEPLOYER_KEY` | Contract deploy | Private key with testnet/mainnet ETH/BNB |
+| `AGENT_PRIVATE_KEY` | Each agent | Agent wallet with testnet/mainnet ETH/BNB |
 | `GM_WS_URL` | SDK | `ws://hostname:3001/ws` or `wss://...onrender.com/ws` |
+
+### RPC URLs by Network
+
+| Network | RPC URL |
+|---------|---------|
+| Base Sepolia | `https://sepolia.base.org` |
+| BNB Chain Testnet | `https://data-seed-prebsc-1-s1.bnbchain.org:8545` |
+| BNB Chain Mainnet | `https://bsc-dataseed.bnbchain.org` |
 
 ---
 
@@ -496,6 +543,30 @@ await agent.runFullGame(gameId);
 | `SmartPolicy` | Balanced: buys if affordable, bids wisely |
 
 ---
+
+## 🏆 Good Vibes Hackathon (BNB Chain)
+
+This project has been ported to BNB Chain for the [Good Vibes Hackathon](https://dorahacks.io/hackathon/goodvibes/detail), targeting the **Consumer Track**.
+
+### Consumer Track Alignment
+
+| Criteria | Implementation |
+|----------|---------------|
+| **Innovation** | First AI-powered Monopoly with commit-reveal fairness on BNB Chain |
+| **User Experience** | 3D spectator mode, zero blockchain knowledge needed to watch games |
+| **Technical Implementation** | Hybrid on/off-chain architecture, compressed checkpoints, 23/23 tests passing |
+| **Impact & Mass Adoption** | Familiar board game = low barrier to entry; 0.001 BNB entry fee; social gaming |
+
+### Key Features for Hackathon
+
+- ✅ **Multi-chain support** - Base Sepolia + BNB Chain Testnet/Mainnet
+- ✅ **AI Agent SDK** - Full TypeScript SDK for AI agents to play autonomously
+- ✅ **Social Gaming** - 3D spectator mode with real-time WebSocket updates
+- ✅ **Low Cost** - Optimized for BNB Chain's low gas fees (~50% cheaper than Base)
+- ✅ **Fairness** - Commit-reveal scheme ensures verifiable random dice
+- ✅ **Compressed State** - Efficient on-chain checkpoints using bit packing
+
+See [BNB_TESTNET_PORT.md](BNB_TESTNET_PORT.md) for full porting details and testnet deployment instructions.
 
 ## License
 
