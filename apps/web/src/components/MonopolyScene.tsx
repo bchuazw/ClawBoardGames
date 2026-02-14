@@ -200,6 +200,98 @@ function TileHouses({ count, edge, color, tileW, tileD }: { count: number; edge:
   );
 }
 
+/* ---- 3D Treasure chest for Community Chest tiles ---- */
+function CommunityChest3D() {
+  return (
+    <group position={[0, 0.06, 0]} scale={[1.1, 1.1, 1.1]}>
+      {/* Chest body — rounded box */}
+      <mesh position={[0, 0.04, 0]}>
+        <boxGeometry args={[0.2, 0.08, 0.14]} />
+        <meshStandardMaterial color="#8D6E63" metalness={0.15} roughness={0.7} />
+      </mesh>
+      {/* Lid (arched) — two boxes to suggest open lid or closed chest */}
+      <mesh position={[0, 0.11, 0]} rotation={[0.15, 0, 0]}>
+        <boxGeometry args={[0.21, 0.03, 0.15]} />
+        <meshStandardMaterial color="#A1887F" metalness={0.1} roughness={0.75} />
+      </mesh>
+      {/* Lock / clasp */}
+      <mesh position={[0, 0.08, 0.07]}>
+        <boxGeometry args={[0.06, 0.03, 0.02]} />
+        <meshStandardMaterial color="#FFD700" metalness={0.85} roughness={0.2} emissive="#FFA000" emissiveIntensity={0.2} />
+      </mesh>
+      {/* Band straps */}
+      <mesh position={[0.08, 0.04, 0]}><boxGeometry args={[0.02, 0.08, 0.14]} /><meshStandardMaterial color="#5D4037" /></mesh>
+      <mesh position={[-0.08, 0.04, 0]}><boxGeometry args={[0.02, 0.08, 0.14]} /><meshStandardMaterial color="#5D4037" /></mesh>
+    </group>
+  );
+}
+
+/* ---- 3D Dice for Chance tiles ---- */
+function ChanceDice3D() {
+  return (
+    <group position={[0.12, 0.04, 0]} rotation={[0.2, 0.3, 0]}>
+      <mesh><boxGeometry args={[0.08, 0.08, 0.08]} /><meshStandardMaterial color="#FFF8E1" metalness={0.05} roughness={0.6} /></mesh>
+      <Text position={[0, 0, 0.041]} rotation={[0, 0, 0]} fontSize={0.045} color="#333" anchorX="center" anchorY="middle">?</Text>
+    </group>
+  );
+}
+
+/* ---- 3D Money bag for Tax tiles ---- */
+function TaxMoneyBag3D() {
+  return (
+    <group position={[0, 0.05, 0]}>
+      <mesh position={[0, 0.04, 0]} rotation={[0.1, 0, 0]}>
+        <sphereGeometry args={[0.08, 10, 10, 0, Math.PI * 2, 0, Math.PI * 0.7]} />
+        <meshStandardMaterial color="#8D6E63" metalness={0.05} roughness={0.8} />
+      </mesh>
+      <mesh position={[0, 0.09, 0.02]}><sphereGeometry args={[0.025, 8, 8]} /><meshStandardMaterial color="#5D4037" /></mesh>
+    </group>
+  );
+}
+
+/* ---- 3D Train for Railroad tiles ---- */
+function RailroadTrain3D() {
+  return (
+    <group position={[0, 0.08, 0]} scale={[0.9, 0.9, 0.9]}>
+      {/* Engine body */}
+      <mesh position={[0, 0.04, 0]}><boxGeometry args={[0.32, 0.08, 0.12]} /><meshStandardMaterial color="#37474F" metalness={0.5} roughness={0.4} /></mesh>
+      {/* Cabin */}
+      <mesh position={[0.08, 0.1, 0]}><boxGeometry args={[0.12, 0.06, 0.11]} /><meshStandardMaterial color="#455A64" metalness={0.4} roughness={0.45} /></mesh>
+      {/* Chimney */}
+      <mesh position={[-0.1, 0.12, 0]}><cylinderGeometry args={[0.02, 0.022, 0.06, 8]} /><meshStandardMaterial color="#263238" metalness={0.6} roughness={0.3} /></mesh>
+      {/* Wheels */}
+      {[[-0.12, 0.01, 0.065], [-0.12, 0.01, -0.065], [0.12, 0.01, 0.065], [0.12, 0.01, -0.065]].map(([x, y, z], i) => (
+        <mesh key={i} position={[x, y, z]} rotation={[Math.PI / 2, 0, 0]}><cylinderGeometry args={[0.028, 0.028, 0.02, 12]} /><meshStandardMaterial color="#212121" metalness={0.7} roughness={0.3} /></mesh>
+      ))}
+    </group>
+  );
+}
+
+/* ---- 3D Lightbulb for Electric Company ---- */
+function ElectricLightbulb3D() {
+  return (
+    <group position={[0, 0.08, 0]}>
+      <mesh position={[0, 0.04, 0]}><sphereGeometry args={[0.06, 12, 12]} /><meshStandardMaterial color="#FFF59D" emissive="#FFEB3B" emissiveIntensity={0.5} roughness={0.3} /></mesh>
+      <mesh position={[0, -0.02, 0]}><cylinderGeometry args={[0.018, 0.022, 0.04, 6]} /><meshStandardMaterial color="#E0E0E0" metalness={0.6} roughness={0.3} /></mesh>
+      <pointLight position={[0, 0.04, 0]} intensity={0.15} color="#FFEB3B" distance={0.8} />
+    </group>
+  );
+}
+
+/* ---- 3D Water tower / droplet for Water Works ---- */
+function WaterWorks3D() {
+  return (
+    <group position={[0, 0.09, 0]}>
+      {/* Tank */}
+      <mesh position={[0, 0.04, 0]}><cylinderGeometry args={[0.07, 0.065, 0.06, 12]} /><meshStandardMaterial color="#90CAF9" metalness={0.3} roughness={0.4} /></mesh>
+      {/* Stand */}
+      <mesh position={[0, -0.02, 0]}><cylinderGeometry args={[0.015, 0.02, 0.06, 6]} /><meshStandardMaterial color="#78909C" metalness={0.5} roughness={0.4} /></mesh>
+      {/* Droplet */}
+      <mesh position={[0.02, 0.09, 0.02]}><sphereGeometry args={[0.025, 8, 8]} /><meshStandardMaterial color="#64B5F6" metalness={0.2} roughness={0.3} /></mesh>
+    </group>
+  );
+}
+
 function BoardTile({ tile, position, ownerIndex, houseCount }: { tile: typeof TILE_DATA[0]; position: [number, number, number]; ownerIndex: number; houseCount: number }) {
   const gc = GROUP_COLORS[tile.group] || '#2E8B3C';
   const edge = getTileEdge(tile.position);
@@ -229,9 +321,15 @@ function BoardTile({ tile, position, ownerIndex, houseCount }: { tile: typeof TI
   const displayName = tile.name;
   const nameFontSize = tile.isCorner ? 0.082 : (tile.name.length > 16 ? 0.065 : 0.082);
 
+  // Distinct corner tile colors so the 4 corners stand out
+  const cornerTileColor = tile.isCorner
+    ? (tile.position === 0 ? '#1B5E20' : tile.position === 10 ? '#37474F' : tile.position === 20 ? '#F57F17' : '#B71C1C')
+    : null;
+  const tileBaseColor = cornerTileColor ?? '#F5EED6';
+
   return (
     <group position={pos}>
-      <mesh><boxGeometry args={[w, 0.06, d]} /><meshStandardMaterial color={tile.isCorner ? '#E8DCC8' : '#F5EED6'} metalness={0.04} roughness={0.8} /></mesh>
+      <mesh><boxGeometry args={[w, 0.06, d]} /><meshStandardMaterial color={tileBaseColor} metalness={tile.isCorner ? 0.2 : 0.04} roughness={0.8} /></mesh>
       {isProp && !tile.isCorner && (
         <mesh position={sPos}><boxGeometry args={[sW, 0.07, sD]} />
           <meshStandardMaterial color={gc} emissive={gc} emissiveIntensity={ownerIndex >= 0 ? 0.45 : 0.12} metalness={0.3} roughness={0.5} />
@@ -251,19 +349,29 @@ function BoardTile({ tile, position, ownerIndex, houseCount }: { tile: typeof TI
             <group position={[0, 0.04, 0]}>
               <mesh rotation={[-Math.PI / 2, 0, 0]}><boxGeometry args={[0.22, 0.3, 0.02]} /><meshStandardMaterial color="#FF9100" emissive="#FF9100" emissiveIntensity={0.15} /></mesh>
               <Text position={[0, 0.04, 0]} rotation={tRot} fontSize={0.17} color="#fff" anchorX="center" anchorY="middle" fontWeight={800}>?</Text>
+              <ChanceDice3D />
             </group>
           )}
           {tile.type === 'community' && (
-            <group position={[0, 0.05, 0]}>
-              <mesh><boxGeometry args={[0.18, 0.09, 0.14]} /><meshStandardMaterial color="#42A5F5" /></mesh>
-              <mesh position={[0, 0.055, 0]}><boxGeometry args={[0.2, 0.03, 0.16]} /><meshStandardMaterial color="#1E88E5" /></mesh>
-              <Text position={[0, 0.09, 0]} rotation={tRot} fontSize={0.05} color="#fff" anchorX="center" anchorY="middle">CHEST</Text>
+            <group position={[0, 0.02, 0]}>
+              <CommunityChest3D />
             </group>
           )}
           {tile.type === 'tax' && (
-            <group position={[0, 0.04, 0]}>
-              <mesh rotation={[-Math.PI / 2, 0, 0]}><circleGeometry args={[0.14, 12]} /><meshStandardMaterial color="#EF5350" emissive="#EF5350" emissiveIntensity={0.15} side={THREE.DoubleSide} /></mesh>
-              <Text position={[0, 0.04, 0]} rotation={tRot} fontSize={0.13} color="#fff" anchorX="center" anchorY="middle" fontWeight={800}>$</Text>
+            <group position={[0, 0.02, 0]}>
+              <mesh rotation={[-Math.PI / 2, 0, 0]}><circleGeometry args={[0.12, 12]} /><meshStandardMaterial color="#EF5350" emissive="#EF5350" emissiveIntensity={0.15} side={THREE.DoubleSide} /></mesh>
+              <Text position={[0, 0.02, 0]} rotation={tRot} fontSize={0.11} color="#fff" anchorX="center" anchorY="middle" fontWeight={800}>$</Text>
+              <TaxMoneyBag3D />
+            </group>
+          )}
+          {tile.type === 'railroad' && (
+            <group position={[0, 0, 0]}>
+              <RailroadTrain3D />
+            </group>
+          )}
+          {tile.type === 'utility' && (
+            <group position={[0, 0, 0]}>
+              {tile.position === 12 ? <ElectricLightbulb3D /> : <WaterWorks3D />}
             </group>
           )}
         </group>
