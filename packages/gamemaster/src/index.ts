@@ -82,7 +82,16 @@ app.get("/games/slots", async (_req, res) => {
       return res.json({ slots });
     }
     const open = await settlement!.getOpenGameIds();
-    const slots = open.map((id: number) => ({ id, status: "open" as const }));
+    const slots = await Promise.all(
+      open.map(async (id: number) => {
+        try {
+          const game = await settlement!.getGame(id);
+          return { id, status: "open" as const, playerCount: game.depositCount };
+        } catch {
+          return { id, status: "open" as const };
+        }
+      })
+    );
     res.json({ slots });
   } catch (err: any) {
     res.status(500).json({ error: err?.message || "Failed to get slots" });
