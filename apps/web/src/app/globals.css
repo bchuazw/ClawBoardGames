@@ -78,6 +78,10 @@ html, body {
   50% { background: #4caf50; }
 }
 
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 @keyframes float {
   0%, 100% { transform: translateY(0) scale(1); }
   50% { transform: translateY(-30px) scale(1.05); }

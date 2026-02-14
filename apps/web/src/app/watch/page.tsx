@@ -359,70 +359,94 @@ function WatchPage() {
           </div>
         )}
 
-        {/* Lobby picker overlay: board stays visible behind dimmed backdrop; centered card with lobby details */}
+        {/* Lobby picker overlay: lighter backdrop so board is visible; premium card with rich lobby details */}
         {!gameId && (
           <div style={{
             position: 'absolute', inset: 0, zIndex: 15, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-            background: 'rgba(12,27,58,0.75)', backdropFilter: 'blur(6px)', padding: 20,
+            background: 'linear-gradient(180deg, rgba(12,27,58,0.5) 0%, rgba(12,27,58,0.65) 100%)',
+            backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', padding: 24,
           }}>
             <div style={{
-              maxWidth: 560, width: '100%', padding: '28px 24px', borderRadius: 20,
-              background: 'linear-gradient(165deg, rgba(15,31,64,0.97) 0%, rgba(10,24,48,0.98) 100%)',
-              border: '1px solid rgba(212,168,75,0.25)', boxShadow: '0 24px 48px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.03)',
+              maxWidth: 600, width: '100%', padding: '32px 28px', borderRadius: 24,
+              background: 'linear-gradient(165deg, rgba(18,35,65,0.95) 0%, rgba(10,22,42,0.98) 100%)',
+              border: '1px solid rgba(212,168,75,0.35)',
+              boxShadow: '0 32px 64px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.04), 0 0 80px rgba(212,168,75,0.08)',
             }}>
-              <div style={{ textAlign: 'center', marginBottom: 8 }}>
-                <h1 style={{ fontSize: 'clamp(20px, 4vw, 26px)', color: '#fff', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 4 }}>Choose a lobby to spectate</h1>
-                <p style={{ fontSize: 14, color: 'var(--text-muted)' }}>10 lobbies are always open — pick one to watch the 3D board</p>
+              <div style={{ textAlign: 'center', marginBottom: 24 }}>
+                <div style={{ fontSize: 32, marginBottom: 8, lineHeight: 1 }}>🎮</div>
+                <h1 style={{
+                  fontSize: 'clamp(22px, 4.5vw, 28px)', fontWeight: 800, letterSpacing: '-0.03em', marginBottom: 8,
+                  background: 'linear-gradient(135deg, #fff 0%, #D4A84B 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
+                }}>
+                  Choose a lobby to spectate
+                </h1>
+                <p style={{ fontSize: 15, color: 'var(--text-secondary)', lineHeight: 1.5, maxWidth: 400, margin: '0 auto' }}>
+                  Pick a lobby below — the 3D Monopoly board will load as soon as you connect.
+                </p>
               </div>
               {lobbiesLoading ? (
-                <div style={{ textAlign: 'center', padding: 32, color: 'var(--text-muted)', fontSize: 14 }}>Loading lobbies...</div>
+                <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)', fontSize: 15 }}>
+                  <div style={{ display: 'inline-block', width: 32, height: 32, border: '3px solid rgba(212,168,75,0.3)', borderTopColor: '#D4A84B', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                  <div style={{ marginTop: 12 }}>Loading lobbies...</div>
+                </div>
               ) : (
                 <div className="watch-lobby-grid" style={{
-                  display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12, marginTop: 20,
+                  display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 14, marginTop: 24,
                 }}>
                   {slotsToShow.map((slot) => {
                     const isWaiting = slot.status === 'waiting';
                     const isActive = slot.status === 'active';
                     const count = 'playerCount' in slot ? (slot.playerCount ?? 0) : 0;
-                    const statusText = isActive ? 'LIVE' : isWaiting ? `Waiting ${count}/4` : 'Open';
-                    const statusColor = isActive ? '#2E7D32' : isWaiting ? '#FF9800' : '#00B8D4';
+                    const statusColor = isActive ? '#22c55e' : isWaiting ? '#f59e0b' : '#06b6d4';
+                    const statusLabel = isActive ? 'Live now' : isWaiting
+                      ? count === 0 ? 'No players yet' : count === 1 ? '1 player' : count === 2 ? '2 players' : count === 3 ? '3 — almost full!' : 'Full'
+                      : 'Open to join';
+                    const statusIcon = isActive ? '🔴' : isWaiting ? '👥' : '✨';
                     return (
                       <button
                         key={slot.id}
                         onClick={() => connectToLobby(slot.id)}
                         className="watch-lobby-card"
                         style={{
-                          padding: '16px 14px', borderRadius: 14, border: '1px solid rgba(212,168,75,0.2)',
-                          background: 'rgba(212,168,75,0.05)', color: '#fff', cursor: 'pointer', textAlign: 'center',
-                          fontFamily: 'var(--font-display)', transition: 'all 0.2s ease',
-                          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6,
-                          minHeight: 96,
+                          padding: '18px 14px', borderRadius: 16, border: `2px solid ${statusColor}40`,
+                          background: `linear-gradient(180deg, ${statusColor}12 0%, rgba(0,0,0,0.2) 100%)`,
+                          color: '#fff', cursor: 'pointer', textAlign: 'center',
+                          fontFamily: 'var(--font-display)', transition: 'all 0.25s cubic-bezier(0.4,0,0.2,1)',
+                          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8,
+                          minHeight: 110,
+                          position: 'relative' as const,
+                          overflow: 'hidden',
                         }}
                         onMouseEnter={(e) => {
-                          e.currentTarget.style.background = 'rgba(212,168,75,0.12)';
-                          e.currentTarget.style.borderColor = 'rgba(212,168,75,0.45)';
-                          e.currentTarget.style.transform = 'translateY(-2px)';
-                          e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.25)';
+                          e.currentTarget.style.transform = 'translateY(-4px) scale(1.02)';
+                          e.currentTarget.style.boxShadow = `0 12px 32px rgba(0,0,0,0.35), 0 0 24px ${statusColor}30`;
+                          e.currentTarget.style.borderColor = `${statusColor}99`;
                         }}
                         onMouseLeave={(e) => {
-                          e.currentTarget.style.background = 'rgba(212,168,75,0.05)';
-                          e.currentTarget.style.borderColor = 'rgba(212,168,75,0.2)';
-                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.transform = 'translateY(0) scale(1)';
                           e.currentTarget.style.boxShadow = 'none';
+                          e.currentTarget.style.borderColor = `${statusColor}40`;
                         }}
                       >
-                        <span style={{ fontSize: 15, fontWeight: 800, color: '#D4A84B' }}>Lobby {slot.id}</span>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: statusColor, padding: '2px 8px', borderRadius: 6, background: `${statusColor}22` }}>
-                          {statusText}
+                        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: 0.5 }}>LOBBY {slot.id}</span>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: statusColor, display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <span>{statusIcon}</span>
+                          <span>{statusLabel}</span>
                         </span>
-                        <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Spectate</span>
+                        <span style={{
+                          marginTop: 4, padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 800,
+                          background: 'linear-gradient(135deg, #D4A84B 0%, #b8860b 100%)', color: '#0C1B3A',
+                          boxShadow: '0 2px 8px rgba(212,168,75,0.4)',
+                        }}>
+                          Watch
+                        </span>
                       </button>
                     );
                   })}
                 </div>
               )}
-              <p style={{ marginTop: 20, fontSize: 11, color: 'var(--text-muted-soft)', textAlign: 'center' }}>
-                Or add ?gameId=5 to the URL to watch a specific game
+              <p style={{ marginTop: 24, fontSize: 12, color: 'var(--text-muted-soft)', textAlign: 'center' }}>
+                Or add <code style={{ background: 'rgba(255,255,255,0.08)', padding: '2px 6px', borderRadius: 4 }}>?gameId=5</code> to the URL
               </p>
             </div>
           </div>
@@ -520,10 +544,25 @@ function WatchPage() {
         ))}
 
         {/* Event log — human-readable */}
-        <div style={{ borderRadius: 10, padding: '8px 12px', flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', minHeight: 80 }}>
-          <div style={{ fontSize: 10, fontWeight: 800, color: '#4A5568', marginBottom: 4, letterSpacing: 1.5 }}>GAME LOG</div>
+        <div style={{ borderRadius: 12, padding: '12px 14px', flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(212,168,75,0.1)', minHeight: 80 }}>
+          <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-muted)', marginBottom: 8, letterSpacing: 1.2 }}>GAME LOG</div>
           <div style={{ flex: 1, overflowY: 'auto', fontSize: 11 }}>
-            {events.length === 0 && <div style={{ color: '#3B4A6B', padding: 12, textAlign: 'center' }}>{connected ? 'Waiting for events...' : 'Connect to spectate'}</div>}
+            {events.length === 0 && (
+              <div style={{
+                color: 'var(--text-muted)', padding: 20, textAlign: 'center', fontSize: 12, lineHeight: 1.6,
+                background: 'rgba(212,168,75,0.04)', borderRadius: 8, border: '1px dashed rgba(212,168,75,0.15)',
+              }}>
+                {connected ? (
+                  <>Waiting for game events…</>
+                ) : (
+                  <>
+                    <div style={{ fontSize: 24, marginBottom: 8 }}>👀</div>
+                    <div style={{ fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4 }}>Pick a lobby to watch</div>
+                    <div>Events will stream here once you’re connected.</div>
+                  </>
+                )}
+              </div>
+            )}
             {events.slice(-50).map((e, i) => {
               const h = humanEvent(e);
               if (!h.text) return null; // skip minor events
