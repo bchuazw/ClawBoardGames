@@ -345,6 +345,180 @@ describe("MonopolyEngine", () => {
     });
   });
 
+  describe("houses", () => {
+    /**
+     * Helper: set up a monopoly for player 0 on group 1 (Brown: Mediterranean + Baltic, propertyIndex 0 & 1).
+     * Returns engine in POST_TURN phase with player 0 as current.
+     */
+    function setupMonopoly(): MonopolyEngine {
+      const engine = new MonopolyEngine(PLAYERS, SEED);
+      // Give player 0 both brown properties
+      engine.state.properties[0].owner = 0; // Mediterranean Ave
+      engine.state.properties[1].owner = 0; // Baltic Ave
+      engine.state.players[0].cash = 1500;
+      engine.state.phase = Phase.POST_TURN;
+      engine.state.currentPlayerIndex = 0;
+      return engine;
+    }
+
+    it("should allow building a house on a monopoly and increase rent", () => {
+      const engine = setupMonopoly();
+      const actions = engine.getLegalActions();
+      const buildMed = actions.find(a => a.type === "buildHouse" && a.propertyIndex === 0);
+      expect(buildMed).toBeDefined();
+
+      // Build one house on Mediterranean (houseCost $50)
+      const events = engine.executeAction({ type: "buildHouse", propertyIndex: 0 });
+      expect(events.some(e => e.type === "houseBuilt" && e.propertyIndex === 0 && e.newCount === 1)).toBe(true);
+      expect(engine.state.properties[0].houses).toBe(1);
+      expect(engine.state.players[0].cash).toBe(1500 - 50);
+
+      // Rent should now be rentWithHouses[0] = $10 (was $2 base, $4 monopoly)
+      const tile = PROPERTY_TILES[0]; // Mediterranean
+      const rent = engine["calculateRent"](tile, engine.state.properties[0]);
+      expect(rent).toBe(10);
+    });
+
+    it("should decrease rent after selling a house", () => {
+      const engine = setupMonopoly();
+      // Build one house, then sell it
+      engine.executeAction({ type: "buildHouse", propertyIndex: 0 });
+      expect(engine.state.properties[0].houses).toBe(1);
+
+      engine.executeAction({ type: "sellHouse", propertyIndex: 0 });
+      expect(engine.state.properties[0].houses).toBe(0);
+      // Sell refund = floor(50 / 2) = 25
+      expect(engine.state.players[0].cash).toBe(1500 - 50 + 25);
+
+      // Rent back to monopoly double: 2 * 2 = 4
+      const tile = PROPERTY_TILES[0];
+      const rent = engine["calculateRent"](tile, engine.state.properties[0]);
+      expect(rent).toBe(4);
+    });
+
+    it("should enforce even-build rule", () => {
+      const engine = setupMonopoly();
+      // Build one house on Mediterranean (prop 0)
+      engine.executeAction({ type: "buildHouse", propertyIndex: 0 });
+      expect(engine.state.properties[0].houses).toBe(1);
+
+      // Cannot build second on Mediterranean until Baltic (prop 1) also has 1
+      const actions2 = engine.getLegalActions();
+      const buildMed2 = actions2.find(a => a.type === "buildHouse" && a.propertyIndex === 0);
+      expect(buildMed2).toBeUndefined();
+
+      // But CAN build on Baltic
+      const buildBal = actions2.find(a => a.type === "buildHouse" && a.propertyIndex === 1);
+      expect(buildBal).toBeDefined();
+
+      // Build on Baltic to equalize
+      engine.executeAction({ type: "buildHouse", propertyIndex: 1 });
+      expect(engine.state.properties[1].houses).toBe(1);
+
+      // Now can build second on either
+      const actions3 = engine.getLegalActions();
+      expect(actions3.some(a => a.type === "buildHouse" && a.propertyIndex === 0)).toBe(true);
+      expect(actions3.some(a => a.type === "buildHouse" && a.propertyIndex === 1)).toBe(true);
+    });
+
+    it("should enforce even-sell rule", () => {
+      const engine = setupMonopoly();
+      // Build 2 houses on Mediterranean, 1 on Baltic
+      engine.executeAction({ type: "buildHouse", propertyIndex: 0 });
+      engine.executeAction({ type: "buildHouse", propertyIndex: 1 });
+      engine.executeAction({ type: "buildHouse", propertyIndex: 0 });
+      expect(engine.state.properties[0].houses).toBe(2);
+      expect(engine.state.properties[1].houses).toBe(1);
+
+      // Can sell from Mediterranean (2 houses, Baltic has 1) — allowed since no other in group has more
+      const actions = engine.getLegalActions();
+      expect(actions.some(a => a.type === "sellHouse" && a.propertyIndex === 0)).toBe(true);
+
+      // Cannot sell from Baltic (1 house) — Mediterranean has 2, which is > 1
+      expect(actions.some(a => a.type === "sellHouse" && a.propertyIndex === 1)).toBe(false);
+    });
+
+    it("should block mortgage when property has houses", () => {
+      const engine = setupMonopoly();
+      engine.executeAction({ type: "buildHouse", propertyIndex: 0 });
+      engine.executeAction({ type: "buildHouse", propertyIndex: 1 });
+
+      const actions = engine.getLegalActions();
+      // Mortgage should NOT be available for properties with houses
+      expect(actions.some(a => a.type === "mortgageProperty" && a.propertyIndex === 0)).toBe(false);
+      expect(actions.some(a => a.type === "mortgageProperty" && a.propertyIndex === 1)).toBe(false);
+
+      // Direct handleMortgage should also throw
+      expect(() => engine.executeAction({ type: "mortgageProperty", propertyIndex: 0 })).toThrow("Sell all houses before mortgaging");
+    });
+
+    it("should not allow building with insufficient cash", () => {
+      const engine = setupMonopoly();
+      engine.state.players[0].cash = 30; // less than $50 houseCost
+      const actions = engine.getLegalActions();
+      expect(actions.some(a => a.type === "buildHouse")).toBe(false);
+    });
+
+    it("should not allow building on another player's property", () => {
+      const engine = setupMonopoly();
+      // Give prop 0 to player 1
+      engine.state.properties[0].owner = 1;
+      const actions = engine.getLegalActions();
+      // Player 0 cannot build on prop 0 (owned by player 1)
+      expect(actions.some(a => a.type === "buildHouse" && a.propertyIndex === 0)).toBe(false);
+    });
+
+    it("should not allow building without a monopoly", () => {
+      const engine = new MonopolyEngine(PLAYERS, SEED);
+      // Give only one brown property to player 0
+      engine.state.properties[0].owner = 0;
+      engine.state.phase = Phase.POST_TURN;
+      engine.state.currentPlayerIndex = 0;
+
+      const actions = engine.getLegalActions();
+      expect(actions.some(a => a.type === "buildHouse")).toBe(false);
+    });
+
+    it("should cap houses at 4", () => {
+      const engine = setupMonopoly();
+      engine.state.players[0].cash = 5000;
+      // Build 4 houses on each
+      for (let h = 0; h < 4; h++) {
+        engine.executeAction({ type: "buildHouse", propertyIndex: 0 });
+        engine.executeAction({ type: "buildHouse", propertyIndex: 1 });
+      }
+      expect(engine.state.properties[0].houses).toBe(4);
+      expect(engine.state.properties[1].houses).toBe(4);
+
+      // Cannot build 5th
+      const actions = engine.getLegalActions();
+      expect(actions.some(a => a.type === "buildHouse")).toBe(false);
+    });
+
+    it("recovery from checkpoint should reset houses to 0", () => {
+      const engine = setupMonopoly();
+      engine.executeAction({ type: "buildHouse", propertyIndex: 0 });
+      engine.executeAction({ type: "buildHouse", propertyIndex: 1 });
+      expect(engine.state.properties[0].houses).toBe(1);
+
+      const { playersPacked, propertiesPacked, metaPacked } = engine.packForCheckpoint();
+      const restored = MonopolyEngine.fromCheckpoint(PLAYERS, SEED, playersPacked, propertiesPacked, metaPacked);
+
+      // Houses should be 0 after recovery (not persisted in checkpoint)
+      for (const prop of restored.state.properties) {
+        expect(prop.houses).toBe(0);
+      }
+    });
+
+    it("snapshot should include houses", () => {
+      const engine = setupMonopoly();
+      engine.executeAction({ type: "buildHouse", propertyIndex: 0 });
+      const snap = engine.getSnapshot();
+      expect(snap.properties[0].houses).toBe(1);
+      expect(snap.properties[1].houses).toBe(0);
+    });
+  });
+
   it("should complete a full game (simulation)", () => {
     let gamesCompleted = 0;
     const totalGames = 100;

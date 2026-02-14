@@ -14,7 +14,7 @@ import {
 /*  Types                                                            */
 /* ================================================================ */
 interface PlayerInfo { index: number; address: string; cash: number; position: number; tileName: string; inJail: boolean; jailTurns: number; alive: boolean; }
-interface PropertyInfo { index: number; tileName: string; ownerIndex: number; mortgaged: boolean; }
+interface PropertyInfo { index: number; tileName: string; ownerIndex: number; mortgaged: boolean; houses: number; }
 export interface Snapshot {
   status: string; phase: string; turn: number; round: number;
   currentPlayerIndex: number; aliveCount: number;
@@ -35,7 +35,7 @@ TILE_DATA.forEach(t => { TILE_NAMES[t.position] = t.name; });
 /* ================================================================ */
 /*  BOARD  (scaled 1.2x — all dims proportional)                     */
 /* ================================================================ */
-function GameBoard({ propertyOwners }: { propertyOwners: Record<number, number> }) {
+function GameBoard({ propertyOwners, propertyHouses }: { propertyOwners: Record<number, number>; propertyHouses?: Record<number, number> }) {
   return (
     <group>
       {/* Thick board body */}
@@ -69,7 +69,7 @@ function GameBoard({ propertyOwners }: { propertyOwners: Record<number, number> 
 
       <NeonBorder />
       {TILE_DATA.map((tile, i) => (
-        <BoardTile key={i} tile={tile} position={BOARD_POSITIONS[i]} ownerIndex={propertyOwners[tile.position] ?? -1} />
+        <BoardTile key={i} tile={tile} position={BOARD_POSITIONS[i]} ownerIndex={propertyOwners[tile.position] ?? -1} houseCount={propertyHouses?.[tile.position] ?? 0} />
       ))}
       <BoardCenter />
       <BoardDecorations />
@@ -162,7 +162,45 @@ function PLine({ pts, color, opacity }: { pts: THREE.Vector3[]; color: string; o
 /* ---------------------------------------------------------------- */
 /*  TILES                                                            */
 /* ---------------------------------------------------------------- */
-function BoardTile({ tile, position, ownerIndex }: { tile: typeof TILE_DATA[0]; position: [number, number, number]; ownerIndex: number }) {
+/* ---- 3D HOUSE MODEL: small house (box body + pyramid roof) ---- */
+function House3D({ position, color }: { position: [number, number, number]; color: string }) {
+  return (
+    <group position={position} scale={[0.8, 0.8, 0.8]}>
+      {/* Body */}
+      <mesh position={[0, 0.045, 0]}>
+        <boxGeometry args={[0.07, 0.09, 0.07]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.25} metalness={0.15} roughness={0.6} />
+      </mesh>
+      {/* Roof */}
+      <mesh position={[0, 0.11, 0]} rotation={[0, Math.PI / 4, 0]}>
+        <coneGeometry args={[0.06, 0.06, 4]} />
+        <meshStandardMaterial color="#8B4513" metalness={0.2} roughness={0.5} />
+      </mesh>
+    </group>
+  );
+}
+
+/** Place 1–4 3D houses on a tile. Positions are offset from tile center toward the inner edge (color strip side). */
+function TileHouses({ count, edge, color, tileW, tileD }: { count: number; edge: string; color: string; tileW: number; tileD: number }) {
+  if (count <= 0) return null;
+  // Compute the offset direction (toward the color strip, which is the outer edge of the board)
+  const spacing = 0.12;
+  const positions: [number, number, number][] = [];
+  for (let i = 0; i < count; i++) {
+    const off = (i - (count - 1) / 2) * spacing;
+    if (edge === 'bottom') positions.push([off, 0.08, -tileD * 0.2]);
+    else if (edge === 'top') positions.push([off, 0.08, tileD * 0.2]);
+    else if (edge === 'left') positions.push([tileW * 0.2, 0.08, off]);
+    else if (edge === 'right') positions.push([-tileW * 0.2, 0.08, off]);
+  }
+  return (
+    <>
+      {positions.map((p, i) => <House3D key={i} position={p} color={color} />)}
+    </>
+  );
+}
+
+function BoardTile({ tile, position, ownerIndex, houseCount }: { tile: typeof TILE_DATA[0]; position: [number, number, number]; ownerIndex: number; houseCount: number }) {
   const gc = GROUP_COLORS[tile.group] || '#2E8B3C';
   const edge = getTileEdge(tile.position);
   const isProp = tile.group > 0;
@@ -237,6 +275,10 @@ function BoardTile({ tile, position, ownerIndex }: { tile: typeof TILE_DATA[0]; 
           ]}
           color={PLAYER_COLORS[ownerIndex]}
         />
+      )}
+      {/* 3D houses on color-group tiles */}
+      {isProp && !tile.isCorner && houseCount > 0 && tile.group >= 1 && tile.group <= 8 && (
+        <TileHouses count={houseCount} edge={edge} color={gc} tileW={w} tileD={d} />
       )}
     </group>
   );
@@ -821,6 +863,17 @@ function Scene({ snapshot, latestEvents, activeCard }: { snapshot: Snapshot | nu
     return o;
   }, [snapshot]);
 
+  const propertyHouses = useMemo(() => {
+    const h: Record<number, number> = {};
+    if (!snapshot) return h;
+    for (const p of snapshot.properties) {
+      if ((p.houses ?? 0) > 0 && p.index < PROPERTY_TO_TILE.length) {
+        h[PROPERTY_TO_TILE[p.index]] = p.houses;
+      }
+    }
+    return h;
+  }, [snapshot]);
+
   useEffect(() => {
     if (!snapshot || !latestEvents.length) return;
     // Delay for rent/tax FX until after dice animation + piece lands (match AnimatedToken timing).
@@ -908,7 +961,7 @@ function Scene({ snapshot, latestEvents, activeCard }: { snapshot: Snapshot | nu
       <Sparkles count={250} scale={32} size={4} color="#FFD54F" speed={0.3} opacity={0.25} />
       <Sparkles count={120} scale={26} size={3} color="#4FC3F7" speed={0.2} opacity={0.15} />
 
-      <GameBoard propertyOwners={owners} />
+      <GameBoard propertyOwners={owners} propertyHouses={propertyHouses} />
 
       {snapshot?.players.map((p, i) => (
         <AnimatedToken key={i} pi={i} pos={p.position} color={PLAYER_COLORS[i]} active={i === snapshot.currentPlayerIndex} alive={p.alive} inJail={p.inJail} />

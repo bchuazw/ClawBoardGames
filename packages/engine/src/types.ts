@@ -70,6 +70,7 @@ export interface PropertyState {
   index: number; // 0..27
   owner: number; // player index, or -1 if unowned
   mortgaged: boolean;
+  houses: number; // 0–4 (color properties only; always 0 for railroads/utilities)
 }
 
 export interface AuctionState {
@@ -121,7 +122,9 @@ export type GameAction =
   | { type: "passBid" }
   | { type: "endTurn" }
   | { type: "mortgageProperty"; propertyIndex: number }
-  | { type: "unmortgageProperty"; propertyIndex: number };
+  | { type: "unmortgageProperty"; propertyIndex: number }
+  | { type: "buildHouse"; propertyIndex: number }
+  | { type: "sellHouse"; propertyIndex: number };
 
 // ========== EVENTS ==========
 
@@ -148,6 +151,8 @@ export type GameEvent =
   | { type: "propertyUnmortgaged"; player: number; propertyIndex: number; cost: number }
   | { type: "autoMortgage"; player: number; propertyIndex: number; value: number }
   | { type: "playerBankrupt"; player: number; creditor: number }
+  | { type: "houseBuilt"; player: number; propertyIndex: number; newCount: number }
+  | { type: "houseSold"; player: number; propertyIndex: number; newCount: number }
   | { type: "turnEnded"; player: number }
   | { type: "gameEnded"; winner: number };
 
@@ -173,6 +178,7 @@ export interface GameSnapshot {
     tileName: string;
     ownerIndex: number;
     mortgaged: boolean;
+    houses: number;
   }>;
   lastDice: DiceRoll | null;
   auction: {

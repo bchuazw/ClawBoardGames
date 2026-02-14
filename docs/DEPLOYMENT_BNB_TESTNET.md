@@ -72,6 +72,13 @@ For on-chain BNB Testnet play, use:
 
 - `scripts/bsc-testnet-wallet.json` — deployer wallet (address + private key). Used by `deploy-and-setup-bsc-testnet.js` and for Render `GM_PRIVATE_KEY`.
 - `scripts/bsc-testnet-deploy-state.json` — written by deploy script; settlement address, RPC URL, deployer address, open game count.
+- `scripts/testnet-4agent-wallets.json` — **4 agent wallets for E2E (Phase 2–5.4).** Keep for re-testing; do not regenerate. Fund with `npm run fund-wallets:4agent` when needed.
+
+### E2E test run (2026-02-14) — game terminated, re-test later
+
+- **Game used:** gameId `0` (4 agents deposited, revealed, connected; E2E script was stopped before game end).
+- **Terminate:** The in-progress E2E was terminated. Game 0 remains **STARTED** on-chain until the GM settles it (game finishes) or 24h passes and anyone can call `emergencyVoid(0)` to refund players. Slot 0 may still appear as "active" in the lobby until then.
+- **Next test:** Use the **same 4 wallets** from `testnet-4agent-wallets.json`. Run `GET /games/open` and pick a **different** gameId that is still open (e.g. 1–9), or wait until slot 0 is settled/voided. Then run `npm run e2e:testnet-phase5`.
 
 ---
 

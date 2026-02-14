@@ -23,6 +23,10 @@ export class AggressivePolicy implements AgentPolicy {
     const payJail = legalActions.find(a => a.type === "payJailFee");
     if (payJail) return payJail;
 
+    // Build houses aggressively — always build if we can
+    const buildHouse = legalActions.find(a => a.type === "buildHouse");
+    if (buildHouse) return buildHouse;
+
     // End turn
     const endTurn = legalActions.find(a => a.type === "endTurn");
     if (endTurn) return endTurn;
@@ -71,6 +75,12 @@ export class ConservativePolicy implements AgentPolicy {
     const rollInJail = legalActions.find(a => a.type === "rollDice");
     if (rollInJail) return rollInJail;
 
+    // Sell houses if cash is low (< 150) to stay safe
+    if (myPlayer && myPlayer.cash < 150) {
+      const sellHouse = legalActions.find(a => a.type === "sellHouse");
+      if (sellHouse) return sellHouse;
+    }
+
     // End turn
     const endTurn = legalActions.find(a => a.type === "endTurn");
     if (endTurn) return endTurn;
@@ -112,6 +122,18 @@ export class SmartPolicy implements AgentPolicy {
     // Roll dice
     const roll = legalActions.find(a => a.type === "rollDice");
     if (roll) return roll;
+
+    // Build houses when we have good cash reserves (> 400)
+    if (myCash > 400) {
+      const buildHouse = legalActions.find(a => a.type === "buildHouse");
+      if (buildHouse) return buildHouse;
+    }
+
+    // Sell houses if cash is low (< 150) before mortgaging
+    if (myCash < 150) {
+      const sellHouse = legalActions.find(a => a.type === "sellHouse");
+      if (sellHouse) return sellHouse;
+    }
 
     // Mortgage if we're low on cash (< 100)
     if (myCash < 100) {

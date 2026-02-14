@@ -46,7 +46,7 @@ export class MonopolyEngine {
     // Initialize property states
     const properties: PropertyState[] = [];
     for (let i = 0; i < PROPERTY_TILES.length; i++) {
-      properties.push({ index: i, owner: -1, mortgaged: false });
+      properties.push({ index: i, owner: -1, mortgaged: false, houses: 0 });
     }
 
     // Initialize auction
@@ -132,13 +132,25 @@ export class MonopolyEngine {
         // Allow mortgage/unmortgage before ending turn
         for (const prop of this.state.properties) {
           if (prop.owner === player.index && !prop.mortgaged) {
-            actions.push({ type: "mortgageProperty", propertyIndex: prop.index });
+            // Can only mortgage if no houses on this property
+            if (prop.houses === 0) {
+              actions.push({ type: "mortgageProperty", propertyIndex: prop.index });
+            }
           }
           if (prop.owner === player.index && prop.mortgaged) {
             const tile = PROPERTY_TILES[prop.index];
             const cost = Math.floor(tile.mortgageValue * 1.1);
             if (player.cash >= cost) {
               actions.push({ type: "unmortgageProperty", propertyIndex: prop.index });
+            }
+          }
+          // Build/sell house actions
+          if (prop.owner === player.index) {
+            if (this.canBuildHouseOn(prop.index)) {
+              actions.push({ type: "buildHouse", propertyIndex: prop.index });
+            }
+            if (this.canSellHouseOn(prop.index)) {
+              actions.push({ type: "sellHouse", propertyIndex: prop.index });
             }
           }
         }
@@ -192,6 +204,12 @@ export class MonopolyEngine {
       case "unmortgageProperty":
         this.handleUnmortgage(player, action.propertyIndex);
         break;
+      case "buildHouse":
+        this.handleBuildHouse(player, action.propertyIndex);
+        break;
+      case "sellHouse":
+        this.handleSellHouse(player, action.propertyIndex);
+        break;
       default:
         throw new Error(`Unknown action: ${(action as any).type}`);
     }
@@ -225,6 +243,7 @@ export class MonopolyEngine {
         tileName: PROPERTY_TILES[p.index].name,
         ownerIndex: p.owner,
         mortgaged: p.mortgaged,
+        houses: p.houses,
       })),
       lastDice: this.state.lastDice,
       auction: this.state.auction.active ? {
@@ -273,6 +292,19 @@ export class MonopolyEngine {
       if (declineAction) return this.executeAction(declineAction);
     }
 
+    // Build houses if we have cash to spare (> 300)
+    const player = this.currentPlayer();
+    if (player && player.cash > 300) {
+      const buildAction = actions.find(a => a.type === "buildHouse");
+      if (buildAction) return this.executeAction(buildAction);
+    }
+
+    // Sell houses if cash is very low (< 100) to avoid bankruptcy
+    if (player && player.cash < 100) {
+      const sellAction = actions.find(a => a.type === "sellHouse");
+      if (sellAction) return this.executeAction(sellAction);
+    }
+
     // Priority-based for other actions
     const priority = ["endTurn", "rollDice", "declineBuy", "payJailFee"];
     for (const p of priority) {
@@ -289,6 +321,9 @@ export class MonopolyEngine {
   /**
    * Pack entire state into a compact form for on-chain checkpoint.
    * Returns { playersPacked, propertiesPacked, metaPacked } as bigints.
+   *
+   * NOTE: Houses are NOT persisted in the checkpoint (no contract change in v1).
+   * Recovery from checkpoint resets all properties to 0 houses.
    */
   packForCheckpoint(): { playersPacked: bigint; propertiesPacked: bigint; metaPacked: bigint } {
     // playersPacked: 4 players * 64 bits each = 256 bits
@@ -329,6 +364,7 @@ export class MonopolyEngine {
 
   /**
    * Restore state from a checkpoint. Used for crash recovery.
+   * Houses are reset to 0 (not persisted in checkpoint).
    */
   static fromCheckpoint(
     addresses: [string, string, string, string],
@@ -514,6 +550,7 @@ export class MonopolyEngine {
     const prop = this.state.properties[propertyIndex];
     if (prop.owner !== player.index) throw new Error("Not your property");
     if (prop.mortgaged) throw new Error("Already mortgaged");
+    if (prop.houses > 0) throw new Error("Sell all houses before mortgaging");
 
     const tile = PROPERTY_TILES[propertyIndex];
     prop.mortgaged = true;
@@ -536,6 +573,103 @@ export class MonopolyEngine {
     prop.mortgaged = false;
     player.cash -= cost;
     this.emit({ type: "propertyUnmortgaged", player: player.index, propertyIndex, cost });
+  }
+
+  // ========== PRIVATE: HOUSE HELPERS ==========
+
+  /** True if the property belongs to a color group (1–8) */
+  private isColorProperty(propertyIndex: number): boolean {
+    const tile = PROPERTY_TILES[propertyIndex];
+    return tile.group >= 1 && tile.group <= 8;
+  }
+
+  /** Return property indices in the given group owned by ownerIndex */
+  private getPropertiesInGroup(group: number): number[] {
+    return PROPERTY_TILES
+      .filter(t => t.group === group)
+      .map(t => t.propertyIndex);
+  }
+
+  /** Can the current player build a house on this property? */
+  private canBuildHouseOn(propertyIndex: number): boolean {
+    const prop = this.state.properties[propertyIndex];
+    const player = this.currentPlayer();
+    if (prop.owner !== player.index) return false;
+    if (prop.mortgaged) return false;
+    if (!this.isColorProperty(propertyIndex)) return false;
+    if (prop.houses >= 4) return false;
+
+    const tile = PROPERTY_TILES[propertyIndex];
+    if (!tile.houseCost || player.cash < tile.houseCost) return false;
+
+    // Must own full monopoly (all non-mortgaged)
+    if (!this.hasMonopoly(player.index, tile.group)) return false;
+
+    // Even build: no other property in group can have fewer houses than this one
+    const groupProps = this.getPropertiesInGroup(tile.group);
+    for (const pi of groupProps) {
+      const gp = this.state.properties[pi];
+      if (gp.owner !== player.index) return false; // shouldn't happen with monopoly check, but guard
+      if (gp.mortgaged) return false; // can't build if any in group is mortgaged
+      if (gp.houses < prop.houses) return false; // even build rule
+    }
+
+    return true;
+  }
+
+  /** Can the current player sell a house on this property? */
+  private canSellHouseOn(propertyIndex: number): boolean {
+    const prop = this.state.properties[propertyIndex];
+    const player = this.currentPlayer();
+    if (prop.owner !== player.index) return false;
+    if (!this.isColorProperty(propertyIndex)) return false;
+    if (prop.houses <= 0) return false;
+
+    const tile = PROPERTY_TILES[propertyIndex];
+    // Even sell: no other property in group can have more houses than this one
+    const groupProps = this.getPropertiesInGroup(tile.group);
+    for (const pi of groupProps) {
+      const gp = this.state.properties[pi];
+      if (gp.owner === player.index && gp.houses > prop.houses) return false;
+    }
+
+    return true;
+  }
+
+  private handleBuildHouse(player: PlayerState, propertyIndex: number): void {
+    if (this.state.phase !== Phase.POST_TURN) {
+      throw new Error("Can only build houses during post-turn");
+    }
+    if (propertyIndex < 0 || propertyIndex >= this.state.properties.length) {
+      throw new Error("Invalid property index");
+    }
+    if (!this.canBuildHouseOn(propertyIndex)) {
+      throw new Error("Cannot build house on this property");
+    }
+
+    const prop = this.state.properties[propertyIndex];
+    const tile = PROPERTY_TILES[propertyIndex];
+    player.cash -= tile.houseCost!;
+    prop.houses++;
+    this.emit({ type: "houseBuilt", player: player.index, propertyIndex, newCount: prop.houses });
+  }
+
+  private handleSellHouse(player: PlayerState, propertyIndex: number): void {
+    if (this.state.phase !== Phase.POST_TURN) {
+      throw new Error("Can only sell houses during post-turn");
+    }
+    if (propertyIndex < 0 || propertyIndex >= this.state.properties.length) {
+      throw new Error("Invalid property index");
+    }
+    if (!this.canSellHouseOn(propertyIndex)) {
+      throw new Error("Cannot sell house on this property");
+    }
+
+    const prop = this.state.properties[propertyIndex];
+    const tile = PROPERTY_TILES[propertyIndex];
+    prop.houses--;
+    player.cash += Math.floor(tile.houseCost! / 2);
+    this.emit({ type: "houseSold", player: player.index, propertyIndex, newCount: prop.houses });
   }
 
   // ========== PRIVATE: GAME LOGIC ==========
@@ -632,6 +766,10 @@ export class MonopolyEngine {
       const diceSum = this.state.lastDice?.sum || 7;
       return getUtilityRent(utilOwned, diceSum);
     }
+    // Color property with houses: use rentWithHouses table
+    if (prop.houses > 0 && tile.rentWithHouses) {
+      return tile.rentWithHouses[prop.houses - 1];
+    }
     // Color property: base rent * 2 if monopoly
     let rent = tile.baseRent;
     if (this.hasMonopoly(prop.owner, tile.group)) {
@@ -704,9 +842,23 @@ export class MonopolyEngine {
   }
 
   private autoMortgage(player: PlayerState, needed: number): void {
-    // Sort properties by mortgage value ascending (mortgage cheapest first)
+    // First sell houses (cheapest first) to raise cash
+    const propsWithHouses = this.state.properties
+      .filter(p => p.owner === player.index && p.houses > 0)
+      .sort((a, b) => (PROPERTY_TILES[a.index].houseCost ?? 0) - (PROPERTY_TILES[b.index].houseCost ?? 0));
+
+    for (const prop of propsWithHouses) {
+      while (prop.houses > 0 && player.cash < needed) {
+        const tile = PROPERTY_TILES[prop.index];
+        prop.houses--;
+        player.cash += Math.floor((tile.houseCost ?? 0) / 2);
+        this.emit({ type: "houseSold", player: player.index, propertyIndex: prop.index, newCount: prop.houses });
+      }
+    }
+
+    // Then mortgage properties (cheapest first)
     const ownedProps = this.state.properties
-      .filter(p => p.owner === player.index && !p.mortgaged)
+      .filter(p => p.owner === player.index && !p.mortgaged && p.houses === 0)
       .sort((a, b) => PROPERTY_TILES[a.index].mortgageValue - PROPERTY_TILES[b.index].mortgageValue);
 
     for (const prop of ownedProps) {
@@ -724,11 +876,12 @@ export class MonopolyEngine {
     this.state.aliveCount--;
     this.emit({ type: "playerBankrupt", player: player.index, creditor });
 
-    // Transfer properties to creditor (or unown if bank)
+    // Transfer properties to creditor (or unown if bank); reset houses
     for (const prop of this.state.properties) {
       if (prop.owner === player.index) {
         prop.owner = creditor >= 0 ? creditor : -1;
         prop.mortgaged = false; // unmortgage on transfer
+        prop.houses = 0; // houses are lost on bankruptcy
       }
     }
 
@@ -947,7 +1100,7 @@ export class MonopolyEngine {
   }
 
   private endByMaxRounds(): void {
-    // Calculate net worth: cash + unmortgaged property values + mortgaged value / 2
+    // Calculate net worth: cash + unmortgaged property values + mortgaged value / 2 + house sell value
     let bestPlayer = -1;
     let bestWorth = -1;
     for (const p of this.state.players) {
@@ -957,6 +1110,10 @@ export class MonopolyEngine {
         if (prop.owner === p.index) {
           const tile = PROPERTY_TILES[prop.index];
           worth += prop.mortgaged ? Math.floor(tile.mortgageValue / 2) : tile.price;
+          // Add house value (sell at half cost)
+          if (prop.houses > 0 && tile.houseCost) {
+            worth += prop.houses * Math.floor(tile.houseCost / 2);
+          }
         }
       }
       if (worth > bestWorth) {

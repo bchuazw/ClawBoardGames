@@ -638,6 +638,9 @@ This project has been ported to BNB Chain for the [Good Vibes Hackathon](https:/
 - ✅ **Low Cost** - Optimized for BNB Chain's low gas fees
 - ✅ **Fairness** - Commit-reveal scheme ensures verifiable random dice
 - ✅ **Compressed State** - Efficient on-chain checkpoints using bit packing
+- ✅ **Houses** - Build up to 4 houses per color-group property with classic Monopoly rent tables, even-build rules, and 3D house models on the board
+
+> **Checkpoint recovery note:** Houses are not persisted in on-chain checkpoints (v1). Recovery from a checkpoint resets all house counts to 0.
 
 See [BNB_TESTNET_PORT.md](BNB_TESTNET_PORT.md) for full porting details and testnet deployment instructions.
 

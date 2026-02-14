@@ -22,7 +22,7 @@ const MonopolyScene = dynamic(() => import('@/components/MonopolyScene'), {
 /*  Types                                                            */
 /* ---------------------------------------------------------------- */
 interface PlayerInfo { index: number; address: string; cash: number; position: number; tileName: string; inJail: boolean; jailTurns: number; alive: boolean; }
-interface PropertyInfo { index: number; tileName: string; ownerIndex: number; mortgaged: boolean; }
+interface PropertyInfo { index: number; tileName: string; ownerIndex: number; mortgaged: boolean; houses: number; }
 interface Snapshot {
   status: string; phase: string; turn: number; round: number;
   currentPlayerIndex: number; aliveCount: number;
@@ -129,6 +129,10 @@ function humanEvent(e: GameEvent): { text: string; color: string } {
       return { text: `\uD83D\uDCCD ${emoji} ${n}'s turn (Round ${e.round ?? ''})`, color: pc };
     case 'cashChange':
       return { text: `${emoji} ${n} ${(e.amount ?? 0) >= 0 ? 'received' : 'paid'} $${Math.abs(e.amount ?? 0)} \u2014 ${e.reason || ''}`, color: (e.amount ?? 0) >= 0 ? '#66BB6A' : '#EF5350' };
+    case 'houseBuilt':
+      return { text: `\u{1F3E0} ${emoji} ${n} built a house (now ${e.newCount})`, color: '#66BB6A' };
+    case 'houseSold':
+      return { text: `\u{1F4B0} ${emoji} ${n} sold a house (now ${e.newCount})`, color: '#FF9100' };
     case 'turnEnded': case 'gameStarted': case 'auctionEndedNoBids': case 'bidPlaced':
     case 'propertyMortgaged': case 'propertyUnmortgaged': case 'autoMortgage':
       return { text: '', color: '#555' }; // minor events — hide
