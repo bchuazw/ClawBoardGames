@@ -9,7 +9,7 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
  *
  * Flow (fixed players):
  *   1. createGame(players)           -> gameId (DEPOSITING)
- *   2. depositAndCommit(id, hash)    -> each of the 4 agents sends 0.001 ETH + secret hash
+ *   2. depositAndCommit(id, hash)    -> each of the 4 agents sends 0.001 native (BNB on BNB Chain) + secret hash
  *      When 4 deposits received      -> status = REVEALING, revealDeadline set
  *
  * Flow (open games — any agent can join):
@@ -100,6 +100,9 @@ contract MonopolySettlement is ReentrancyGuard {
     // ========== CONSTRUCTOR ==========
 
     constructor(address _platformFeeAddr, address _gmSigner, address _clawToken) {
+        require(_platformFeeAddr != address(0), "Zero platform");
+        require(_gmSigner != address(0), "Zero GM");
+        require(_clawToken != address(0), "Zero CLAW");
         owner = msg.sender;
         platformFeeAddr = _platformFeeAddr;
         gmSigner = _gmSigner;
@@ -133,10 +136,10 @@ contract MonopolySettlement is ReentrancyGuard {
     }
 
     /**
-     * @notice Create an open game that any address can join (first 4 to deposit get the slots).
+     * @notice Create an open game that any address can join (first 4 to deposit get the slots). GM only.
      * @return gameId The ID of the created open game.
      */
-    function createOpenGame() external returns (uint256 gameId) {
+    function createOpenGame() external onlyGM returns (uint256 gameId) {
         gameId = gameCount++;
 
         Game storage g = games[gameId];
@@ -283,9 +286,9 @@ contract MonopolySettlement is ReentrancyGuard {
 
         g.winnerPaid = true;
 
-        uint256 totalPot = ENTRY_FEE * NUM_PLAYERS;                // 0.004 ETH
-        uint256 winnerShare = (totalPot * WINNER_BPS) / 10000;     // 0.0032 ETH
-        uint256 platformShare = totalPot - winnerShare;              // 0.0008 ETH
+        uint256 totalPot = ENTRY_FEE * NUM_PLAYERS;                // 0.004 native (BNB)
+        uint256 winnerShare = (totalPot * WINNER_BPS) / 10000;     // 0.0032 BNB
+        uint256 platformShare = totalPot - winnerShare;              // 0.0008 BNB
 
         (bool sent1, ) = payable(g.winner).call{value: winnerShare}("");
         require(sent1, "Winner transfer failed");
@@ -321,21 +324,24 @@ contract MonopolySettlement is ReentrancyGuard {
     }
 
     /**
-     * @notice Cancel a game stuck in DEPOSITING phase (after deposit timeout).
+     * @notice Cancel a game stuck in DEPOSITING or OPEN phase (after deposit timeout).
      *         Refunds all players who deposited. Anyone can call.
      */
     function cancelGame(uint256 gameId) external nonReentrant {
         Game storage g = games[gameId];
         require(
-            g.status == Status.DEPOSITING &&
+            (g.status == Status.DEPOSITING || g.status == Status.OPEN) &&
             block.timestamp > g.createdAt + DEPOSIT_TIMEOUT,
             "Cannot cancel"
         );
 
+        if (g.status == Status.OPEN) {
+            _removeFromOpenGameIds(gameId);
+        }
         g.status = Status.VOIDED;
 
         for (uint256 i = 0; i < NUM_PLAYERS; i++) {
-            if (hasDeposited[gameId][g.players[i]]) {
+            if (g.players[i] != address(0) && hasDeposited[gameId][g.players[i]]) {
                 (bool sent, ) = payable(g.players[i]).call{value: ENTRY_FEE}("");
                 require(sent, "Refund failed");
             }

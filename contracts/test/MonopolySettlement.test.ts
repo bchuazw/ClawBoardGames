@@ -52,6 +52,36 @@ describe("MonopolySettlement", function () {
     await clawToken.setMinter(await settlement.getAddress(), true);
   });
 
+  describe("constructor", function () {
+    it("should reject zero platform fee address", async function () {
+      const signers = await ethers.getSigners();
+      const CLAWFactory = await ethers.getContractFactory("CLAWToken");
+      const claw = await CLAWFactory.deploy(await signers[0].getAddress());
+      await claw.waitForDeployment();
+      const SettlementFactory = await ethers.getContractFactory("MonopolySettlement");
+      await expect(
+        SettlementFactory.deploy(ethers.ZeroAddress, await signers[1].getAddress(), await claw.getAddress())
+      ).to.be.revertedWith("Zero platform");
+    });
+    it("should reject zero GM signer", async function () {
+      const signers = await ethers.getSigners();
+      const CLAWFactory = await ethers.getContractFactory("CLAWToken");
+      const claw = await CLAWFactory.deploy(await signers[0].getAddress());
+      await claw.waitForDeployment();
+      const SettlementFactory = await ethers.getContractFactory("MonopolySettlement");
+      await expect(
+        SettlementFactory.deploy(await signers[2].getAddress(), ethers.ZeroAddress, await claw.getAddress())
+      ).to.be.revertedWith("Zero GM");
+    });
+    it("should reject zero CLAW token", async function () {
+      const signers = await ethers.getSigners();
+      const SettlementFactory = await ethers.getContractFactory("MonopolySettlement");
+      await expect(
+        SettlementFactory.deploy(await signers[2].getAddress(), await signers[1].getAddress(), ethers.ZeroAddress)
+      ).to.be.revertedWith("Zero CLAW");
+    });
+  });
+
   describe("createGame", function () {
     it("should create a game and emit event", async function () {
       await expect(settlement.createGame(playerAddrs))
@@ -89,7 +119,7 @@ describe("MonopolySettlement", function () {
       expect(game.status).to.equal(2); // DEPOSITING
     });
 
-    it("should reject wrong ETH amount", async function () {
+    it("should reject wrong amount", async function () {
       await expect(
         settlement.connect(players[0]).depositAndCommit(0, commitHashes[0], { value: ethers.parseEther("0.002") })
       ).to.be.revertedWith("Wrong amount");
@@ -204,8 +234,8 @@ describe("MonopolySettlement", function () {
       const winnerBalAfter = await ethers.provider.getBalance(playerAddrs[0]);
       const platformBalAfter = await ethers.provider.getBalance(await platformFee.getAddress());
 
-      const expectedWinnerShare = (ENTRY_FEE * 4n * 8000n) / 10000n; // 0.0032 ETH
-      const expectedPlatformShare = ENTRY_FEE * 4n - expectedWinnerShare; // 0.0008 ETH
+      const expectedWinnerShare = (ENTRY_FEE * 4n * 8000n) / 10000n; // 0.0032 native
+      const expectedPlatformShare = ENTRY_FEE * 4n - expectedWinnerShare; // 0.0008 native
 
       expect(winnerBalAfter - winnerBalBefore + gasUsed).to.equal(expectedWinnerShare);
       expect(platformBalAfter - platformBalBefore).to.equal(expectedPlatformShare);
@@ -218,6 +248,14 @@ describe("MonopolySettlement", function () {
       await expect(
         settlement.connect(players[0]).withdraw(0)
       ).to.be.revertedWith("Already paid");
+    });
+
+    it("non-winner cannot withdraw", async function () {
+      const logHash = ethers.keccak256(ethers.toUtf8Bytes("game-log"));
+      await settlement.connect(gm).settleGame(0, playerAddrs[0], logHash);
+      await expect(
+        settlement.connect(players[1]).withdraw(0)
+      ).to.be.revertedWith("Not the winner");
     });
   });
 
@@ -304,6 +342,27 @@ describe("MonopolySettlement", function () {
       const bal0After = await ethers.provider.getBalance(playerAddrs[0]);
       expect(bal0After - bal0Before).to.equal(ENTRY_FEE);
     });
+
+    it("should cancel OPEN game after deposit timeout and refund depositors", async function () {
+      await settlement.connect(gm).createOpenGame();
+      await settlement.connect(players[0]).depositAndCommit(0, commitHashes[0], { value: ENTRY_FEE });
+      await settlement.connect(players[1]).depositAndCommit(0, commitHashes[1], { value: ENTRY_FEE });
+
+      expect((await settlement.getOpenGameIds()).length).to.equal(1);
+
+      await ethers.provider.send("evm_increaseTime", [660]);
+      await ethers.provider.send("evm_mine", []);
+
+      const bal0Before = await ethers.provider.getBalance(playerAddrs[0]);
+      const bal1Before = await ethers.provider.getBalance(playerAddrs[1]);
+      await settlement.cancelGame(0);
+
+      expect((await settlement.getOpenGameIds()).length).to.equal(0);
+      const game = await settlement.getGame(0);
+      expect(game.status).to.equal(6); // VOIDED
+      expect(await ethers.provider.getBalance(playerAddrs[0]) - bal0Before).to.equal(ENTRY_FEE);
+      expect(await ethers.provider.getBalance(playerAddrs[1]) - bal1Before).to.equal(ENTRY_FEE);
+    });
   });
 
   describe("emergencyVoid (GM never settled)", function () {
@@ -338,8 +397,8 @@ describe("MonopolySettlement", function () {
   });
 
   describe("createOpenGame + open deposit flow", function () {
-    it("should create open game and emit OpenGameCreated", async function () {
-      await expect(settlement.createOpenGame()).to.emit(settlement, "OpenGameCreated").withArgs(0);
+    it("GM should create open game and emit OpenGameCreated", async function () {
+      await expect(settlement.connect(gm).createOpenGame()).to.emit(settlement, "OpenGameCreated").withArgs(0);
 
       const game = await settlement.getGame(0);
       expect(game.status).to.equal(1); // OPEN
@@ -352,8 +411,12 @@ describe("MonopolySettlement", function () {
       expect(openIds[0]).to.equal(0);
     });
 
+    it("non-GM should not create open game", async function () {
+      await expect(settlement.connect(owner).createOpenGame()).to.be.revertedWith("Not GM");
+    });
+
     it("should allow any address to deposit into open game (first 4 get slots)", async function () {
-      await settlement.createOpenGame();
+      await settlement.connect(gm).createOpenGame();
 
       for (let i = 0; i < 4; i++) {
         await settlement.connect(players[i]).depositAndCommit(0, commitHashes[i], { value: ENTRY_FEE });
@@ -379,7 +442,7 @@ describe("MonopolySettlement", function () {
     });
 
     it("should reject double deposit in open game", async function () {
-      await settlement.createOpenGame();
+      await settlement.connect(gm).createOpenGame();
       await settlement.connect(players[0]).depositAndCommit(0, commitHashes[0], { value: ENTRY_FEE });
       await expect(
         settlement.connect(players[0]).depositAndCommit(0, commitHashes[0], { value: ENTRY_FEE })

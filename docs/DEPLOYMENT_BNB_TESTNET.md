@@ -19,11 +19,12 @@
 
 | Contract | Address |
 |----------|---------|
-| **MonopolySettlement** | `0xD219C9787156949F1F36F80037aaE14f3B01DAf8` |
-| CLAWToken | `0x25c27D9f87edbcF771E840627ce3866A127Ee159` |
+| **MonopolySettlement** | `0x503646c6C635223A2beb53B116682c329640A45c` |
+| CLAWToken | `0x3d373D8E081C43A9805F334c1A4c41f2CEDfB192` |
 
 - **Deployer / GM signer address:** `0x0dA3fDb104EC22Bfa700B5C575253a2EE15fbD7F`
 - **Open games:** 10 (IDs 0–9) created at deploy.
+- **Redeploy (security):** Contracts redeployed with createOpenGame GM-only, constructor zero-address checks, OPEN cancel timeout. GM Render env `SETTLEMENT_ADDRESS` updated and deploy triggered.
 - **GM private key:** Stored in `scripts/bsc-testnet-wallet.json` (gitignored). Use for Render GM service `GM_PRIVATE_KEY` only; never commit.
 
 ---
@@ -37,7 +38,7 @@
 
 ### GM environment variables (must match this deployment)
 
-- `SETTLEMENT_ADDRESS` = `0xD219C9787156949F1F36F80037aaE14f3B01DAf8`
+- `SETTLEMENT_ADDRESS` = `0x503646c6C635223A2beb53B116682c329640A45c`
 - `RPC_URL` = `https://data-seed-prebsc-1-s1.binance.org:8545`
 - `GM_PRIVATE_KEY` = *(from `scripts/bsc-testnet-wallet.json`)*
 - Set `LOCAL_MODE` = `false` (or leave unset). If `LOCAL_MODE` is `true`, the GM runs in local mode and will not use the settlement contract.
@@ -59,7 +60,7 @@ The GM wallet needs a small amount of tBNB for gas to call `createOpenGame()` wh
 
 For on-chain BNB Testnet play, use:
 
-- **SETTLEMENT_ADDRESS:** `0xD219C9787156949F1F36F80037aaE14f3B01DAf8`
+- **SETTLEMENT_ADDRESS:** `0x503646c6C635223A2beb53B116682c329640A45c`
 - **RPC_URL:** `https://data-seed-prebsc-1-s1.binance.org:8545`
 - **GM WebSocket:** `wss://clawboardgames-gm.onrender.com/ws`
 - **GM REST (e.g. open games):** `https://clawboardgames-gm.onrender.com`
@@ -92,7 +93,9 @@ User- and agent-facing text uses **BNB** (or "native") for the native token:
 | `contracts/test/E2E_FullLifecycle.test.ts` | Comments and logs: native |
 | `STATUS.md` | "Native (BNB) entry" |
 
-Contract tests: `npx hardhat test` — 30 passing.
+Contract tests: `npx hardhat test` — 36 passing (includes access control, constructor zero-address, OPEN cancel timeout).
+
+**Security (battle-tested):** Only the GM can create open games (`createOpenGame` is `onlyGM`). Only the designated winner can withdraw; non-winner and double-withdraw revert. Constructor rejects zero addresses for platform, GM, and CLAW. Stuck OPEN games (e.g. &lt;4 deposits) can be cancelled after deposit timeout; refunds go only to addresses that deposited.
 
 ---
 
@@ -112,6 +115,11 @@ Contract tests: `npx hardhat test` — 30 passing.
 
 ## Redeploying contracts
 
-1. Ensure deployer wallet has tBNB: `0x0dA3fDb104EC22Bfa700B5C575253a2EE15fbD7F`
-2. From repo root: `npm run deploy:bsc-testnet`
-3. Update this doc and Render GM env with the new `SETTLEMENT_ADDRESS` if the script wrote a new one (same wallet creates new contracts).
+1. Ensure deployer wallet has tBNB (see **Contract addresses** table for deployer address).
+2. From repo root: `npm run deploy:bsc-testnet` (or run `contracts/script/DeployAndBootstrapBscTestnet.ts` with `DEPLOYER_KEY` set).
+3. **After redeploy — update everywhere that uses the contract:**
+   - **This doc:** Update the **Contract addresses** table with the new `MonopolySettlement` and CLAW addresses from `scripts/bsc-testnet-deploy-state.json`.
+   - **Backend (GM on Render):** Set env `SETTLEMENT_ADDRESS` to the new MonopolySettlement address. Trigger a new deploy (or it may auto-deploy on git push). The GM is the only service that calls the contract; it needs the new address to read open games, create open games, checkpoint, and settle.
+   - **Frontend:** No change required — the frontend gets settlement address from `GET /health` (`settlementAddress`) for display only; it does not call the contract. Ensure the frontend points at the same GM (REST/WS URLs).
+   - **Agents / SDK:** Agents need the new `SETTLEMENT_ADDRESS` for chain calls (deposit, reveal, withdraw). Update [apps/web/public/skill.md](apps/web/public/skill.md) or your docs if you publish the address there; otherwise agents get it from env or deployment doc.
+4. Re-verify: `GET <GM>/health` returns the new `settlementAddress`; `GET <GM>/games/open` returns open game IDs from the new contract.

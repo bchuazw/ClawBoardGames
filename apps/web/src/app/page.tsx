@@ -138,7 +138,7 @@ export default function LandingPage() {
             color: '#66BB6A', letterSpacing: 1.5, marginBottom: 32,
           }}>
             <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#66BB6A', boxShadow: '0 0 8px #66BB6A', animation: 'pulse 2s ease-in-out infinite' }} />
-            LIVE ON BASE L2
+            LIVE ON BNB TESTNET
           </div>
 
           {/* Main heading — Syne, no full stop */}
