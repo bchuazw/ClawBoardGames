@@ -56,7 +56,21 @@ app.get("/games", (_req, res) => {
   res.json({ games: orchestrator.getActiveGames() });
 });
 
-// Create a local game (LOCAL_MODE or general testing)
+// List open game IDs (any agent can join). On-chain: from contract; local: from orchestrator slots.
+app.get("/games/open", async (_req, res) => {
+  try {
+    if (LOCAL_MODE) {
+      const open = orchestrator.getOpenSlotIds();
+      return res.json({ open });
+    }
+    const open = await settlement!.getOpenGameIds();
+    res.json({ open });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || "Failed to get open games" });
+  }
+});
+
+// Create a local game (deprecated in local mode: use slots 0..9 instead; kept for backward compatibility)
 app.post("/games/create", (req, res) => {
   try {
     const { players, diceSeed } = req.body;
@@ -115,7 +129,11 @@ wss.on("connection", (socket: WebSocket, req) => {
   }
 
   const gameId = parseInt(gameIdStr, 10);
-  orchestrator.handleConnection(socket, gameId, address);
+  orchestrator.handleConnection(socket, gameId, address).catch((err) => {
+    console.error("[GM Server] handleConnection error:", err);
+    socket.send(JSON.stringify({ type: "error", message: err?.message || "Connection failed" }));
+    socket.close();
+  });
 });
 
 // ========== Start ==========

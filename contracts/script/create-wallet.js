@@ -1,6 +1,6 @@
 /**
  * One-time script: create a new wallet and write DEPLOYER_KEY to .env.
- * Prints the address so you can fund it on Base Sepolia.
+ * Prints the address so you can fund it on BNB Chain (BSC) Testnet.
  * Run: node script/create-wallet.js
  */
 const fs = require("fs");
@@ -17,11 +17,11 @@ async function main() {
   fs.writeFileSync(envPath, line, "utf8");
   console.log("Created .env with DEPLOYER_KEY.");
   console.log("");
-  console.log("Fund this address on Base Sepolia (need ~0.01 ETH):");
+  console.log("Fund this address on BNB Chain Testnet (need ~0.01 BNB):");
   console.log("");
   console.log("  " + address);
   console.log("");
-  console.log("Base Sepolia faucet: https://www.alchemy.com/faucets/base-sepolia");
+  console.log("BNB Testnet faucet: https://www.bnbchain.org/en/testnet-faucet");
 }
 
 main().catch((e) => {

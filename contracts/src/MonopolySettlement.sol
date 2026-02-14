@@ -7,16 +7,16 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
  * @title MonopolySettlement
  * @notice Thin settlement contract for ClawBoardGames v2.
  *
- * Flow:
- *   1. createGame(players)           -> gameId (PENDING)
- *   2. depositAndCommit(id, hash)    -> each agent sends 0.001 ETH + secret hash (DEPOSITING)
+ * Flow (fixed players):
+ *   1. createGame(players)           -> gameId (DEPOSITING)
+ *   2. depositAndCommit(id, hash)    -> each of the 4 agents sends 0.001 ETH + secret hash
  *      When 4 deposits received      -> status = REVEALING, revealDeadline set
- *   3. revealSeed(id, secret)        -> each agent reveals secret
- *      When 4 reveals received       -> diceSeed = XOR, mint CLAW, status = STARTED
- *   4. checkpoint(id, packed...)     -> GM writes compressed state after each round
- *   5. settleGame(id, winner, hash)  -> GM finalizes. Immediate. No dispute.
- *   6. withdraw(id)                  -> winner claims 80%, platform gets 20%
- *   7. voidGame(id)                  -> if reveal timeout, refund everyone
+ *
+ * Flow (open games — any agent can join):
+ *   1. createOpenGame()              -> gameId (OPEN), added to openGameIds
+ *   2. depositAndCommit(id, hash)    -> any address; first 4 get slots. When 4th -> REVEALING, removed from openGameIds
+ *   3. revealSeed(id, secret)        -> same as above
+ *   4. checkpoint / settleGame / withdraw / voidGame -> same as above
  */
 contract MonopolySettlement is ReentrancyGuard {
 
@@ -39,7 +39,7 @@ contract MonopolySettlement is ReentrancyGuard {
     ICLAWToken public clawToken;
     uint256 public gameCount;
 
-    enum Status { PENDING, DEPOSITING, REVEALING, STARTED, SETTLED, VOIDED }
+    enum Status { PENDING, OPEN, DEPOSITING, REVEALING, STARTED, SETTLED, VOIDED }
 
     struct Game {
         address[4] players;
@@ -68,9 +68,14 @@ contract MonopolySettlement is ReentrancyGuard {
     mapping(uint256 => Checkpoint) public checkpoints;
     mapping(uint256 => mapping(address => bool)) public hasDeposited;
 
+    /// @dev Open game IDs (any agent can join). Removed when 4th deposit.
+    uint256[] public openGameIds;
+    mapping(uint256 => uint256) public gameIdToOpenIndex; // 1-based; 0 = not in list
+
     // ========== EVENTS ==========
 
     event GameCreated(uint256 indexed gameId, address[4] players);
+    event OpenGameCreated(uint256 indexed gameId);
     event DepositAndCommit(uint256 indexed gameId, address indexed player, bytes32 commitHash);
     event AllDeposited(uint256 indexed gameId, uint256 revealDeadline);
     event SeedRevealed(uint256 indexed gameId, address indexed player);
@@ -128,19 +133,48 @@ contract MonopolySettlement is ReentrancyGuard {
     }
 
     /**
+     * @notice Create an open game that any address can join (first 4 to deposit get the slots).
+     * @return gameId The ID of the created open game.
+     */
+    function createOpenGame() external returns (uint256 gameId) {
+        gameId = gameCount++;
+
+        Game storage g = games[gameId];
+        g.players = [address(0), address(0), address(0), address(0)];
+        g.status = Status.OPEN;
+        g.createdAt = block.timestamp;
+
+        openGameIds.push(gameId);
+        gameIdToOpenIndex[gameId] = openGameIds.length; // 1-based
+
+        emit OpenGameCreated(gameId);
+    }
+
+    /**
      * @notice Deposit entry fee + commit dice secret in ONE transaction.
      * @param gameId The game to join.
      * @param secretHash keccak256(secret) where secret is a bytes32.
      */
     function depositAndCommit(uint256 gameId, bytes32 secretHash) external payable nonReentrant {
         Game storage g = games[gameId];
-        require(g.status == Status.DEPOSITING, "Not in deposit phase");
+        require(
+            g.status == Status.DEPOSITING || g.status == Status.OPEN,
+            "Not in deposit phase"
+        );
         require(msg.value == ENTRY_FEE, "Wrong ETH amount");
         require(secretHash != bytes32(0), "Empty commit hash");
-
-        // Find player index
-        uint8 playerIdx = _findPlayerIndex(g, msg.sender);
         require(!hasDeposited[gameId][msg.sender], "Already deposited");
+
+        uint8 playerIdx;
+
+        if (g.status == Status.OPEN) {
+            // Open game: assign msg.sender to first empty slot; stay OPEN until 4th deposit
+            playerIdx = _findEmptySlot(g);
+            g.players[playerIdx] = msg.sender;
+        } else {
+            // Fixed players: must be one of the 4
+            playerIdx = _findPlayerIndex(g, msg.sender);
+        }
 
         hasDeposited[gameId][msg.sender] = true;
         g.commitHashes[playerIdx] = secretHash;
@@ -148,10 +182,11 @@ contract MonopolySettlement is ReentrancyGuard {
 
         emit DepositAndCommit(gameId, msg.sender, secretHash);
 
-        // If all 4 deposited, move to reveal phase
+        // If all 4 deposited, move to reveal phase and remove from open pool
         if (g.depositCount == NUM_PLAYERS) {
             g.status = Status.REVEALING;
             g.revealDeadline = block.timestamp + REVEAL_TIMEOUT;
+            _removeFromOpenGameIds(gameId);
             emit AllDeposited(gameId, g.revealDeadline);
         }
     }
@@ -366,7 +401,32 @@ contract MonopolySettlement is ReentrancyGuard {
         return (c.round, c.playersPacked, c.propertiesPacked, c.metaPacked);
     }
 
+    /// @notice Returns all game IDs that are currently open for anyone to join.
+    function getOpenGameIds() external view returns (uint256[] memory) {
+        return openGameIds;
+    }
+
     // ========== INTERNAL ==========
+
+    function _findEmptySlot(Game storage g) internal view returns (uint8) {
+        for (uint8 i = 0; i < 4; i++) {
+            if (g.players[i] == address(0)) return i;
+        }
+        revert("No empty slot");
+    }
+
+    function _removeFromOpenGameIds(uint256 gameId) internal {
+        uint256 idx = gameIdToOpenIndex[gameId];
+        if (idx == 0) return;
+        uint256 len = openGameIds.length;
+        require(idx <= len, "Invalid index");
+
+        uint256 lastId = openGameIds[len - 1];
+        openGameIds[idx - 1] = lastId;
+        gameIdToOpenIndex[lastId] = idx;
+        gameIdToOpenIndex[gameId] = 0;
+        openGameIds.pop();
+    }
 
     function _findPlayerIndex(Game storage g, address player) internal view returns (uint8) {
         for (uint8 i = 0; i < 4; i++) {

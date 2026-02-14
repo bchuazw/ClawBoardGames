@@ -11,6 +11,7 @@ export interface GameProcessConfig {
   players: [string, string, string, string];
   diceSeed: string;
   settlement: SettlementClient | null; // null in LOCAL_MODE
+  onEnd?: () => void; // called when game ends (e.g. to replace slot with new Lobby)
 }
 
 /**
@@ -28,6 +29,7 @@ export class GameProcess {
   private lastCheckpointRound = -1;
   private events: GameEvent[] = [];
   private running = false;
+  private checkpointInProgress = false;
 
   constructor(config: GameProcessConfig) {
     this.config = config;
@@ -194,24 +196,31 @@ export class GameProcess {
     this.afterAction();
   }
 
-  /** Write checkpoint to on-chain contract (skipped in local mode). */
+  /** Write checkpoint to on-chain contract (skipped in local mode). Serialized to avoid nonce clashes. */
   private async writeCheckpoint(round: number): Promise<void> {
     if (!this.config.settlement) {
       console.log(`[Game ${this.config.gameId}] Checkpoint round ${round} (local mode, skipped on-chain)`);
       return;
     }
+    while (this.checkpointInProgress) {
+      await new Promise((r) => setTimeout(r, 200));
+    }
+    this.checkpointInProgress = true;
     try {
       const { playersPacked, propertiesPacked, metaPacked } = this.engine.packForCheckpoint();
       const txHash = await this.config.settlement.writeCheckpoint(
         this.config.gameId, round, playersPacked, propertiesPacked, metaPacked,
       );
       console.log(`[Game ${this.config.gameId}] Checkpoint round ${round}: ${txHash}`);
+      await new Promise((r) => setTimeout(r, 300)); // let nonce propagate on RPC
     } catch (err) {
       console.error(`[Game ${this.config.gameId}] Checkpoint write failed:`, err);
+    } finally {
+      this.checkpointInProgress = false;
     }
   }
 
-  /** Handle game end: settle on-chain. */
+  /** Handle game end: settle on-chain first, then broadcast so agents can withdraw. */
   private async handleGameEnd(): Promise<void> {
     this.clearTurnTimer();
     this.running = false;
@@ -223,27 +232,39 @@ export class GameProcess {
     const logStr = JSON.stringify(this.events);
     const logHash = ethers.keccak256(ethers.toUtf8Bytes(logStr));
 
-    // Broadcast game end
-    this.broadcastAll({
-      type: "gameEnded",
-      winner: winnerIndex,
-      winnerAddress: winnerAddr,
-      snapshot: this.engine.getSnapshot(),
-    });
-
-    // Settle on-chain (skipped in local mode)
+    // Settle on-chain first (so winner can withdraw); then broadcast game end
     if (!this.config.settlement) {
       console.log(`[Game ${this.config.gameId}] Game settled (local mode, skipped on-chain)`);
+      this.broadcastAll({
+        type: "gameEnded",
+        winner: winnerIndex,
+        winnerAddress: winnerAddr,
+        snapshot: this.engine.getSnapshot(),
+      });
       this.broadcastAll({ type: "settled", txHash: "local-mode" });
     } else {
       try {
         const txHash = await this.config.settlement.settleGame(this.config.gameId, winnerAddr, logHash);
         console.log(`[Game ${this.config.gameId}] Settled on-chain: ${txHash}`);
+        this.broadcastAll({
+          type: "gameEnded",
+          winner: winnerIndex,
+          winnerAddress: winnerAddr,
+          snapshot: this.engine.getSnapshot(),
+        });
         this.broadcastAll({ type: "settled", txHash });
       } catch (err) {
         console.error(`[Game ${this.config.gameId}] Settlement failed:`, err);
+        this.broadcastAll({
+          type: "gameEnded",
+          winner: winnerIndex,
+          winnerAddress: winnerAddr,
+          snapshot: this.engine.getSnapshot(),
+        });
+        this.broadcastAll({ type: "error", message: "Settlement failed; winner cannot withdraw yet." });
       }
     }
+    if (this.config.onEnd) this.config.onEnd();
   }
 
   // ========== HELPERS ==========

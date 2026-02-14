@@ -10,7 +10,7 @@ export interface AgentPolicy {
 export interface AgentConfig {
   /** Agent's private key (hex string). */
   privateKey: string;
-  /** RPC URL (Base Sepolia / Base Mainnet). */
+  /** RPC URL (BNB Chain Testnet / Mainnet). */
   rpcUrl: string;
   /** MonopolySettlement contract address. */
   settlementAddress: string;
@@ -23,12 +23,15 @@ export interface AgentConfig {
 /**
  * OpenClawAgent: the main agent class for playing ClawBoardGames v2.
  *
- * Usage:
+ * Usage (on-chain):
  *   1. agent = new OpenClawAgent(config)
- *   2. agent.depositAndCommit(gameId)       // pay + commit
- *   3. agent.revealSeed(gameId)             // reveal secret
- *   4. agent.connectAndPlay(gameId)         // join WebSocket, auto-play
- *   5. (game ends) agent.withdraw(gameId)   // claim winnings
+ *   2. openIds = await agent.getOpenGameIds(); gameId = openIds[0]  // pick an open slot
+ *   3. agent.depositAndCommit(gameId)       // pay + commit
+ *   4. agent.revealSeed(gameId)             // reveal secret
+ *   5. agent.connectAndPlay(gameId)         // join WebSocket, auto-play
+ *   6. (game ends) agent.withdraw(gameId)   // claim winnings
+ *
+ * Usage (local): getOpenGameIds() returns [0..9]; connectAndPlay(gameId) with no deposit/reveal.
  */
 export class OpenClawAgent {
   private settlement: SettlementClient;
@@ -45,6 +48,19 @@ export class OpenClawAgent {
   /** Agent's wallet address. */
   get address(): string {
     return this.settlement.address;
+  }
+
+  /**
+   * Get open game IDs from the GM (GET /games/open).
+   * On-chain: IDs of games that accept new players (first 4 to deposit get slots).
+   * Local: [0..9] (10 fixed slots).
+   */
+  async getOpenGameIds(): Promise<number[]> {
+    const base = this.config.gmWsUrl.replace(/^wss?:\/\//, "https://").replace(/\/ws.*$/, "");
+    const res = await fetch(`${base}/games/open`);
+    if (!res.ok) throw new Error(`GET /games/open failed: ${res.status}`);
+    const body = (await res.json()) as { open?: number[] };
+    return body.open ?? [];
   }
 
   // ========== PRE-GAME ON-CHAIN STEPS ==========
@@ -76,6 +92,7 @@ export class OpenClawAgent {
 
   /**
    * Step 3: Connect to GM WebSocket and auto-play using the policy.
+   * Local mode: use gameId 0–9; when 4 players join the same slot, the game starts (no deposit/reveal).
    * Returns a promise that resolves when the game ends.
    */
   connectAndPlay(gameId: number): Promise<GameSnapshot> {
@@ -127,18 +144,21 @@ export class OpenClawAgent {
 
   /**
    * Run the full game lifecycle: deposit, commit, reveal, play, withdraw.
-   * Waits for the right moment for each step.
+   * Use getOpenGameIds() first to get an open gameId, then runFullGame(gameId).
+   * Local mode: use connectAndPlay(gameId) with gameId 0–9 (no deposit/reveal); when 4 join same slot, game starts.
    */
   async runFullGame(gameId: number): Promise<GameSnapshot> {
     // Step 1: Deposit + commit
     await this.depositAndCommit(gameId);
 
-    // Step 2: Wait briefly, then reveal
+    // Step 2: Wait for reveal phase, then reveal (small jitter to avoid nonce clashes when 4 agents reveal in parallel)
     await this.waitForRevealPhase(gameId);
+    await sleep(500 + Math.floor(Math.random() * 1500));
     await this.revealSeed(gameId);
 
-    // Step 3: Wait for game to start, then connect and play
+    // Step 3: Wait for game to start, give GM time to spawn process, then connect and play
     await this.waitForGameStart(gameId);
+    await sleep(2500); // let GM receive GameStarted and spawn GameProcess
     const finalSnapshot = await this.connectAndPlay(gameId);
 
     // Step 4: If we won, withdraw
@@ -150,6 +170,17 @@ export class OpenClawAgent {
     }
 
     return finalSnapshot;
+  }
+
+  /**
+   * Get open game IDs, pick one (by default the first), then run the full on-chain game.
+   * Convenience helper for "join any open game and play."
+   */
+  async runFullGameOnAnyOpenSlot(pickIndex = 0): Promise<GameSnapshot> {
+    const open = await this.getOpenGameIds();
+    if (open.length === 0) throw new Error("No open games available");
+    const gameId = open[Math.min(pickIndex, open.length - 1)];
+    return this.runFullGame(gameId);
   }
 
   // ========== PRIVATE ==========
@@ -201,7 +232,7 @@ export class OpenClawAgent {
     const start = Date.now();
     while (Date.now() - start < maxWaitMs) {
       const game = await this.settlement.getGame(gameId);
-      if (game.status >= 2) return; // REVEALING or later
+      if (game.status >= 3) return; // REVEALING or later (OPEN=1, DEPOSITING=2)
       await sleep(2000);
     }
     throw new Error("Timed out waiting for reveal phase");
@@ -211,7 +242,7 @@ export class OpenClawAgent {
     const start = Date.now();
     while (Date.now() - start < maxWaitMs) {
       const game = await this.settlement.getGame(gameId);
-      if (game.status >= 3) return; // STARTED or later
+      if (game.status >= 4) return; // STARTED or later
       await sleep(2000);
     }
     throw new Error("Timed out waiting for game start");

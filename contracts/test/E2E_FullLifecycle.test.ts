@@ -86,7 +86,7 @@ describe("E2E: Full Game Lifecycle (Engine + Contracts)", function () {
     const gameId = 0; // first game
 
     const gameAfterCreate = await settlement.getGame(gameId);
-    expect(gameAfterCreate.status).to.equal(1); // DEPOSITING
+    expect(gameAfterCreate.status).to.equal(2); // DEPOSITING (OPEN=1)
     expect(gameAfterCreate.players).to.deep.equal(playerAddrs);
     console.log(`  Game ${gameId} created. Status: DEPOSITING`);
     console.log(`  Players: ${playerAddrs.map(a => a.slice(0, 10) + '...').join(', ')}`);
@@ -104,7 +104,7 @@ describe("E2E: Full Game Lifecycle (Engine + Contracts)", function () {
     }
 
     const gameAfterDeposit = await settlement.getGame(gameId);
-    expect(gameAfterDeposit.status).to.equal(2); // REVEALING
+    expect(gameAfterDeposit.status).to.equal(3); // REVEALING
     expect(gameAfterDeposit.depositCount).to.equal(4);
     console.log(`  All 4 deposited. Status: REVEALING. Reveal deadline set.`);
 
@@ -141,7 +141,7 @@ describe("E2E: Full Game Lifecycle (Engine + Contracts)", function () {
     console.log(`  GameStarted! Dice seed: ${diceSeed.slice(0, 20)}...`);
 
     const gameAfterReveal = await settlement.getGame(gameId);
-    expect(gameAfterReveal.status).to.equal(3); // STARTED
+    expect(gameAfterReveal.status).to.equal(4); // STARTED
     expect(gameAfterReveal.revealCount).to.equal(4);
     expect(gameAfterReveal.diceSeed).to.equal(diceSeed);
 
@@ -246,7 +246,7 @@ describe("E2E: Full Game Lifecycle (Engine + Contracts)", function () {
     await settleTx.wait();
 
     const gameAfterSettle = await settlement.getGame(gameId);
-    expect(gameAfterSettle.status).to.equal(4); // SETTLED
+    expect(gameAfterSettle.status).to.equal(5); // SETTLED
     expect(gameAfterSettle.winner).to.equal(winnerAddr);
     console.log(`  Game settled. Winner: ${winnerAddr.slice(0, 10)}...`);
     console.log(`  Game log hash: ${gameLogHash.slice(0, 20)}...`);
@@ -287,7 +287,7 @@ describe("E2E: Full Game Lifecycle (Engine + Contracts)", function () {
     console.log("\nSTEP 8: Final verification...");
 
     const finalGame = await settlement.getGame(gameId);
-    expect(finalGame.status).to.equal(4); // SETTLED
+    expect(finalGame.status).to.equal(5); // SETTLED
 
     // Verify double-withdraw is blocked
     try {
@@ -425,8 +425,8 @@ describe("E2E: Full Game Lifecycle (Engine + Contracts)", function () {
 
     const game0 = await settlement.getGame(0);
     const game1 = await settlement.getGame(1);
-    expect(game0.status).to.equal(3); // STARTED
-    expect(game1.status).to.equal(3); // STARTED
+    expect(game0.status).to.equal(4); // STARTED
+    expect(game1.status).to.equal(4); // STARTED
 
     console.log("  2 games running simultaneously");
 

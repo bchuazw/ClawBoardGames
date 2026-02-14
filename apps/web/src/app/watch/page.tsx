@@ -128,10 +128,21 @@ export default function WatchPageWrapper() {
   );
 }
 
+function gmWsToRest(wsUrl: string): string {
+  try {
+    const u = wsUrl.replace(/^wss:\/\//, 'https://').replace(/^ws:\/\//, 'http://');
+    return u.replace(/\/ws\/?$/, '') || u;
+  } catch {
+    return 'https://clawboardgames-gm.onrender.com';
+  }
+}
+
 function WatchPage() {
   const params = useSearchParams();
   const [gmUrl, setGmUrl] = useState(process.env.NEXT_PUBLIC_GM_WS_URL || 'wss://clawboardgames-gm.onrender.com/ws');
   const [gameId, setGameId] = useState(params.get('gameId') || '');
+  const [openLobbies, setOpenLobbies] = useState<number[]>([]);
+  const [lobbiesLoading, setLobbiesLoading] = useState(false);
   const [connected, setConnected] = useState(false);
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [events, setEvents] = useState<GameEvent[]>([]);
@@ -152,6 +163,21 @@ function WatchPage() {
   }, [params]);
 
   useEffect(() => { sfx.muted = muted; }, [muted]);
+
+  // Fetch open lobbies when no gameId (lobby picker view)
+  useEffect(() => {
+    if (gameId) return;
+    setLobbiesLoading(true);
+    const restUrl = process.env.NEXT_PUBLIC_GM_REST_URL || gmWsToRest(gmUrl);
+    fetch(`${restUrl}/games/open`)
+      .then((res) => res.json())
+      .then((data: { open?: number[] }) => {
+        const list = Array.isArray(data.open) ? data.open : (data as { games?: number[] }).games ?? [];
+        setOpenLobbies(list.length > 0 ? list : Array.from({ length: 10 }, (_, i) => i));
+      })
+      .catch(() => setOpenLobbies(Array.from({ length: 10 }, (_, i) => i)))
+      .finally(() => setLobbiesLoading(false));
+  }, [gameId, gmUrl]);
 
   function updateMoods(evts: GameEvent[]) {
     const newMoods = { ...moods };
@@ -192,11 +218,13 @@ function WatchPage() {
     }
   }
 
-  const connect = useCallback(() => {
-    if (!gameId) return;
+  const connect = useCallback((id?: string | number) => {
+    const gid = id !== undefined ? String(id) : gameId;
+    if (!gid) return;
     disconnect();
+    setGameId(gid);
     sfx.init();
-    const ws = new WebSocket(`${gmUrl}?gameId=${gameId}`);
+    const ws = new WebSocket(`${gmUrl}?gameId=${gid}`);
     wsRef.current = ws;
     ws.onopen = () => setConnected(true);
     ws.onclose = () => setConnected(false);
@@ -235,6 +263,11 @@ function WatchPage() {
       }
     };
   }, [gameId, gmUrl]);
+
+  const connectToLobby = useCallback((lobbyId: number) => {
+    setGameId(String(lobbyId));
+    connect(lobbyId);
+  }, [connect]);
 
   const disconnect = useCallback(() => { wsRef.current?.close(); wsRef.current = null; setConnected(false); }, []);
   useEffect(() => { eventsEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [events]);
@@ -302,10 +335,52 @@ function WatchPage() {
           </div>
         )}
 
-        {!snapshot && !connected && (
+        {!gameId && (
+          <div style={{
+            position: 'absolute', inset: 0, zIndex: 15, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+            background: 'linear-gradient(180deg, #0C1B3A 0%, #0D2535 100%)', padding: 24,
+          }}>
+            <div style={{ fontSize: 22, color: '#D4A84B', fontWeight: 800, marginBottom: 8 }}>Choose a lobby to spectate</div>
+            <div style={{ fontSize: 14, color: 'var(--text-muted)', marginBottom: 24 }}>10 lobbies are always open — pick one to watch</div>
+            {lobbiesLoading ? (
+              <div style={{ color: 'var(--text-muted)', fontSize: 14 }}>Loading lobbies...</div>
+            ) : (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, justifyContent: 'center', maxWidth: 520 }}>
+                {openLobbies.map((id) => (
+                  <button
+                    key={id}
+                    onClick={() => connectToLobby(id)}
+                    style={{
+                      width: 72, height: 72, borderRadius: 16, border: '1px solid rgba(212,168,75,0.25)',
+                      background: 'rgba(212,168,75,0.06)', color: '#D4A84B', fontSize: 18, fontWeight: 800,
+                      cursor: 'pointer', fontFamily: "'Syne', sans-serif",
+                      transition: 'all 0.25s',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'rgba(212,168,75,0.12)';
+                      e.currentTarget.style.borderColor = 'rgba(212,168,75,0.5)';
+                      e.currentTarget.style.transform = 'scale(1.05)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'rgba(212,168,75,0.06)';
+                      e.currentTarget.style.borderColor = 'rgba(212,168,75,0.25)';
+                      e.currentTarget.style.transform = 'scale(1)';
+                    }}
+                  >
+                    Lobby {id}
+                  </button>
+                ))}
+              </div>
+            )}
+            <div style={{ marginTop: 24, fontSize: 12, color: 'var(--text-muted-soft)' }}>
+                Or add ?gameId=5 to the URL to watch a specific game
+            </div>
+          </div>
+        )}
+        {gameId && !snapshot && !connected && (
           <div style={{ position: 'absolute', bottom: 100, left: 0, right: 0, zIndex: 10, textAlign: 'center', pointerEvents: 'none' }}>
-            <div style={{ fontSize: 22, color: '#D4A84B', fontWeight: 800, marginBottom: 8 }}>Enter a Game ID and click Watch</div>
-            <div style={{ fontSize: 14, color: '#5A6B8A' }}>The 3D board will come alive with a live game</div>
+            <div style={{ fontSize: 22, color: '#D4A84B', fontWeight: 800, marginBottom: 8 }}>Connecting to game {gameId}...</div>
+            <div style={{ fontSize: 14, color: 'var(--text-muted)' }}>The 3D board will come alive when connected</div>
           </div>
         )}
       </div>

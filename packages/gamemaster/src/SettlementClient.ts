@@ -75,6 +75,12 @@ export class SettlementClient {
     };
   }
 
+  /** Get list of open game IDs (any agent can join). */
+  async getOpenGameIds(): Promise<number[]> {
+    const ids = await this.contract.getOpenGameIds();
+    return ids.map((id: bigint) => Number(id));
+  }
+
   /** Listen for GameStarted events to spawn GM processes. */
   onGameStarted(callback: (gameId: number, diceSeed: string) => void): void {
     this.contract.on("GameStarted", (gameId: bigint, diceSeed: string) => {
@@ -94,6 +100,7 @@ const SETTLEMENT_ABI = [
   "function settleGame(uint256 gameId, address winner, bytes32 gameLogHash) external",
   "function getGame(uint256 gameId) external view returns (address[4] players, uint8 status, uint8 depositCount, uint8 revealCount, bytes32 diceSeed, address winner, uint256 revealDeadline)",
   "function getCheckpoint(uint256 gameId) external view returns (uint256 round, uint256 playersPacked, uint256 propertiesPacked, uint256 metaPacked)",
+  "function getOpenGameIds() external view returns (uint256[])",
   "event GameStarted(uint256 indexed gameId, bytes32 diceSeed)",
   "event GameCreated(uint256 indexed gameId, address[4] players)",
 ];

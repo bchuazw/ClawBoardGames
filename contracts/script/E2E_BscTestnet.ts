@@ -8,7 +8,7 @@
  *   - BSC Testnet RPC accessible (defaults to https://data-seed-prebsc-1-s1.binance.org:8545)
  *
  * Usage:
- *   npx hardhat run script/E2E_BaseSepolia.ts --network bscTestnet
+ *   npx hardhat run script/E2E_BscTestnet.ts --network bscTestnet
  *
  * The deployer key is used as: deployer, GM signer, platform fee recipient, AND
  * derives 4 agent wallets (funded from deployer).
@@ -86,45 +86,50 @@ async function main() {
   await mintTx.wait();
   console.log(`  Done`);
 
-  // ========== Step 1: Create Game ==========
-  console.log("\n--- Step 1: Creating game ---");
-  const createTx = await settlement.createGame(playerAddrs);
-  const createReceipt = await createTx.wait();
-  console.log(`  Game 0 created (tx: ${createReceipt!.hash.slice(0, 20)}...)`);
+  // ========== Step 1: Create 10 open games ==========
+  console.log("\n--- Step 1: Creating 10 open games ---");
+  const openCount = 10;
+  for (let i = 0; i < openCount; i++) {
+    const tx = await settlement.createOpenGame();
+    await tx.wait();
+  }
+  const openIds = await settlement.getOpenGameIds();
+  console.log(`  Open game IDs: ${openIds.map((id: bigint) => Number(id)).join(", ")}`);
+  const gameId = 0; // all 4 agents will join this open game
 
-  let game = await settlement.getGame(0);
-  console.log(`  Status: ${["PENDING", "DEPOSITING", "REVEALING", "STARTED", "SETTLED", "VOIDED"][Number(game.status)]}`);
+  let game = await settlement.getGame(gameId);
+  console.log(`  Game ${gameId} status: ${["PENDING", "OPEN", "DEPOSITING", "REVEALING", "STARTED", "SETTLED", "VOIDED"][Number(game.status)]}`);
 
-  // ========== Step 2: Agents Deposit + Commit ==========
-  console.log("\n--- Step 2: Agents depositing + committing ---");
+  // ========== Step 2: Agents Deposit + Commit (into same open game) ==========
+  console.log("\n--- Step 2: Agents depositing + committing into open game ---");
   const entryFee = ethers.parseEther("0.001");
   const settlementForAgent = (wallet: ethers.Wallet) =>
     new ethers.Contract(settlementAddr, settlement.interface, wallet);
 
   for (let i = 0; i < 4; i++) {
     const agentSettlement = settlementForAgent(agents[i].wallet);
-    const tx = await agentSettlement.depositAndCommit(0, agents[i].secretHash, { value: entryFee });
+    const tx = await agentSettlement.depositAndCommit(gameId, agents[i].secretHash, { value: entryFee });
     const receipt = await tx.wait();
     console.log(`  Agent ${i} deposited (tx: ${receipt!.hash.slice(0, 20)}...)`);
     await new Promise((r) => setTimeout(r, 800)); // avoid nonce/ordering issues
   }
 
-  game = await settlement.getGame(0);
+  game = await settlement.getGame(gameId);
   if (Number(game.depositCount) !== 4) throw new Error(`Expected 4 deposits, got ${game.depositCount}`);
-  console.log(`  Status: ${["PENDING", "DEPOSITING", "REVEALING", "STARTED", "SETTLED", "VOIDED"][Number(game.status)]}`);
+  console.log(`  Status: ${["PENDING", "OPEN", "DEPOSITING", "REVEALING", "STARTED", "SETTLED", "VOIDED"][Number(game.status)]}`);
   console.log(`  Deposits: ${game.depositCount}/4`);
 
   // ========== Step 3: Agents Reveal ==========
   console.log("\n--- Step 3: Agents revealing secrets ---");
   for (let i = 0; i < 4; i++) {
     const agentSettlement = settlementForAgent(agents[i].wallet);
-    const tx = await agentSettlement.revealSeed(0, agents[i].secret);
+    const tx = await agentSettlement.revealSeed(gameId, agents[i].secret);
     const receipt = await tx.wait();
     console.log(`  Agent ${i} revealed (tx: ${receipt!.hash.slice(0, 20)}...)`);
   }
 
-  game = await settlement.getGame(0);
-  console.log(`  Status: ${["PENDING", "DEPOSITING", "REVEALING", "STARTED", "SETTLED", "VOIDED"][Number(game.status)]}`);
+  game = await settlement.getGame(gameId);
+  console.log(`  Status: ${["PENDING", "OPEN", "DEPOSITING", "REVEALING", "STARTED", "SETTLED", "VOIDED"][Number(game.status)]}`);
   console.log(`  Dice seed: ${game.diceSeed.slice(0, 20)}...`);
   console.log(`  Reveals: ${game.revealCount}/4`);
 
@@ -172,7 +177,7 @@ async function main() {
           for (let r = 0; r <= retries; r++) {
             try {
               if (r > 0) await new Promise((resolve) => setTimeout(resolve, 2000)); // delay before retry
-              const cpTx = await settlement.checkpoint(0, roundCount, playersPacked, propertiesPacked, metaPacked);
+              const cpTx = await settlement.checkpoint(gameId, roundCount, playersPacked, propertiesPacked, metaPacked);
               await cpTx.wait();
               await new Promise((resolve) => setTimeout(resolve, 1500)); // let nonce update before next tx
               return true;
@@ -202,7 +207,7 @@ async function main() {
 
   // ========== Step 5: Verify Checkpoint ==========
   console.log("\n--- Step 5: Verifying checkpoint on-chain ---");
-  const cp = await settlement.getCheckpoint(0);
+  const cp = await settlement.getCheckpoint(gameId);
   console.log(`  Last checkpoint round: ${cp.round}`);
 
   // ========== Step 6: Settle Game ==========
@@ -210,14 +215,14 @@ async function main() {
   const winnerAddr = playerAddrs[finalSnap.winner];
   const logHash = ethers.keccak256(ethers.toUtf8Bytes(JSON.stringify(allEvents.slice(-50))));
 
-  const settleTx = await settlement.settleGame(0, winnerAddr, logHash);
+  const settleTx = await settlement.settleGame(gameId, winnerAddr, logHash);
   const settleReceipt = await settleTx.wait();
   console.log(`  Settled (tx: ${settleReceipt!.hash.slice(0, 20)}...)`);
 
-  game = await settlement.getGame(0);
-  const statusNames = ["PENDING", "DEPOSITING", "REVEALING", "STARTED", "SETTLED", "VOIDED"];
+  game = await settlement.getGame(gameId);
+  const statusNames = ["PENDING", "OPEN", "DEPOSITING", "REVEALING", "STARTED", "SETTLED", "VOIDED"];
   const statusIdx = Number(game.status);
-  if (statusIdx !== 4) throw new Error(`Expected status SETTLED (4), got ${statusIdx} (${statusNames[statusIdx]})`);
+  if (statusIdx !== 5) throw new Error(`Expected status SETTLED (5), got ${statusIdx} (${statusNames[statusIdx]})`);
   if ((game.winner as string).toLowerCase() !== winnerAddr.toLowerCase()) throw new Error(`Expected winner ${winnerAddr}, got ${game.winner}`);
   console.log(`  Status: ${statusNames[statusIdx]}`);
   console.log(`  Winner: ${game.winner}`);
@@ -228,7 +233,7 @@ async function main() {
   const deployerBalBefore = await provider.getBalance(deployerAddr);
 
   const agentSettlement = settlementForAgent(agents[finalSnap.winner].wallet);
-  const withdrawTx = await agentSettlement.withdraw(0);
+  const withdrawTx = await agentSettlement.withdraw(gameId);
   const withdrawReceipt = await withdrawTx.wait();
   console.log(`  Withdrawn (tx: ${withdrawReceipt!.hash.slice(0, 20)}...)`);
 
@@ -251,7 +256,7 @@ async function main() {
   console.log("==============================================");
   console.log(`  CLAWToken:         ${clawAddr}`);
   console.log(`  MonopolySettlement: ${settlementAddr}`);
-  console.log(`  Game ID:           0`);
+  console.log(`  Game ID:           ${gameId}`);
   console.log(`  Rounds:            ${roundCount}`);
   console.log(`  Checkpoints:       ${checkpointCount}`);
   console.log(`  Winner:            Agent ${finalSnap.winner} (${winnerAddr.slice(0, 14)}...)`);

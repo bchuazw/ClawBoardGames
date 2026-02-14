@@ -22,13 +22,12 @@ const config: HardhatUserConfig = {
     artifacts: "./out",
   },
   networks: {
-    baseSepolia: {
-      url: process.env.BASE_SEPOLIA_RPC || "https://sepolia.base.org",
-      accounts: process.env.DEPLOYER_KEY ? [process.env.DEPLOYER_KEY] : [],
-    },
-    baseMainnet: {
-      url: process.env.BASE_MAINNET_RPC || "https://mainnet.base.org",
-      accounts: process.env.DEPLOYER_KEY ? [process.env.DEPLOYER_KEY] : [],
+    localhost: {
+      url: "http://127.0.0.1:8545",
+      accounts: {
+        mnemonic: "test test test test test test test test test test test junk",
+        count: 20,
+      },
     },
     bscTestnet: {
       url: process.env.BSC_TESTNET_RPC || "https://data-seed-prebsc-1-s1.binance.org:8545",

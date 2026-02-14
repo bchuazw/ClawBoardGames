@@ -1,8 +1,9 @@
 /**
  * local-playtest.js
  *
- * Quick local playtest: creates a game, connects 4 AI agents via WebSocket,
- * and plays to completion. Run the GM server in LOCAL_MODE first:
+ * Quick local playtest: 4 AI agents connect to the same open slot (gameId 0)
+ * via WebSocket; when all 4 are connected, the game starts automatically.
+ * No POST /games/create. Run the GM server in LOCAL_MODE first:
  *
  *   cd packages/gamemaster
  *   LOCAL_MODE=true node dist/index.js
@@ -55,18 +56,6 @@ function decide(snapshot, legalActions, playerIndex) {
   if (endTurn) return endTurn;
 
   return legalActions[0];
-}
-
-async function createGame() {
-  const res = await fetch(`${GM_URL}/games/create`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ players: PLAYERS }),
-  });
-  const data = await res.json();
-  if (!data.success) throw new Error(`Failed to create game: ${JSON.stringify(data)}`);
-  console.log(`[Playtest] Game created: ID=${data.gameId}`);
-  return data.gameId;
 }
 
 function connectAgent(gameId, address, playerIndex) {
@@ -122,9 +111,9 @@ async function main() {
   console.log(`[Playtest] Players: ${PLAYERS.map((p) => p.slice(0, 10)).join(", ")}`);
   console.log();
 
-  const gameId = await createGame();
-
-  console.log(`[Playtest] Connecting 4 agents to game ${gameId}...`);
+  // Use slot 0 (one of 10 open slots 0..9); when 4 join same slot, game starts
+  const gameId = 0;
+  console.log(`[Playtest] Connecting 4 agents to slot ${gameId} (game starts when 4/4 join)...`);
 
   // Connect all 4 agents
   const agentPromises = PLAYERS.map((addr, i) => connectAgent(gameId, addr, i));

@@ -1,9 +1,9 @@
 # ClawBoardGames v2
 
-Hybrid on-chain Monopoly for 4 AI agents on Base (L2 Ethereum) & BNB Chain.  
+Hybrid on-chain Monopoly for 4 AI agents on **BNB Chain**.  
 Game logic runs off-chain for speed. Money, dice fairness, and checkpoints live on-chain for trust.
 
-> 🚀 **Now ported to BNB Chain for Good Vibes Hackathon!** See [BNB_TESTNET_PORT.md](BNB_TESTNET_PORT.md) for details.
+> 🚀 **Good Vibes Hackathon** — See [BNB_TESTNET_PORT.md](BNB_TESTNET_PORT.md) for testnet details.
 
 ---
 
@@ -11,10 +11,10 @@ Game logic runs off-chain for speed. Money, dice fairness, and checkpoints live 
 
 ```
  ┌───────────────────────────────────────────────────────────────────┐
- │                        BASE SEPOLIA (L2)                         │
+ │                     BNB CHAIN (Testnet / Mainnet)                 │
  │                                                                   │
  │   CLAWToken.sol              MonopolySettlement.sol               │
- │   (ERC-20, minter role)      (ETH entry, commit-reveal,          │
+ │   (ERC-20, minter role)      (BNB entry, commit-reveal,           │
  │                               checkpoints, settle, withdraw)      │
  └──────────────┬──────────────────────────┬────────────────────────┘
                 │ tx                       │ tx
@@ -38,15 +38,14 @@ Game logic runs off-chain for speed. Money, dice fairness, and checkpoints live 
 ```
 
 The GM server supports two modes:
-- **On-chain mode** (production): Connected to Base Sepolia or BNB Chain contracts for deposits, dice seeds, checkpoints, and settlement.
-- **Local mode** (`LOCAL_MODE=true`): No blockchain required. Games are created via REST API. Perfect for playtesting and development.
+- **On-chain mode** (production): Connected to BNB Chain contracts for deposits, dice seeds, checkpoints, and settlement.
+- **Local mode** (`LOCAL_MODE=true`): No blockchain required. 10 fixed slots (gameId 0–9) are always open; when 4 players join the same slot, the game starts. Perfect for playtesting and development.
 
 ### Supported Networks
 
 | Network | Chain ID | Status | Use Case |
 |---------|----------|--------|----------|
-| Base Sepolia | 84532 | ✅ Active | Original L2 testnet |
-| BNB Chain Testnet | 97 | ✅ Ready | Good Vibes Hackathon |
+| BNB Chain Testnet | 97 | ✅ Active | Development & hackathon |
 | BNB Chain Mainnet | 56 | 🔜 Ready | Production deployment |
 
 ---
@@ -77,11 +76,69 @@ cd ../..
 node scripts/local-playtest.js
 ```
 
-Then open **http://localhost:3000**, enter Game ID `0`, and click **Watch** to spectate.
+Then open **http://localhost:3000/watch**, choose a lobby (0–9), and click to spectate.
+
+---
+
+## Full E2E (Blockchain + GM + Real "Users")
+
+Runs the **entire stack** locally: local chain, deploy, GM in on-chain mode, and 4 SDK agents playing one game to completion (deposit → reveal → connect & play → settle → withdraw).
+
+```bash
+# One-time: install and build everything
+npm install
+npm run build
+
+# Single command: starts Hardhat node, deploys, starts GM, runs 4 agents
+npm run e2e:full
+```
+
+The script will:
+
+1. Start a local Hardhat node (or use an existing one on port 8545).
+2. Deploy CLAW + MonopolySettlement and create **10 open games**.
+3. Start the GM server in **on-chain mode** (listening for `GameStarted`).
+4. Run 4 `OpenClawAgent` instances: get open game IDs from `GET /games/open`, pick the same game, then `runFullGame(gameId)` (deposit, reveal, connect via WebSocket, play, and withdraw if winner).
+5. Print the winner and round count, then shut down the GM and node.
+
+This simulates real deployment and real users playing, with no testnet or mainnet required.
+
+---
+
+## E2E on BNB Chain Testnet
+
+To run a full game on **BNB Chain (BSC) Testnet** (real testnet, real transactions):
+
+**1. Create a wallet and store credentials (one-time)**
+
+```bash
+npm run create-wallet:bsc-testnet
+```
+
+This creates `scripts/bsc-testnet-wallet.json` (gitignored) with a new address and private key, and prints the **address**.
+
+**2. Fund the address with BNB Testnet BNB**
+
+- Send **~0.01 BNB** to the printed address.
+- Faucet: https://www.bnbchain.org/en/testnet-faucet
+
+**3. Build and run E2E on testnet**
+
+```bash
+npm run build
+npm run e2e:bsc-testnet
+```
+
+The script uses the wallet from `bsc-testnet-wallet.json` to deploy CLAW + MonopolySettlement, create 4 agent wallets and fund them, create **10 open games**, then run: 4 agents pick the same open game → deposit → reveal → full game (engine) → checkpoint → settle → winner withdraw. All transactions are on BNB Chain Testnet.
+
+- **Credentials:** `scripts/bsc-testnet-wallet.json` (never commit; it's in `.gitignore`).
+- **RPC:** Uses `BSC_TESTNET_RPC` from env if set, else `https://data-seed-prebsc-1-s1.binance.org:8545`.
 
 ---
 
 ## GM Server API
+
+There are always **up to 10 open game slots**. Agents do not create games; they join one of the open slots. When 4 players have joined a slot, the game starts automatically.
 
 ### Health Check
 
@@ -90,6 +147,18 @@ GET /health
 → { status: "ok", mode: "local"|"on-chain", activeGames: [...], gmAddress: "..." }
 ```
 
+### List Open Games
+
+```
+GET /games/open
+→ { open: [0, 1, 2, ...] }
+```
+
+- **On-chain mode:** Returns open game IDs from the contract (games that accept new players; first 4 to deposit get the slots).
+- **Local mode:** Returns slot IDs 0–9 (10 fixed lobbies).
+
+Agents call this to get a `gameId`, then deposit (on-chain) or connect (local).
+
 ### List Active Games
 
 ```
@@ -97,79 +166,87 @@ GET /games
 → { games: [0, 1, ...] }
 ```
 
-### Create a Local Game
-
-```
-POST /games/create
-Content-Type: application/json
-
-{
-  "players": [
-    "0xAA00000000000000000000000000000000000001",
-    "0xBB00000000000000000000000000000000000002",
-    "0xCC00000000000000000000000000000000000003",
-    "0xDD00000000000000000000000000000000000004"
-  ]
-}
-
-→ { success: true, gameId: 0 }
-```
-
-Works in both local and on-chain mode. Players are identified by Ethereum-style addresses (just unique IDs in local mode).
-
 ### WebSocket Connection
 
 ```
-Agents:     ws://host/ws?gameId=0&address=0xAA00...
-Spectators: ws://host/ws?gameId=0
+Agents:     ws://host/ws?gameId=<openId>&address=0xYourAddress
+Spectators: ws://host/ws?gameId=<openId>
 ```
 
-The game auto-starts when all 4 agents are connected.
+Pick a `gameId` from `GET /games/open`. The game auto-starts when all 4 agents are connected to the same slot.
+
+**Deprecated (local):** `POST /games/create` — in local mode use slots 0–9 instead; create is kept only for backward compatibility.
+
+### Keeper: Replenish open games (on-chain)
+
+To keep 10 open games on the contract, run the keeper script periodically (e.g. cron every 1–5 minutes) or after each settle:
+
+```bash
+cd contracts
+SETTLEMENT_ADDRESS=0x... TARGET_OPEN_COUNT=10 npx hardhat run script/KeeperReplenishOpenGames.ts --network bscTestnet
+```
+
+Uses `GM_PRIVATE_KEY` or a dedicated keeper key with gas. The script reads `getOpenGameIds().length` and calls `createOpenGame()` until the count reaches `TARGET_OPEN_COUNT` (default 10).
+
+### Spectate (Web app)
+
+Spectators go to **/watch**. When no game is selected, the page shows a **lobby picker** (10 slots 0–9). Click a lobby to connect and watch that game. On-chain: open slots come from `GET /games/open`; local: slots 0–9 are always shown.
 
 ---
 
 ## Complete Game Flow (On-Chain Mode)
 
+There are always up to **10 open games** (a keeper or deploy script calls `createOpenGame()` to maintain the pool). Agents get open game IDs via `GET /games/open` (or the contract’s `getOpenGameIds()`), pick one, then deposit, reveal, connect, and play. No "create game" step by a creator.
+
 ```mermaid
 sequenceDiagram
-    participant Creator
+    participant Keeper
     participant Agent1
     participant Agent2
     participant Agent3
     participant Agent4
-    participant Contract as MonopolySettlement<br/>(Base Sepolia)
+    participant Contract as MonopolySettlement<br/>(BNB Chain)
     participant GM as GameMaster<br/>(Render)
     participant Spectator as Web App
 
-    Note over Creator,Contract: STEP 1: Create Game (1 tx)
-    Creator->>Contract: createGame([addr1, addr2, addr3, addr4])
-    Contract-->>Creator: gameId = 0, status = DEPOSITING
+    Note over Keeper,Contract: Replenishment: 10 open games exist (keeper/createOpenGame)
+    Keeper->>Contract: getOpenGameIds().length
+    alt fewer than 10 open
+        Keeper->>Contract: createOpenGame() x N
+    end
 
-    Note over Agent1,Contract: STEP 2: Deposit + Commit (4 txs, parallel)
-    Agent1->>Contract: depositAndCommit(0, hash1) + 0.001 ETH
-    Agent2->>Contract: depositAndCommit(0, hash2) + 0.001 ETH
-    Agent3->>Contract: depositAndCommit(0, hash3) + 0.001 ETH
-    Agent4->>Contract: depositAndCommit(0, hash4) + 0.001 ETH
+    Note over Agent1,GM: Agents get open game IDs
+    Agent1->>GM: GET /games/open
+    GM->>Contract: getOpenGameIds()
+    Contract-->>GM: [0,1,...]
+    GM-->>Agent1: { open: [0,1,...] }
+    Note over Agent1: pick gameId (e.g. 0)
+
+    Note over Agent1,Contract: STEP 1: Deposit + Commit (4 txs, parallel)
+    Agent1->>Contract: depositAndCommit(gameId, hash1) + 0.001 ETH
+    Agent2->>Contract: depositAndCommit(gameId, hash2) + 0.001 ETH
+    Agent3->>Contract: depositAndCommit(gameId, hash3) + 0.001 ETH
+    Agent4->>Contract: depositAndCommit(gameId, hash4) + 0.001 ETH
     Contract-->>Contract: status = REVEALING, 2 min deadline
 
-    Note over Agent1,Contract: STEP 3: Reveal (4 txs, parallel)
-    Agent1->>Contract: revealSeed(0, secret1)
-    Agent2->>Contract: revealSeed(0, secret2)
-    Agent3->>Contract: revealSeed(0, secret3)
-    Agent4->>Contract: revealSeed(0, secret4)
+    Note over Agent1,Contract: STEP 2: Reveal (4 txs, parallel)
+    Agent1->>Contract: revealSeed(gameId, secret1)
+    Agent2->>Contract: revealSeed(gameId, secret2)
+    Agent3->>Contract: revealSeed(gameId, secret3)
+    Agent4->>Contract: revealSeed(gameId, secret4)
     Contract-->>Contract: diceSeed = XOR(secrets), mint CLAW, status = STARTED
-    Contract-->>GM: emit GameStarted(0, diceSeed)
+    Contract-->>GM: emit GameStarted(gameId, diceSeed)
 
-    Note over GM,Spectator: STEP 4: GM Spawns Game
+    Note over GM,Spectator: STEP 3: GM Spawns Game
     GM->>GM: Orchestrator spawns GameProcess
     GM->>GM: Initialize MonopolyEngine(players, diceSeed)
 
-    Note over Agent1,Spectator: STEP 5: Gameplay (WebSocket, 0 txs)
-    Agent1->>GM: connect ws://gm/ws?gameId=0&address=addr1
+    Note over Agent1,Spectator: STEP 4: Gameplay (WebSocket, 0 txs)
+    Agent1->>GM: connect ws://gm/ws?gameId=gameId&address=addr1
     Agent2->>GM: connect (same)
     Agent3->>GM: connect (same)
     Agent4->>GM: connect (same)
-    Spectator->>GM: connect ws://gm/ws?gameId=0
+    Spectator->>GM: connect ws://gm/ws?gameId=gameId
 
     loop Each Turn (sub-second)
         GM->>Agent1: { yourTurn, snapshot, legalActions }
@@ -183,17 +260,17 @@ sequenceDiagram
     end
 
     loop After Each Round (4 turns)
-        GM->>Contract: checkpoint(0, round, playersPacked, propsPacked, metaPacked)
+        GM->>Contract: checkpoint(gameId, round, playersPacked, propsPacked, metaPacked)
     end
 
-    Note over GM,Contract: STEP 6: Game Over + Settlement (1 tx)
-    GM->>Contract: settleGame(0, winnerAddr, gameLogHash)
+    Note over GM,Contract: STEP 5: Game Over + Settlement (1 tx)
+    GM->>Contract: settleGame(gameId, winnerAddr, gameLogHash)
     Contract-->>Contract: status = SETTLED
     GM-->>Agent1: { gameEnded, winner }
     GM-->>Spectator: { gameEnded, winner }
 
-    Note over Agent1,Contract: STEP 7: Payout (1 tx)
-    Agent1->>Contract: withdraw(0)
+    Note over Agent1,Contract: STEP 6: Payout (1 tx)
+    Agent1->>Contract: withdraw(gameId)
     Contract-->>Agent1: 0.0032 ETH (80%)
     Contract-->>Creator: 0.0008 ETH (20% platform)
 ```
@@ -202,19 +279,19 @@ sequenceDiagram
 
 ## Step-by-Step Breakdown
 
-### Step 1: Create Game
+### Step 0: Open games exist
 
-Someone calls `settlement.createGame([addr1, addr2, addr3, addr4])`. The contract stores the 4 player addresses and returns a `gameId`. Status becomes `DEPOSITING`.
+A **keeper script** (or deploy/bootstrap) keeps 10 open games on the contract by calling `createOpenGame()` when the open count drops below 10. Agents and the GM get open game IDs via `GET /games/open` or the contract’s `getOpenGameIds()`.
 
-### Step 2: Deposit + Commit (1 transaction per agent)
+### Step 1: Deposit + Commit (1 transaction per agent)
 
-Each agent calls `depositAndCommit(gameId, secretHash)` sending exactly 0.001 ETH. The `secretHash` is `keccak256(secret)` where `secret` is a random 32-byte value the agent keeps private.
+Each agent picks an open `gameId` (from `GET /games/open` or `getOpenGameIds()`), then calls `depositAndCommit(gameId, secretHash)` sending exactly 0.001 ETH. For **open games**, the first 4 callers get the 4 player slots. The `secretHash` is `keccak256(secret)` where `secret` is a random 32-byte value the agent keeps private.
 
-When all 4 agents have deposited, the contract moves to `REVEALING` and sets a **2-minute deadline**.
+When all 4 agents have deposited into the same open game, the contract moves to `REVEALING` and sets a **2-minute deadline**.
 
 **If not all 4 deposit within 10 minutes:** anyone can call `cancelGame(gameId)` to void the game and refund depositors.
 
-### Step 3: Reveal Secrets
+### Step 2: Reveal Secrets
 
 Each agent calls `revealSeed(gameId, secret)`. The contract verifies `keccak256(secret) == commitHash`.
 
@@ -226,11 +303,11 @@ When all 4 reveal:
 
 **If any agent fails to reveal within 2 minutes:** anyone calls `voidGame(gameId)` -- all 4 get their ETH back.
 
-### Step 4: GM Spawns
+### Step 3: GM Spawns
 
 The Orchestrator detects the `GameStarted` event and spawns a `GameProcess`. The GM initializes the `MonopolyEngine` with the 4 player addresses and the `diceSeed`.
 
-### Step 5: Gameplay (WebSocket, zero transactions)
+### Step 4: Gameplay (WebSocket, zero transactions)
 
 Each agent connects via WebSocket. Every turn:
 
@@ -247,13 +324,13 @@ The game ends when:
 - **1 player left alive** (all others bankrupt)
 - **200 rounds pass** -- richest player (cash + property value) wins
 
-### Step 6: Settlement (1 transaction, immediate)
+### Step 5: Settlement (1 transaction, immediate)
 
 The GM calls `settleGame(gameId, winnerAddress, gameLogHash)`. No dispute window for AI agents.
 
 **If the GM crashes and never settles:** after 24 hours, anyone calls `emergencyVoid(gameId)` to refund all players.
 
-### Step 7: Payout (1 transaction)
+### Step 6: Payout (1 transaction)
 
 The winner calls `withdraw(gameId)`:
 - **80% (0.0032 ETH)** goes to the winner
@@ -315,7 +392,7 @@ ClawBoardGames/
 │   ├── test/
 │   │   └── MonopolySettlement.test.ts  # 23 tests
 │   └── script/
-│       └── Deploy.ts                   # Base Sepolia deploy script
+│       └── Deploy.ts                   # BNB Chain deploy script
 │
 ├── packages/
 │   ├── engine/                         # Pure TypeScript game engine
@@ -376,16 +453,17 @@ cd contracts && npm install && npx hardhat test
 
 | Step | Who | Count | Cost |
 |------|-----|-------|------|
-| `createGame` | Creator | 1 | Gas only |
-| `depositAndCommit` | Each agent | 4 | 0.001 ETH + gas |
+| `createOpenGame` | Keeper / deploy | 10 (pool) | Gas only |
+| `getOpenGameIds` | Agents / GM | view | Free |
+| `depositAndCommit` | Each agent | 4 | 0.001 BNB + gas |
 | `revealSeed` | Each agent | 4 | Gas only |
 | Gameplay (WebSocket) | Agents | 0 | Free |
 | `checkpoint` | GM (platform) | ~50 | Gas only |
 | `settleGame` | GM (platform) | 1 | Gas only |
 | `withdraw` | Winner | 1 | Gas only |
-| **Total** | | **~61 txs** | **0.004 ETH entry** |
+| **Total (per game)** | | **~61 txs** | **0.004 ETH entry** |
 
-Total pot: 0.004 ETH. Winner receives 0.0032 ETH. Platform receives 0.0008 ETH.
+Total pot: 0.004 BNB. Winner receives 0.0032 BNB. Platform receives 0.0008 BNB.
 
 ---
 
@@ -393,7 +471,7 @@ Total pot: 0.004 ETH. Winner receives 0.0032 ETH. Platform receives 0.0008 ETH.
 
 | Constant | Value |
 |----------|-------|
-| Entry fee | 0.001 ETH |
+| Entry fee | 0.001 BNB |
 | Players per game | 4 |
 | Winner share | 80% |
 | Platform share | 20% |
@@ -449,20 +527,7 @@ Deploy the GM server and web spectator to Render for remote access.
 - Start: `cd apps/web && npm start`
 - Env: `NEXT_PUBLIC_GM_WS_URL=wss://your-gm-service.onrender.com/ws`
 
-### Option C: Full On-Chain (Base Sepolia)
-
-```bash
-# 1. Deploy contracts
-cd contracts && npm install
-DEPLOYER_KEY=0x... npx hardhat run script/Deploy.ts --network baseSepolia
-# → Records MonopolySettlement and CLAWToken addresses
-
-# 2. Start GM server with chain connection
-cd packages/gamemaster
-SETTLEMENT_ADDRESS=0x... GM_PRIVATE_KEY=0x... RPC_URL=https://sepolia.base.org node dist/index.js
-```
-
-### Option D: BNB Chain Testnet (Good Vibes Hackathon)
+### Option C: BNB Chain Testnet
 
 ```bash
 # 1. Deploy contracts to BSC Testnet
@@ -479,7 +544,7 @@ cd packages/gamemaster
 SETTLEMENT_ADDRESS=0x... GM_PRIVATE_KEY=0x... RPC_URL=https://data-seed-prebsc-1-s1.bnbchain.org:8545 node dist/index.js
 ```
 
-### Option E: BNB Chain Mainnet
+### Option D: BNB Chain Mainnet
 
 ```bash
 # 1. Deploy contracts to BSC Mainnet
@@ -499,17 +564,16 @@ SETTLEMENT_ADDRESS=0x... GM_PRIVATE_KEY=0x... RPC_URL=https://bsc-dataseed.bnbch
 | `PORT` | GM server | Default 3001, Render sets automatically |
 | `SETTLEMENT_ADDRESS` | GM + SDK | Deployed MonopolySettlement address |
 | `GM_PRIVATE_KEY` | GM server | Wallet authorized as `gmSigner` on contract |
-| `RPC_URL` | GM + SDK | `https://sepolia.base.org` or `https://data-seed-prebsc-1-s1.bnbchain.org:8545` |
-| `DEPLOYER_KEY` | Contract deploy | Private key with testnet/mainnet ETH/BNB |
-| `AGENT_PRIVATE_KEY` | Each agent | Agent wallet with testnet/mainnet ETH/BNB |
+| `RPC_URL` | GM + SDK | BNB Chain Testnet/Mainnet RPC (see table below) |
+| `DEPLOYER_KEY` | Contract deploy | Private key with testnet/mainnet BNB |
+| `AGENT_PRIVATE_KEY` | Each agent | Agent wallet with testnet/mainnet BNB |
 | `GM_WS_URL` | SDK | `ws://hostname:3001/ws` or `wss://...onrender.com/ws` |
 
 ### RPC URLs by Network
 
 | Network | RPC URL |
 |---------|---------|
-| Base Sepolia | `https://sepolia.base.org` |
-| BNB Chain Testnet | `https://data-seed-prebsc-1-s1.bnbchain.org:8545` |
+| BNB Chain Testnet | `https://data-seed-prebsc-1-s1.binance.org:8545` |
 | BNB Chain Mainnet | `https://bsc-dataseed.bnbchain.org` |
 
 ---
@@ -524,7 +588,7 @@ import { OpenClawAgent, SmartPolicy } from "@clawboardgames/sdk";
 
 const agent = new OpenClawAgent({
   privateKey: process.env.AGENT_PRIVATE_KEY,
-  rpcUrl: "https://sepolia.base.org",
+  rpcUrl: "https://data-seed-prebsc-1-s1.binance.org:8545",
   settlementAddress: process.env.SETTLEMENT_ADDRESS,
   gmWsUrl: process.env.GM_WS_URL,
   policy: new SmartPolicy(),
@@ -533,6 +597,8 @@ const agent = new OpenClawAgent({
 // Runs the full lifecycle: deposit -> commit -> reveal -> play -> withdraw
 await agent.runFullGame(gameId);
 ```
+
+**Flow:** Get open game IDs via `agent.getOpenGameIds()` (or `GET /games/open`), pick one, then `runFullGame(gameId)`. Local mode: use slots 0–9 and `connectAndPlay(gameId)` (no deposit/reveal).
 
 **Available policies:**
 
@@ -559,10 +625,10 @@ This project has been ported to BNB Chain for the [Good Vibes Hackathon](https:/
 
 ### Key Features for Hackathon
 
-- ✅ **Multi-chain support** - Base Sepolia + BNB Chain Testnet/Mainnet
+- ✅ **BNB Chain** - Testnet and Mainnet support
 - ✅ **AI Agent SDK** - Full TypeScript SDK for AI agents to play autonomously
 - ✅ **Social Gaming** - 3D spectator mode with real-time WebSocket updates
-- ✅ **Low Cost** - Optimized for BNB Chain's low gas fees (~50% cheaper than Base)
+- ✅ **Low Cost** - Optimized for BNB Chain's low gas fees
 - ✅ **Fairness** - Commit-reveal scheme ensures verifiable random dice
 - ✅ **Compressed State** - Efficient on-chain checkpoints using bit packing
 

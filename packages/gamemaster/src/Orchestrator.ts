@@ -3,18 +3,72 @@ import { SettlementClient } from "./SettlementClient";
 import { WebSocket } from "ws";
 import { keccak256, toUtf8Bytes } from "ethers";
 
+const NUM_LOCAL_SLOTS = 10;
+
+/** Lobby: holds 0–4 (address, WebSocket) until 4th joins, then becomes a game. */
+interface LobbyEntry {
+  address: string;
+  socket: WebSocket;
+}
+
+class Lobby {
+  readonly gameId: number;
+  entries: LobbyEntry[] = [];
+  spectatorSockets: Set<WebSocket> = new Set();
+
+  constructor(gameId: number) {
+    this.gameId = gameId;
+  }
+
+  get size(): number {
+    return this.entries.length;
+  }
+
+  hasAddress(addr: string): boolean {
+    const n = addr.toLowerCase();
+    return this.entries.some(e => e.address.toLowerCase() === n);
+  }
+
+  add(address: string, socket: WebSocket): boolean {
+    if (this.size >= 4 || this.hasAddress(address)) return false;
+    this.entries.push({ address, socket });
+    return true;
+  }
+
+  addSpectator(socket: WebSocket): void {
+    this.spectatorSockets.add(socket);
+    socket.on("close", () => this.spectatorSockets.delete(socket));
+  }
+
+  getPlayersAndSockets(): [string, string, string, string] | null {
+    if (this.entries.length !== 4) return null;
+    const addrs = this.entries.map(e => e.address) as [string, string, string, string];
+    return addrs;
+  }
+}
+
+type LocalSlot = Lobby | GameProcess;
+
 /**
  * Orchestrator: manages all active game processes.
- * Listens for GameStarted events to spawn new GM processes.
- * Routes WebSocket connections to the right game.
+ * In local mode: 10 fixed slots (0..9), each a Lobby or GameProcess. Game auto-starts at 4/4.
+ * In on-chain mode: games Map keyed by gameId; listens for GameStarted to spawn.
  */
 export class Orchestrator {
   private games: Map<number, GameProcess> = new Map();
+  /** Local mode only: slots 0..NUM_LOCAL_SLOTS-1, each Lobby or GameProcess */
+  private slots: Map<number, LocalSlot> = new Map();
   private settlement: SettlementClient | null;
-  private nextLocalGameId = 0;
+  private nextLocalGameId: number;
 
   constructor(settlement: SettlementClient | null) {
     this.settlement = settlement;
+    this.nextLocalGameId = NUM_LOCAL_SLOTS; // 10+ for createLocalGame-created games
+    if (!settlement) {
+      for (let i = 0; i < NUM_LOCAL_SLOTS; i++) {
+        this.slots.set(i, new Lobby(i));
+      }
+    }
   }
 
   /** Start listening for new game events (skipped in local mode). */
@@ -95,9 +149,74 @@ export class Orchestrator {
     return gameId;
   }
 
-  /** Route a WebSocket connection to the right game. */
-  handleConnection(socket: WebSocket, gameId: number, address?: string): void {
-    const process = this.games.get(gameId);
+  /** Route a WebSocket connection to the right game or lobby. */
+  async handleConnection(socket: WebSocket, gameId: number, address?: string): Promise<void> {
+    // Local mode: slots 0..9 are lobbies or in-progress games
+    if (!this.settlement && gameId >= 0 && gameId < NUM_LOCAL_SLOTS) {
+      const slot = this.slots.get(gameId)!;
+      if (slot instanceof Lobby) {
+        if (!address) {
+          slot.addSpectator(socket);
+          return;
+        }
+        const added = slot.add(address, socket);
+        if (!added) {
+          socket.send(JSON.stringify({ type: "error", message: "Lobby full or address already in lobby" }));
+          socket.close();
+          return;
+        }
+        if (slot.size === 4) {
+          const players = slot.getPlayersAndSockets()!;
+          const seed = keccak256(toUtf8Bytes(`local-slot-${gameId}-${Date.now()}`));
+          const config: GameProcessConfig = {
+            gameId,
+            players,
+            diceSeed: seed,
+            settlement: null,
+            onEnd: () => {
+              this.slots.set(gameId, new Lobby(gameId));
+              console.log(`[Orchestrator] Slot ${gameId} reset to lobby`);
+            },
+          };
+          const process = new GameProcess(config);
+          for (let i = 0; i < 4; i++) {
+            process.connectAgent(players[i], slot.entries[i].socket);
+          }
+          for (const spec of slot.spectatorSockets) {
+            if (spec.readyState === WebSocket.OPEN) process.connectSpectator(spec);
+          }
+          this.slots.set(gameId, process);
+          console.log(`[Orchestrator] Slot ${gameId} started with 4 players`);
+        }
+      } else {
+        const process = slot;
+        if (address) {
+          const connected = process.connectAgent(address, socket);
+          if (!connected) {
+            socket.send(JSON.stringify({ type: "error", message: "Not a player in this game" }));
+            socket.close();
+          }
+        } else {
+          process.connectSpectator(socket);
+        }
+      }
+      return;
+    }
+
+    // Local mode: gameId >= 10 from createLocalGame
+    let process = this.games.get(gameId);
+
+    if (!process && this.settlement) {
+      try {
+        const gameInfo = await this.settlement.getGame(gameId);
+        if (gameInfo.status >= 4) { // STARTED or later (OPEN=1, DEPOSITING=2, REVEALING=3)
+          await this.spawnGame(gameId);
+          process = this.games.get(gameId);
+        }
+      } catch (_) {
+        /* ignore */
+      }
+    }
 
     if (!process) {
       socket.send(JSON.stringify({ type: "error", message: `Game ${gameId} not found` }));
@@ -116,12 +235,23 @@ export class Orchestrator {
     }
   }
 
-  /** Get all active game IDs. */
+  /** Get all active game IDs. In local mode returns [0..9] (slot ids). */
   getActiveGames(): number[] {
+    if (!this.settlement) {
+      return Array.from({ length: NUM_LOCAL_SLOTS }, (_, i) => i);
+    }
     return Array.from(this.games.keys());
   }
 
-  /** Clean up finished games. */
+  /** Get open slot IDs (local mode: [0..9]; on-chain: from contract via GET /games/open). */
+  getOpenSlotIds(): number[] {
+    if (!this.settlement) {
+      return Array.from({ length: NUM_LOCAL_SLOTS }, (_, i) => i);
+    }
+    return [];
+  }
+
+  /** Clean up finished games (on-chain only; local slots are reset via onEnd). */
   cleanup(): void {
     for (const [id, process] of this.games) {
       if (!process.isRunning) {

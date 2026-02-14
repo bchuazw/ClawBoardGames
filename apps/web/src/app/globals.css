@@ -17,9 +17,11 @@ html, body {
   --bg-card-hover: #152850;
   --border: rgba(212, 168, 75, 0.1);
   --border-bright: rgba(212, 168, 75, 0.3);
+  /* High-contrast text for readability (WCAG AA on dark bg) */
   --text-primary: #e8e8e8;
-  --text-secondary: #8B9AB5;
-  --text-muted: #5A6B8A;
+  --text-secondary: #a8b8d0;
+  --text-muted: #8b9ab5;
+  --text-muted-soft: #6b7b9a;
   --accent-cyan: #00B8D4;
   --accent-green: #76FF03;
   --accent-orange: #FF9100;
@@ -85,6 +87,11 @@ html, body {
   0% { background-position: 0% 50%; }
   50% { background-position: 100% 50%; }
   100% { background-position: 0% 50%; }
+}
+
+/* Scroll-reveal: use with ScrollReveal component (opacity/transform set in JS) */
+.scroll-reveal-stagger > * {
+  transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1), transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Utility classes */

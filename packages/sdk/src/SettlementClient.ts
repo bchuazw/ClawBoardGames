@@ -44,6 +44,7 @@ export class SettlementClient {
 
     const tx = await this.contract.depositAndCommit(gameId, hash, {
       value: "1000000000000000", // 0.001 ETH
+      gasLimit: 400_000,
     });
     const receipt = await tx.wait();
     return receipt.hash;
@@ -56,7 +57,7 @@ export class SettlementClient {
     const s = secret || this.secret;
     if (!s) throw new Error("No secret to reveal. Call generateSecret() first.");
 
-    const tx = await this.contract.revealSeed(gameId, s);
+    const tx = await this.contract.revealSeed(gameId, s, { gasLimit: 300_000 });
     const receipt = await tx.wait();
     return receipt.hash;
   }

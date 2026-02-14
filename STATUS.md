@@ -44,10 +44,10 @@ The GM server now supports `LOCAL_MODE=true`:
 - [ ] Deploy web spectator as Render Web Service
 - [ ] Verify WebSocket works over wss:// on Render
 
-### 2. Deploy contracts (Base Sepolia) — for full on-chain mode
+### 2. Deploy contracts (BNB Chain Testnet) — for full on-chain mode
 
-- [ ] Get Base Sepolia RPC and deployer wallet with testnet ETH
-- [ ] Run: `cd contracts && npx hardhat run script/Deploy.ts --network baseSepolia`
+- [ ] Get BNB Chain Testnet RPC and deployer wallet with testnet BNB
+- [ ] Run: `cd contracts && npx hardhat run script/Deploy.ts --network bscTestnet`
 - [ ] Record deployed addresses: MonopolySettlement, CLAWToken
 - [ ] Set GM server env to on-chain mode with contract addresses
 

@@ -2,7 +2,7 @@
 
 ## Overview
 
-Ported ClawBoardGames Monopoly from Base network to BNB Chain Testnet (Chain ID 97) for the **Good Vibes Only: OpenClaw Edition** hackathon on DoraHacks.
+ClawBoardGames Monopoly on BNB Chain Testnet (Chain ID 97) for the **Good Vibes Only: OpenClaw Edition** hackathon on DoraHacks.
 
 ## Changes Made
 
@@ -27,8 +27,8 @@ Ported ClawBoardGames Monopoly from Base network to BNB Chain Testnet (Chain ID 
 
 | File | Change |
 |------|--------|
-| `packages/gamemaster/src/index.ts` | Default RPC: `sepolia.base.org` → `data-seed-prebsc-1-s1.binance.org:8545` |
-| `packages/sdk/src/OpenClawAgent.ts` | Comment: "Base Sepolia/Base Mainnet" → "BSC Testnet/BSC Mainnet" |
+| `packages/gamemaster/src/index.ts` | Default RPC: BNB Chain Testnet |
+| `packages/sdk/src/OpenClawAgent.ts` | Comment: "BNB Chain Testnet/Mainnet" |
 
 ## Test Results
 

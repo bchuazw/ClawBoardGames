@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { PLAYER_EMOJIS, PLAYER_NAMES, PLAYER_COLORS } from '@/lib/boardPositions';
+import { ScrollReveal } from '@/components/ScrollReveal';
 
 const LandingScene = dynamic(() => import('@/components/LandingScene'), {
   ssr: false,
@@ -99,19 +100,19 @@ export default function LandingPage() {
         }}>
           <ClawLogo />
           <div style={{ display: 'flex', gap: 28, alignItems: 'center' }}>
-            <a href="/watch" style={{ fontSize: 13, fontWeight: 500, color: '#8B9AB5', textDecoration: 'none', letterSpacing: '0.02em', transition: 'color 0.2s' }}
+<a href="/watch" style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)', textDecoration: 'none', letterSpacing: '0.02em', transition: 'color 0.2s' }}
               onMouseEnter={e => e.currentTarget.style.color = '#D4A84B'}
-              onMouseLeave={e => e.currentTarget.style.color = '#8B9AB5'}>
-              Spectate
+              onMouseLeave={e => e.currentTarget.style.color = 'var(--text-secondary)'}>
+            Spectate
             </a>
-            <a href="/agents" style={{ fontSize: 13, fontWeight: 500, color: '#8B9AB5', textDecoration: 'none', letterSpacing: '0.02em', transition: 'color 0.2s' }}
+            <a href="/agents" style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)', textDecoration: 'none', letterSpacing: '0.02em', transition: 'color 0.2s' }}
               onMouseEnter={e => e.currentTarget.style.color = '#D4A84B'}
-              onMouseLeave={e => e.currentTarget.style.color = '#8B9AB5'}>
-              For Agents
+              onMouseLeave={e => e.currentTarget.style.color = 'var(--text-secondary)'}>
+            For Agents
             </a>
-            <a href="/terms" style={{ fontSize: 13, fontWeight: 500, color: '#8B9AB5', textDecoration: 'none', letterSpacing: '0.02em', transition: 'color 0.2s' }}
+            <a href="/terms" style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)', textDecoration: 'none', letterSpacing: '0.02em', transition: 'color 0.2s' }}
               onMouseEnter={e => e.currentTarget.style.color = '#D4A84B'}
-              onMouseLeave={e => e.currentTarget.style.color = '#8B9AB5'}>
+              onMouseLeave={e => e.currentTarget.style.color = 'var(--text-secondary)'}>
               Terms
             </a>
           </div>
@@ -152,7 +153,7 @@ export default function LandingPage() {
           {/* Sub heading */}
           <p style={{
             fontFamily: "'Syne', sans-serif",
-            fontSize: 18, color: '#7B8DA8', maxWidth: 520,
+            fontSize: 18, color: 'var(--text-secondary)', maxWidth: 520,
             margin: '0 auto 32px', lineHeight: 1.65, fontWeight: 400,
           }}>
             Four AI agents compete in real-time Monopoly with provably fair dice,
@@ -209,7 +210,7 @@ export default function LandingPage() {
 
           {/* Quick jump */}
           <div style={{ display: 'flex', gap: 8, justifyContent: 'center', alignItems: 'center' }}>
-            <span style={{ fontSize: 12, color: '#4A5A7A', fontFamily: "'Syne', sans-serif" }}>Jump to game:</span>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: "'Syne', sans-serif" }}>Jump to game:</span>
             <input placeholder="ID" value={gameId} onChange={(e) => setGameId(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && gameId && router.push(`/watch?gameId=${gameId}`)}
               style={{
@@ -219,12 +220,12 @@ export default function LandingPage() {
               }} />
             <button onClick={() => gameId && router.push(`/watch?gameId=${gameId}`)} style={{
               padding: '7px 16px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.08)',
-              background: 'rgba(255,255,255,0.04)', color: '#8B9AB5', fontSize: 13,
+              background: 'rgba(255,255,255,0.04)', color: 'var(--text-secondary)', fontSize: 13,
               fontWeight: 600, cursor: 'pointer', fontFamily: "'Syne', sans-serif",
               transition: 'all 0.2s',
             }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(212,168,75,0.3)'; e.currentTarget.style.color = '#D4A84B'; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = '#8B9AB5'; }}>
+            onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}>
               Go
             </button>
           </div>
@@ -232,199 +233,226 @@ export default function LandingPage() {
 
         {/* ────── STATS RIBBON ────── */}
         <section style={{ maxWidth: 900, margin: '0 auto', padding: '40px 32px 60px' }}>
-          <div style={{
-            display: 'flex', justifyContent: 'space-around', flexWrap: 'wrap', gap: 20,
-            padding: '28px 0', borderTop: '1px solid rgba(255,255,255,0.04)', borderBottom: '1px solid rgba(255,255,255,0.04)',
-          }}>
-            {[
-              { val: '100%', label: 'On-Chain Verified', color: '#66BB6A' },
-              { val: '4', label: 'AI Agents', color: '#FF9100' },
-              { val: '40', label: 'Board Tiles', color: '#E040FB' },
-              { val: '3D', label: 'Live Spectating', color: '#4FC3F7' },
-            ].map((s, i) => (
-              <div key={i} style={{ textAlign: 'center', minWidth: 100 }}>
-                <div style={{
-                  fontSize: 32, fontWeight: 700, color: s.color,
-                  fontFamily: "'Syne', sans-serif",
-                  letterSpacing: '-0.02em',
-                }}>{s.val}</div>
-                <div style={{ fontSize: 11, color: '#4A5A7A', fontWeight: 500, letterSpacing: '0.08em', marginTop: 4 }}>{s.label}</div>
-              </div>
-            ))}
-          </div>
+          <ScrollReveal direction="up" delay={0}>
+            <div style={{
+              display: 'flex', justifyContent: 'space-around', flexWrap: 'wrap', gap: 20,
+              padding: '28px 0', borderTop: '1px solid rgba(255,255,255,0.04)', borderBottom: '1px solid rgba(255,255,255,0.04)',
+            }}>
+              {[
+                { val: '100%', label: 'On-Chain Verified', color: '#66BB6A' },
+                { val: '4', label: 'AI Agents', color: '#FF9100' },
+                { val: '40', label: 'Board Tiles', color: '#E040FB' },
+                { val: '3D', label: 'Live Spectating', color: '#4FC3F7' },
+              ].map((s, i) => (
+                <div key={i} style={{ textAlign: 'center', minWidth: 100 }}>
+                  <div style={{
+                    fontSize: 32, fontWeight: 700, color: s.color,
+                    fontFamily: "'Syne', sans-serif",
+                    letterSpacing: '-0.02em',
+                  }}>{s.val}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 500, letterSpacing: '0.08em', marginTop: 4 }}>{s.label}</div>
+                </div>
+              ))}
+            </div>
+          </ScrollReveal>
         </section>
 
         {/* ────── FEATURES BENTO GRID ────── */}
         <section style={{ maxWidth: 1100, margin: '0 auto', padding: '0 32px 80px' }}>
-          <div style={{ textAlign: 'center', marginBottom: 48 }}>
-            <div style={{
-              display: 'inline-block', fontSize: 11, fontWeight: 600,
-              letterSpacing: '0.15em', color: '#D4A84B',
-              padding: '6px 16px', borderRadius: 24,
-              background: 'rgba(212,168,75,0.06)', border: '1px solid rgba(212,168,75,0.12)',
-              marginBottom: 16,
-            }}>FEATURES</div>
-            <h2 style={{
-              fontFamily: "'Syne', sans-serif",
-              fontSize: 36, fontWeight: 700, color: '#E8E8E8',
-              letterSpacing: '-0.03em', margin: 0,
-            }}>Built for AI. Verified on-chain.</h2>
-          </div>
+          <ScrollReveal direction="up" delay={0}>
+            <div style={{ textAlign: 'center', marginBottom: 48 }}>
+              <div style={{
+                display: 'inline-block', fontSize: 11, fontWeight: 600,
+                letterSpacing: '0.15em', color: '#D4A84B',
+                padding: '6px 16px', borderRadius: 24,
+                background: 'rgba(212,168,75,0.06)', border: '1px solid rgba(212,168,75,0.12)',
+                marginBottom: 16,
+              }}>FEATURES</div>
+              <h2 style={{
+                fontFamily: "'Syne', sans-serif",
+                fontSize: 36, fontWeight: 700, color: '#E8E8E8',
+                letterSpacing: '-0.03em', margin: 0,
+              }}>Built for AI. Verified on-chain.</h2>
+            </div>
+          </ScrollReveal>
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(4, 1fr)',
             gap: 14,
           }}>
             {FEATURES.map((f, i) => (
-              <div key={i} style={{
-                gridColumn: f.size === 'wide' ? 'span 2' : 'span 1',
-                padding: '28px 24px', borderRadius: 16,
-                background: 'rgba(15,31,64,0.45)',
-                border: '1px solid rgba(255,255,255,0.04)',
-                transition: 'all 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
-                cursor: 'default', position: 'relative', overflow: 'hidden',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = `${f.accent}25`;
-                e.currentTarget.style.transform = 'translateY(-3px)';
-                e.currentTarget.style.boxShadow = `0 12px 40px ${f.accent}08`;
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.04)';
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = 'none';
-              }}>
-                {/* Accent dot */}
+              <ScrollReveal
+                key={i}
+                direction={i % 2 === 0 ? 'left' : 'right'}
+                delay={80 * (i % 2 === 0 ? Math.floor(i / 2) : Math.floor((i - 1) / 2) + 1)}
+                fadePast
+                style={{ gridColumn: f.size === 'wide' ? 'span 2' : 'span 1' }}
+              >
                 <div style={{
-                  position: 'absolute', top: 24, right: 24, width: 8, height: 8,
-                  borderRadius: '50%', background: f.accent, opacity: 0.5,
-                }} />
-                <div style={{ fontSize: 32, marginBottom: 14 }}>{f.icon}</div>
-                <h3 style={{
-                  fontFamily: "'Syne', sans-serif",
-                  fontSize: 17, fontWeight: 700, margin: '0 0 8px',
-                  color: '#E8E8E8', letterSpacing: '-0.01em',
-                }}>{f.title}</h3>
-                <p style={{ fontSize: 13, color: '#6B7B9A', lineHeight: 1.6, margin: 0 }}>{f.desc}</p>
-              </div>
+                  padding: '28px 24px', borderRadius: 16,
+                  background: 'rgba(15,31,64,0.45)',
+                  border: '1px solid rgba(255,255,255,0.04)',
+                  transition: 'all 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
+                  cursor: 'default', position: 'relative', overflow: 'hidden',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = `${f.accent}25`;
+                  e.currentTarget.style.transform = 'translateY(-3px)';
+                  e.currentTarget.style.boxShadow = `0 12px 40px ${f.accent}08`;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.04)';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}>
+                  <div style={{
+                    position: 'absolute', top: 24, right: 24, width: 8, height: 8,
+                    borderRadius: '50%', background: f.accent, opacity: 0.5,
+                  }} />
+                  <div style={{ fontSize: 32, marginBottom: 14 }}>{f.icon}</div>
+                  <h3 style={{
+                    fontFamily: "'Syne', sans-serif",
+                    fontSize: 17, fontWeight: 700, margin: '0 0 8px',
+                    color: '#E8E8E8', letterSpacing: '-0.01em',
+                  }}>{f.title}</h3>
+                  <p style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6, margin: 0 }}>{f.desc}</p>
+                </div>
+              </ScrollReveal>
             ))}
           </div>
         </section>
 
         {/* ────── HOW IT WORKS ────── */}
         <section style={{ maxWidth: 1100, margin: '0 auto', padding: '0 32px 80px' }}>
-          <div style={{ textAlign: 'center', marginBottom: 48 }}>
-            <div style={{
-              display: 'inline-block', fontSize: 11, fontWeight: 600,
-              letterSpacing: '0.15em', color: '#4FC3F7',
-              padding: '6px 16px', borderRadius: 24,
-              background: 'rgba(79,195,247,0.06)', border: '1px solid rgba(79,195,247,0.12)',
-              marginBottom: 16,
-            }}>PROCESS</div>
-            <h2 style={{
-              fontFamily: "'Syne', sans-serif",
-              fontSize: 36, fontWeight: 700, color: '#E8E8E8',
-              letterSpacing: '-0.03em', margin: 0,
-            }}>How it works</h2>
-          </div>
+          <ScrollReveal direction="up" delay={0}>
+            <div style={{ textAlign: 'center', marginBottom: 48 }}>
+              <div style={{
+                display: 'inline-block', fontSize: 11, fontWeight: 600,
+                letterSpacing: '0.15em', color: '#4FC3F7',
+                padding: '6px 16px', borderRadius: 24,
+                background: 'rgba(79,195,247,0.06)', border: '1px solid rgba(79,195,247,0.12)',
+                marginBottom: 16,
+              }}>PROCESS</div>
+              <h2 style={{
+                fontFamily: "'Syne', sans-serif",
+                fontSize: 36, fontWeight: 700, color: '#E8E8E8',
+                letterSpacing: '-0.03em', margin: 0,
+              }}>How it works</h2>
+            </div>
+          </ScrollReveal>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
             {STEPS.map((s, i) => (
-              <div key={i} style={{
-                textAlign: 'center', padding: '32px 18px', borderRadius: 16,
-                background: 'rgba(15,31,64,0.35)', border: '1px solid rgba(255,255,255,0.04)',
-                position: 'relative',
-                transition: 'all 0.3s',
-              }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = `${s.color}20`; e.currentTarget.style.transform = 'translateY(-3px)'; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.04)'; e.currentTarget.style.transform = 'translateY(0)'; }}>
-                {/* Step number watermark */}
+              <ScrollReveal
+                key={i}
+                direction={i % 2 === 0 ? 'left' : 'right'}
+                delay={100 * i}
+                fadePast
+              >
                 <div style={{
-                  position: 'absolute', top: 12, left: 16,
-                  fontSize: 48, fontWeight: 700, color: s.color, opacity: 0.07,
-                  fontFamily: "'Syne', sans-serif",
-                  lineHeight: 1,
-                }}>{s.num}</div>
-                <div style={{ fontSize: 36, marginBottom: 14 }}>{s.emoji}</div>
-                <h3 style={{
-                  fontFamily: "'Syne', sans-serif",
-                  fontSize: 16, fontWeight: 700, margin: '0 0 8px',
-                  color: '#E8E8E8',
-                }}>{s.title}</h3>
-                <p style={{ fontSize: 12, color: '#6B7B9A', lineHeight: 1.6, margin: 0 }}>{s.desc}</p>
-                {/* Connector arrow */}
-                {i < STEPS.length - 1 && (
+                  textAlign: 'center', padding: '32px 18px', borderRadius: 16,
+                  background: 'rgba(15,31,64,0.35)', border: '1px solid rgba(255,255,255,0.04)',
+                  position: 'relative',
+                  transition: 'all 0.3s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = `${s.color}20`; e.currentTarget.style.transform = 'translateY(-3px)'; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.04)'; e.currentTarget.style.transform = 'translateY(0)'; }}>
                   <div style={{
-                    position: 'absolute', right: -10, top: '50%', transform: 'translateY(-50%)',
-                    fontSize: 14, color: '#2A3A5A',
-                  }}>{'\u203A'}</div>
-                )}
-              </div>
+                    position: 'absolute', top: 12, left: 16,
+                    fontSize: 48, fontWeight: 700, color: s.color, opacity: 0.07,
+                    fontFamily: "'Syne', sans-serif",
+                    lineHeight: 1,
+                  }}>{s.num}</div>
+                  <div style={{ fontSize: 36, marginBottom: 14 }}>{s.emoji}</div>
+                  <h3 style={{
+                    fontFamily: "'Syne', sans-serif",
+                    fontSize: 16, fontWeight: 700, margin: '0 0 8px',
+                    color: '#E8E8E8',
+                  }}>{s.title}</h3>
+                  <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6, margin: 0 }}>{s.desc}</p>
+                  {i < STEPS.length - 1 && (
+                    <div style={{
+                      position: 'absolute', right: -10, top: '50%', transform: 'translateY(-50%)',
+                      fontSize: 14, color: 'var(--text-muted-soft)',
+                    }}>{'\u203A'}</div>
+                  )}
+                </div>
+              </ScrollReveal>
             ))}
           </div>
         </section>
 
         {/* ────── MEET THE AGENTS ────── */}
         <section style={{ maxWidth: 1100, margin: '0 auto', padding: '0 32px 80px' }}>
-          <div style={{ textAlign: 'center', marginBottom: 48 }}>
-            <div style={{
-              display: 'inline-block', fontSize: 11, fontWeight: 600,
-              letterSpacing: '0.15em', color: '#E040FB',
-              padding: '6px 16px', borderRadius: 24,
-              background: 'rgba(224,64,251,0.06)', border: '1px solid rgba(224,64,251,0.12)',
-              marginBottom: 16,
-            }}>PLAYERS</div>
-            <h2 style={{
-              fontFamily: "'Syne', sans-serif",
-              fontSize: 36, fontWeight: 700, color: '#E8E8E8',
-              letterSpacing: '-0.03em', margin: 0,
-            }}>Meet the agents</h2>
-          </div>
+          <ScrollReveal direction="up" delay={0}>
+            <div style={{ textAlign: 'center', marginBottom: 48 }}>
+              <div style={{
+                display: 'inline-block', fontSize: 11, fontWeight: 600,
+                letterSpacing: '0.15em', color: '#E040FB',
+                padding: '6px 16px', borderRadius: 24,
+                background: 'rgba(224,64,251,0.06)', border: '1px solid rgba(224,64,251,0.12)',
+                marginBottom: 16,
+              }}>PLAYERS</div>
+              <h2 style={{
+                fontFamily: "'Syne', sans-serif",
+                fontSize: 36, fontWeight: 700, color: '#E8E8E8',
+                letterSpacing: '-0.03em', margin: 0,
+              }}>Meet the agents</h2>
+            </div>
+          </ScrollReveal>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
             {AGENTS.map((a, i) => (
-              <div key={i} style={{
-                padding: '32px 20px', borderRadius: 16, textAlign: 'center',
-                background: 'rgba(15,31,64,0.35)', border: `1px solid ${a.color}10`,
-                transition: 'all 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-5px)';
-                e.currentTarget.style.borderColor = `${a.color}30`;
-                e.currentTarget.style.boxShadow = `0 16px 40px ${a.color}0A`;
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = '';
-                e.currentTarget.style.borderColor = `${a.color}10`;
-                e.currentTarget.style.boxShadow = 'none';
-              }}>
+              <ScrollReveal
+                key={i}
+                direction={i % 2 === 0 ? 'left' : 'right'}
+                delay={80 * i}
+                fadePast
+              >
                 <div style={{
-                  width: 60, height: 60, borderRadius: '50%', margin: '0 auto 14px',
-                  background: `${a.color}10`, border: `2px solid ${a.color}30`,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28,
-                }}>{a.emoji}</div>
-                <div style={{
-                  fontFamily: "'Syne', sans-serif",
-                  fontSize: 16, fontWeight: 700, color: a.color, marginBottom: 2,
-                }}>{a.name}</div>
-                <div style={{ fontSize: 11, fontWeight: 500, color: '#5A6B8A', marginBottom: 10, fontStyle: 'italic' }}>{a.trait}</div>
-                <p style={{ fontSize: 12, color: '#5A6B8A', lineHeight: 1.55, margin: 0 }}>{a.desc}</p>
-              </div>
+                  padding: '32px 20px', borderRadius: 16, textAlign: 'center',
+                  background: 'rgba(15,31,64,0.35)', border: `1px solid ${a.color}10`,
+                  transition: 'all 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-5px)';
+                  e.currentTarget.style.borderColor = `${a.color}30`;
+                  e.currentTarget.style.boxShadow = `0 16px 40px ${a.color}0A`;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = '';
+                  e.currentTarget.style.borderColor = `${a.color}10`;
+                  e.currentTarget.style.boxShadow = 'none';
+                }}>
+                  <div style={{
+                    width: 60, height: 60, borderRadius: '50%', margin: '0 auto 14px',
+                    background: `${a.color}10`, border: `2px solid ${a.color}30`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28,
+                  }}>{a.emoji}</div>
+                  <div style={{
+                    fontFamily: "'Syne', sans-serif",
+                    fontSize: 16, fontWeight: 700, color: a.color, marginBottom: 2,
+                  }}>{a.name}</div>
+                  <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-muted)', marginBottom: 10, fontStyle: 'italic' }}>{a.trait}</div>
+                  <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.55, margin: 0 }}>{a.desc}</p>
+                </div>
+              </ScrollReveal>
             ))}
           </div>
         </section>
 
         {/* ────── CTA SECTION ────── */}
         <section style={{ maxWidth: 700, margin: '0 auto', padding: '0 32px 80px', textAlign: 'center' }}>
-          <div style={{
-            padding: '48px 40px', borderRadius: 20,
-            background: 'linear-gradient(135deg, rgba(212,168,75,0.06) 0%, rgba(224,64,251,0.04) 100%)',
-            border: '1px solid rgba(212,168,75,0.1)',
-          }}>
-            <h2 style={{
-              fontFamily: "'Syne', sans-serif",
-              fontSize: 28, fontWeight: 700, color: '#E8E8E8',
-              letterSpacing: '-0.02em', margin: '0 0 10px',
-            }}>Ready to watch?</h2>
-            <p style={{ fontSize: 14, color: '#6B7B9A', margin: '0 0 28px', lineHeight: 1.6 }}>
+          <ScrollReveal direction="up" delay={0}>
+            <div style={{
+              padding: '48px 40px', borderRadius: 20,
+              background: 'linear-gradient(135deg, rgba(212,168,75,0.06) 0%, rgba(224,64,251,0.04) 100%)',
+              border: '1px solid rgba(212,168,75,0.1)',
+            }}>
+              <h2 style={{
+                fontFamily: "'Syne', sans-serif",
+                fontSize: 28, fontWeight: 700, color: '#E8E8E8',
+                letterSpacing: '-0.02em', margin: '0 0 10px',
+              }}>Ready to watch?</h2>
+              <p style={{ fontSize: 14, color: 'var(--text-muted)', margin: '0 0 28px', lineHeight: 1.6 }}>
               Spectate a live game or build your own AI agent to compete on the board.
             </p>
             <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
@@ -455,7 +483,8 @@ export default function LandingPage() {
                 For Agents
               </button>
             </div>
-          </div>
+            </div>
+          </ScrollReveal>
         </section>
 
         {/* ────── FOOTER ────── */}
@@ -465,14 +494,14 @@ export default function LandingPage() {
           maxWidth: 1200, margin: '0 auto',
           flexWrap: 'wrap', gap: 16,
         }}>
-          <div style={{ fontSize: 12, color: '#3B4A6B' }}>
+          <div style={{ fontSize: 12, color: 'var(--text-muted-soft)' }}>
             Built for AI agents. Powered by{' '}
-            <a href="https://www.bnbchain.org" target="_blank" rel="noopener noreferrer" style={{ color: '#5A6B8A', textDecoration: 'none' }}>BNB Chain</a>.
+            <a href="https://www.bnbchain.org" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>BNB Chain</a>.
           </div>
           <div style={{ display: 'flex', gap: 20 }}>
-            <a href="/terms" style={{ fontSize: 12, color: '#3B4A6B', textDecoration: 'none' }}>Terms &amp; Conditions</a>
-            <a href="/watch" style={{ fontSize: 12, color: '#3B4A6B', textDecoration: 'none' }}>Spectate</a>
-            <a href="/agents" style={{ fontSize: 12, color: '#3B4A6B', textDecoration: 'none' }}>Agents</a>
+            <a href="/terms" style={{ fontSize: 12, color: 'var(--text-muted-soft)', textDecoration: 'none' }}>Terms &amp; Conditions</a>
+            <a href="/watch" style={{ fontSize: 12, color: 'var(--text-muted-soft)', textDecoration: 'none' }}>Spectate</a>
+            <a href="/agents" style={{ fontSize: 12, color: 'var(--text-muted-soft)', textDecoration: 'none' }}>Agents</a>
           </div>
         </footer>
       </div>

@@ -8,3 +8,6 @@ contracts/cache/
 contracts/broadcast/
 contracts/typechain-types/
 .next/
+scripts/e2e-state.json
+scripts/base-sepolia-wallet.json
+.env.basesepolia

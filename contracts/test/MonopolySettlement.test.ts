@@ -59,7 +59,7 @@ describe("MonopolySettlement", function () {
         .withArgs(0, playerAddrs);
 
       const game = await settlement.getGame(0);
-      expect(game.status).to.equal(1); // DEPOSITING
+      expect(game.status).to.equal(2); // DEPOSITING (OPEN=1)
       expect(game.depositCount).to.equal(0);
     });
 
@@ -86,6 +86,7 @@ describe("MonopolySettlement", function () {
 
       const game = await settlement.getGame(0);
       expect(game.depositCount).to.equal(1);
+      expect(game.status).to.equal(2); // DEPOSITING
     });
 
     it("should reject wrong ETH amount", async function () {
@@ -112,7 +113,7 @@ describe("MonopolySettlement", function () {
         await settlement.connect(players[i]).depositAndCommit(0, commitHashes[i], { value: ENTRY_FEE });
       }
       const game = await settlement.getGame(0);
-      expect(game.status).to.equal(2); // REVEALING
+      expect(game.status).to.equal(3); // REVEALING (OPEN=1, DEPOSITING=2)
       expect(game.depositCount).to.equal(4);
     });
   });
@@ -149,7 +150,7 @@ describe("MonopolySettlement", function () {
         await settlement.connect(players[i]).revealSeed(0, secrets[i]);
       }
       const game = await settlement.getGame(0);
-      expect(game.status).to.equal(3); // STARTED
+      expect(game.status).to.equal(4); // STARTED
       expect(game.diceSeed).to.not.equal(ethers.ZeroHash);
 
       // Each player should have 1500 CLAW
@@ -178,7 +179,7 @@ describe("MonopolySettlement", function () {
       ).to.emit(settlement, "GameSettled");
 
       const game = await settlement.getGame(0);
-      expect(game.status).to.equal(4); // SETTLED
+      expect(game.status).to.equal(5); // SETTLED
       expect(game.winner).to.equal(playerAddrs[0]);
     });
 
@@ -272,7 +273,7 @@ describe("MonopolySettlement", function () {
       await settlement.voidGame(0);
 
       const game = await settlement.getGame(0);
-      expect(game.status).to.equal(5); // VOIDED
+      expect(game.status).to.equal(6); // VOIDED
 
       // Check all players received refund
       const balAfter = await ethers.provider.getBalance(playerAddrs[2]);
@@ -298,7 +299,7 @@ describe("MonopolySettlement", function () {
       await settlement.cancelGame(0);
 
       const game = await settlement.getGame(0);
-      expect(game.status).to.equal(5); // VOIDED
+      expect(game.status).to.equal(6); // VOIDED
 
       const bal0After = await ethers.provider.getBalance(playerAddrs[0]);
       expect(bal0After - bal0Before).to.equal(ENTRY_FEE);
@@ -329,10 +330,60 @@ describe("MonopolySettlement", function () {
       await settlement.emergencyVoid(0);
 
       const game = await settlement.getGame(0);
-      expect(game.status).to.equal(5); // VOIDED
+      expect(game.status).to.equal(6); // VOIDED
 
       const bal0After = await ethers.provider.getBalance(playerAddrs[0]);
       expect(bal0After - bal0Before).to.equal(ENTRY_FEE);
+    });
+  });
+
+  describe("createOpenGame + open deposit flow", function () {
+    it("should create open game and emit OpenGameCreated", async function () {
+      await expect(settlement.createOpenGame()).to.emit(settlement, "OpenGameCreated").withArgs(0);
+
+      const game = await settlement.getGame(0);
+      expect(game.status).to.equal(1); // OPEN
+      expect(game.depositCount).to.equal(0);
+      expect(game.players[0]).to.equal(ethers.ZeroAddress);
+      expect(game.players[1]).to.equal(ethers.ZeroAddress);
+
+      const openIds = await settlement.getOpenGameIds();
+      expect(openIds.length).to.equal(1);
+      expect(openIds[0]).to.equal(0);
+    });
+
+    it("should allow any address to deposit into open game (first 4 get slots)", async function () {
+      await settlement.createOpenGame();
+
+      for (let i = 0; i < 4; i++) {
+        await settlement.connect(players[i]).depositAndCommit(0, commitHashes[i], { value: ENTRY_FEE });
+      }
+
+      const game = await settlement.getGame(0);
+      expect(game.status).to.equal(3); // REVEALING
+      expect(game.depositCount).to.equal(4);
+      expect(game.players[0]).to.equal(playerAddrs[0]);
+      expect(game.players[1]).to.equal(playerAddrs[1]);
+      expect(game.players[2]).to.equal(playerAddrs[2]);
+      expect(game.players[3]).to.equal(playerAddrs[3]);
+
+      const openIds = await settlement.getOpenGameIds();
+      expect(openIds.length).to.equal(0);
+    });
+
+    it("should reject non-player deposit on fixed game", async function () {
+      await settlement.createGame(playerAddrs);
+      await expect(
+        settlement.connect(owner).depositAndCommit(0, commitHashes[0], { value: ENTRY_FEE })
+      ).to.be.revertedWith("Not a player");
+    });
+
+    it("should reject double deposit in open game", async function () {
+      await settlement.createOpenGame();
+      await settlement.connect(players[0]).depositAndCommit(0, commitHashes[0], { value: ENTRY_FEE });
+      await expect(
+        settlement.connect(players[0]).depositAndCommit(0, commitHashes[0], { value: ENTRY_FEE })
+      ).to.be.revertedWith("Already deposited");
     });
   });
 });

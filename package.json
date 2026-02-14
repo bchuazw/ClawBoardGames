@@ -14,7 +14,10 @@
     "build:gm": "cd packages/gamemaster && npm run build",
     "dev:web": "cd apps/web && npm run dev",
     "build": "npm run build:engine && npm run build:sdk && npm run build:gm",
-    "test": "npm run test:engine"
+    "test": "npm run test:engine",
+    "e2e:full": "node scripts/e2e-full-with-chain.js",
+    "create-wallet:bsc-testnet": "node scripts/create-bsc-testnet-wallet.js",
+    "e2e:bsc-testnet": "node scripts/e2e-bsc-testnet.js"
   },
   "license": "MIT"
 }
