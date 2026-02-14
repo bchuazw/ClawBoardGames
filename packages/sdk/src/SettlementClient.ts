@@ -43,7 +43,7 @@ export class SettlementClient {
     if (!hash) throw new Error("No secret generated. Call generateSecret() first.");
 
     const tx = await this.contract.depositAndCommit(gameId, hash, {
-      value: "1000000000000000", // 0.001 ETH
+      value: "1000000000000000", // 0.001 BNB (native)
       gasLimit: 400_000,
     });
     const receipt = await tx.wait();

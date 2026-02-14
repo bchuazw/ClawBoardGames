@@ -36,6 +36,21 @@ interface GameEvent { type: string; [key: string]: any; }
 const TILE_BY_POS: Record<number, typeof TILE_DATA[0]> = {};
 TILE_DATA.forEach(t => { TILE_BY_POS[t.position] = t; });
 
+/* Timing: match MonopolyScene so rent/tax/card happen after dice + piece lands */
+const DICE_ANIM_MS = 1500;
+const MOVE_DELAY_MS = 1400;
+const HOP_MS = 170;
+
+function getLandDelayMs(evts: GameEvent[]): number {
+  const playerMoved = evts.find((e: GameEvent) => e.type === 'playerMoved');
+  if (!playerMoved) return 0;
+  const dest = playerMoved.to ?? playerMoved.newPosition;
+  const spaces = playerMoved.from !== undefined && dest !== undefined
+    ? Math.min((dest - playerMoved.from + 40) % 40, 12)
+    : 0;
+  return DICE_ANIM_MS + MOVE_DELAY_MS + spaces * HOP_MS + 400;
+}
+
 /* ---------------------------------------------------------------- */
 /*  Mood emoji system — uses engine camelCase event types            */
 /* ---------------------------------------------------------------- */
@@ -247,8 +262,8 @@ function WatchPage() {
     }
   }
 
-  function playSounds(evts: GameEvent[]) {
-    for (const ev of evts) {
+  function playSounds(evts: GameEvent[], delayLandingMs: number = 0) {
+    const playNow = (ev: GameEvent) => {
       switch (ev.type) {
         case 'diceRolled': sfx.diceRoll(); if (ev.isDoubles) setTimeout(() => sfx.doubles(), 400); break;
         case 'playerMoved': sfx.tokenHop(); break;
@@ -258,6 +273,14 @@ function WatchPage() {
         case 'sentToJail': sfx.goToJail(); break;
         case 'playerBankrupt': sfx.bankrupt(); break;
         case 'cardDrawn': sfx.cardDraw(); break;
+      }
+    };
+    for (const ev of evts) {
+      const isAfterLand = ev.type === 'rentPaid' || ev.type === 'taxPaid' || ev.type === 'cardDrawn' || ev.type === 'passedGo';
+      if (isAfterLand && delayLandingMs > 0) {
+        setTimeout(() => playNow(ev), delayLandingMs);
+      } else {
+        playNow(ev);
       }
     }
   }
@@ -278,28 +301,48 @@ function WatchPage() {
       if (msg.type === 'snapshot') {
         setSnapshot(msg.snapshot);
       } else if (msg.type === 'events') {
-        setEvents(prev => [...prev.slice(-300), ...msg.events]);
+        // Update 3D scene immediately so dice rolls first; add to game log after dice animation finishes
         setLatestEvents(msg.events);
         updateMoods(msg.events);
-        playSounds(msg.events);
+        setTimeout(() => {
+          setEvents(prev => [...prev.slice(-300), ...msg.events]);
+        }, DICE_ANIM_MS);
 
-        // Card display
+        const landDelayMs = getLandDelayMs(msg.events);
+        playSounds(msg.events, landDelayMs);
+
+        // Card display — after piece lands so it matches the 3D timing
         const cardEv = msg.events.find((e: GameEvent) => e.type === 'cardDrawn');
         if (cardEv) {
-          setActiveCard({ text: cardEv.description || 'Card drawn', type: (cardEv.deck || cardEv.cardType) === 'chance' ? 'chance' : 'community' });
-          setTimeout(() => setActiveCard(null), 3500);
+          setTimeout(() => {
+            setActiveCard({ text: cardEv.description || 'Card drawn', type: (cardEv.deck || cardEv.cardType) === 'chance' ? 'chance' : 'community' });
+            setTimeout(() => setActiveCard(null), 3500);
+          }, landDelayMs);
         }
 
-        // Notification — pick the most notable event
-        const priority = ['playerBankrupt', 'sentToJail', 'propertyBought', 'rentPaid', 'cardDrawn', 'passedGo', 'diceRolled'];
-        const notable = priority.reduce<GameEvent | null>((best, type) => best || msg.events.find((e: GameEvent) => e.type === type) || null, null) || msg.events[0];
-        if (notable) {
-          const h = humanEvent(notable);
+        // Notification — show dice/roll first, then passedGo/rent/tax/card after piece lands
+        const afterLandEv = msg.events.find((e: GameEvent) => e.type === 'rentPaid' || e.type === 'taxPaid' || e.type === 'cardDrawn' || e.type === 'passedGo');
+        const immediateNotable = msg.events.find((e: GameEvent) => e.type === 'diceRolled') ?? msg.events.find((e: GameEvent) => e.type === 'playerMoved')
+          ?? msg.events.find((e: GameEvent) => e.type === 'playerBankrupt') ?? msg.events.find((e: GameEvent) => e.type === 'sentToJail')
+          ?? msg.events.find((e: GameEvent) => e.type === 'propertyBought')
+          ?? msg.events[0];
+        if (immediateNotable) {
+          const h = humanEvent(immediateNotable);
           if (h.text) {
             setNotification(h);
             clearTimeout(notifTimer.current);
             notifTimer.current = setTimeout(() => setNotification(null), 2800);
           }
+        }
+        if (afterLandEv && landDelayMs > 0) {
+          setTimeout(() => {
+            const h = humanEvent(afterLandEv);
+            if (h.text) {
+              setNotification(h);
+              clearTimeout(notifTimer.current);
+              notifTimer.current = setTimeout(() => setNotification(null), 2800);
+            }
+          }, landDelayMs);
         }
       } else if (msg.type === 'gameEnded') {
         setSnapshot(msg.snapshot);
@@ -313,7 +356,19 @@ function WatchPage() {
     connect(lobbyId);
   }, [connect]);
 
-  const disconnect = useCallback(() => { wsRef.current?.close(); wsRef.current = null; setConnected(false); }, []);
+  const disconnect = useCallback(() => {
+    wsRef.current?.close();
+    wsRef.current = null;
+    setConnected(false);
+    // Return to lobby selection view: clear game so the lobby picker overlay shows again
+    setGameId('');
+    setSnapshot(null);
+    setEvents([]);
+    setLatestEvents([]);
+    setNotification(null);
+    setActiveCard(null);
+    setMoods({ 0: DEFAULT_MOOD, 1: DEFAULT_MOOD, 2: DEFAULT_MOOD, 3: DEFAULT_MOOD });
+  }, []);
   useEffect(() => { eventsEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [events]);
 
   /* Build per-player property list */

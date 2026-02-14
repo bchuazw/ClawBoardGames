@@ -27,6 +27,8 @@ export interface GameEvent { type: string; [key: string]: any; }
 const TOKEN_Y = 0.20;
 const HOP_MS = 170;
 const MOVE_DELAY = 1400;
+/** Time until dice roll animation finishes (SingleDie ~1s roll + ~0.35s settle). */
+const DICE_ANIM_MS = 1500;
 const TILE_NAMES: Record<number, string> = {};
 TILE_DATA.forEach(t => { TILE_NAMES[t.position] = t.name; });
 
@@ -677,6 +679,7 @@ function AnimatedToken({ pi, pos, color, active, alive, inJail }: { pi: number; 
   const lastP = useRef(pos);
   const pathQ = useRef<[number, number, number][]>([]);
   const pathS = useRef(0);
+  const positionInitialized = useRef(false);
   const Animal = ANIMALS[pi] || DogToken;
 
   useEffect(() => {
@@ -697,6 +700,14 @@ function AnimatedToken({ pi, pos, color, active, alive, inJail }: { pi: number; 
 
   useFrame(() => {
     if (!gRef.current || !alive) return;
+    // One-time init: set position from current tile so we don't start at origin.
+    // After this, only useFrame updates position so React doesn't overwrite it on snapshot updates.
+    if (!positionInitialized.current) {
+      const bp = BOARD_POSITIONS[lastP.current] || BOARD_POSITIONS[0], o = TOKEN_OFFSETS[pi];
+      gRef.current.position.set(bp[0] + o[0], TOKEN_Y, bp[2] + o[2]);
+      positionInitialized.current = true;
+    }
+
     const path = pathQ.current;
     const elapsed = Date.now() - pathS.current;
 
@@ -737,9 +748,9 @@ function AnimatedToken({ pi, pos, color, active, alive, inJail }: { pi: number; 
   });
 
   if (!alive) return null;
-  const b = BOARD_POSITIONS[pos] || BOARD_POSITIONS[0], o = TOKEN_OFFSETS[pi];
+  // Position is driven only by useFrame so snapshot updates don't teleport the token.
   return (
-    <group ref={gRef} position={[b[0] + o[0], TOKEN_Y, b[2] + o[2]]}>
+    <group ref={gRef} position={[0, 0, 0]}>
       <mesh position={[0, -TOKEN_Y + 0.13, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <circleGeometry args={[0.32, 32]} />
         <meshStandardMaterial color={color} emissive={color} emissiveIntensity={active ? 2.5 : 0.3} transparent opacity={active ? 0.35 : 0.1} side={THREE.DoubleSide} />
@@ -812,6 +823,16 @@ function Scene({ snapshot, latestEvents, activeCard }: { snapshot: Snapshot | nu
 
   useEffect(() => {
     if (!snapshot || !latestEvents.length) return;
+    // Delay for rent/tax FX until after dice animation + piece lands (match AnimatedToken timing).
+    const playerMoved = latestEvents.find((e: GameEvent) => e.type === 'playerMoved');
+    const landDelayMs = !playerMoved ? 0 : (() => {
+      const dest = playerMoved.to ?? playerMoved.newPosition;
+      const spaces = playerMoved.from !== undefined && dest !== undefined
+        ? Math.min((dest - playerMoved.from + 40) % 40, 12)
+        : 0;
+      return DICE_ANIM_MS + MOVE_DELAY + spaces * HOP_MS + 400;
+    })();
+
     const nf: FxDef[] = [];
     for (const ev of latestEvents) {
       if (ev.type === 'rentPaid' && (ev.from !== undefined || ev.player !== undefined)) {
@@ -820,13 +841,49 @@ function Scene({ snapshot, latestEvents, activeCard }: { snapshot: Snapshot | nu
         const fp = snapshot.players[payerIdx], tp = recvIdx !== undefined ? snapshot.players[recvIdx] : null;
         if (fp) {
           const fb = BOARD_POSITIONS[fp.position] || BOARD_POSITIONS[0], tb = tp ? (BOARD_POSITIONS[tp.position] || BOARD_POSITIONS[0]) : [0, 0, 0] as [number, number, number];
-          for (let c = 0; c < 4; c++) nf.push({ id: fxId.current++, from: [fb[0], 0, fb[2]], to: [tb[0], 0, tb[2]], start: Date.now() + c * 100 });
+          for (let c = 0; c < 4; c++) nf.push({ id: fxId.current++, from: [fb[0], 0, fb[2]], to: [tb[0], 0, tb[2]], start: Date.now() + landDelayMs + c * 100 });
         }
       } else if (ev.type === 'taxPaid' && ev.player !== undefined) {
         const fp = snapshot.players[ev.player];
         if (fp) {
           const fb = BOARD_POSITIONS[fp.position] || BOARD_POSITIONS[0];
-          for (let c = 0; c < 3; c++) nf.push({ id: fxId.current++, from: [fb[0], 0, fb[2]], to: [0, 0, 0], start: Date.now() + c * 100 });
+          for (let c = 0; c < 3; c++) nf.push({ id: fxId.current++, from: [fb[0], 0, fb[2]], to: [0, 0, 0], start: Date.now() + landDelayMs + c * 100 });
+        }
+      } else if (ev.type === 'passedGo' && ev.player !== undefined) {
+        // Gold from board center (same place tax goes) to the player who passed Go
+        const fp = snapshot.players[ev.player];
+        if (fp) {
+          const toPos = BOARD_POSITIONS[fp.position] || BOARD_POSITIONS[0];
+          const bankCenter: [number, number, number] = [0, 0, 0];
+          for (let c = 0; c < 4; c++) nf.push({ id: fxId.current++, from: bankCenter, to: [toPos[0], 0, toPos[2]], start: Date.now() + landDelayMs + c * 100 });
+        }
+      } else if (ev.type === 'cardDrawn' && ev.player !== undefined && typeof ev.description === 'string') {
+        const desc = ev.description;
+        // Card gives player money from the bank (center) — e.g. "Collect $200", "Bank pays you dividend", etc.
+        const receivesFromBank = /(collect \$|bank pays|bank error|dividend|matures\. collect|life insurance matures|building loan matures|receive consultancy|advance to go\. collect)/i.test(desc) && !/from each player/i.test(desc);
+        if (receivesFromBank) {
+          const fp = snapshot.players[ev.player];
+          if (fp) {
+            const toPos = BOARD_POSITIONS[fp.position] ?? BOARD_POSITIONS[0];
+            const bankCenter: [number, number, number] = [0, 0, 0];
+            for (let c = 0; c < 4; c++) nf.push({ id: fxId.current++, from: bankCenter, to: [toPos[0], 0, toPos[2]], start: Date.now() + landDelayMs + c * 100 });
+          }
+        } else if (/pay each player/i.test(desc)) {
+        // "Pay each player $50" — money from this player to every other alive player
+        const payer = snapshot.players[ev.player];
+        if (payer?.alive) {
+          const fromPos = BOARD_POSITIONS[payer.position] ?? BOARD_POSITIONS[0];
+          let stagger = 0;
+          for (let i = 0; i < snapshot.players.length; i++) {
+            if (i === ev.player) continue;
+            const recv = snapshot.players[i];
+            if (!recv?.alive) continue;
+            const toPos = BOARD_POSITIONS[recv.position] ?? BOARD_POSITIONS[0];
+            for (let c = 0; c < 2; c++) {
+              nf.push({ id: fxId.current++, from: [fromPos[0], 0, fromPos[2]], to: [toPos[0], 0, toPos[2]], start: Date.now() + landDelayMs + stagger * 80 });
+              stagger++;
+            }
+          }
         }
       }
       if (ev.type === 'sentToJail' && ev.player !== undefined) {

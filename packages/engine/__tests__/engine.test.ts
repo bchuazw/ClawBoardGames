@@ -3,7 +3,7 @@ import { MonopolyEngine } from "../src/MonopolyEngine";
 import { DiceDeriver } from "../src/DiceDeriver";
 import {
   GameStatus, Phase, TileType, STARTING_CASH, JAIL_POSITION,
-  BOARD_SIZE, NUM_PLAYERS, GO_SALARY,
+  BOARD_SIZE, NUM_PLAYERS, GO_SALARY, JAIL_FEE,
 } from "../src/types";
 import { TILES, PROPERTY_TILES } from "../src/BoardData";
 import { keccak256, toUtf8Bytes } from "ethers";
@@ -214,6 +214,135 @@ describe("MonopolyEngine", () => {
     expect(restored.state.currentTurn).toBe(engine.state.currentTurn);
     expect(restored.state.currentRound).toBe(engine.state.currentRound);
     expect(restored.state.aliveCount).toBe(engine.state.aliveCount);
+  });
+
+  describe("jail logic", () => {
+    it("should offer payJailFee and rollDice when player is in jail", () => {
+      const engine = new MonopolyEngine(PLAYERS, SEED);
+      const p = engine.state.players[0];
+      p.position = JAIL_POSITION;
+      p.inJail = true;
+      p.jailTurns = 0;
+      engine.state.phase = Phase.TURN_START;
+      engine.state.currentPlayerIndex = 0;
+
+      const actions = engine.getLegalActions();
+      expect(actions.some(a => a.type === "payJailFee")).toBe(true);
+      expect(actions.some(a => a.type === "rollDice")).toBe(true);
+    });
+
+    it("should reject payJailFee when not in jail", () => {
+      const engine = new MonopolyEngine(PLAYERS, SEED);
+      expect(engine.state.players[0].inJail).toBe(false);
+      expect(() => engine.executeAction({ type: "payJailFee" })).toThrow("Cannot pay jail fee");
+    });
+
+    it("payJailFee should free player, then roll and move", () => {
+      const engine = new MonopolyEngine(PLAYERS, SEED);
+      const p = engine.state.players[0];
+      p.position = JAIL_POSITION;
+      p.inJail = true;
+      p.jailTurns = 0;
+      p.cash = 500;
+      engine.state.phase = Phase.TURN_START;
+      engine.state.currentPlayerIndex = 0;
+
+      const events = engine.executeAction({ type: "payJailFee" });
+      expect(events.some(e => e.type === "freedFromJail" && e.method === "fee")).toBe(true);
+      expect(events.some(e => e.type === "diceRolled")).toBe(true);
+      expect(events.some(e => e.type === "playerMoved")).toBe(true);
+      expect(p.inJail).toBe(false);
+      expect(p.jailTurns).toBe(0);
+      expect(p.position).toBeGreaterThanOrEqual(0);
+      expect(p.position).toBeLessThan(BOARD_SIZE);
+    });
+
+    it("should stay in jail and end turn when rolling non-doubles (jailTurns increments)", () => {
+      const engine = new MonopolyEngine(PLAYERS, SEED);
+      const p = engine.state.players[0];
+      p.position = JAIL_POSITION;
+      p.inJail = true;
+      p.jailTurns = 0;
+      engine.state.phase = Phase.TURN_START;
+      engine.state.currentPlayerIndex = 0;
+
+      engine.executeAction({ type: "rollDice" });
+      expect(p.inJail).toBe(true);
+      expect(p.jailTurns).toBe(1);
+      expect(engine.state.phase).toBe(Phase.POST_TURN);
+    });
+
+    it("should free from jail on doubles and move", () => {
+      for (let s = 0; s < 50; s++) {
+        const seed = makeSeed(s + 5000);
+        const engine = new MonopolyEngine(PLAYERS, seed);
+        const p = engine.state.players[0];
+        p.position = JAIL_POSITION;
+        p.inJail = true;
+        p.jailTurns = 0;
+        engine.state.phase = Phase.TURN_START;
+        engine.state.currentPlayerIndex = 0;
+        const turn = engine.state.currentTurn;
+        const roll = engine["dice"].roll(turn);
+        if (!roll.isDoubles) continue;
+
+        const events = engine.executeAction({ type: "rollDice" });
+        expect(p.inJail).toBe(false);
+        expect(p.jailTurns).toBe(0);
+        expect(events.some(e => e.type === "freedFromJail" && e.method === "doubles")).toBe(true);
+        expect(events.some(e => e.type === "playerMoved")).toBe(true);
+        return;
+      }
+    });
+
+    it("should force out after 3 failed rolls and move if alive", () => {
+      for (let s = 0; s < 80; s++) {
+        const seed = makeSeed(s + 8000);
+        const engine = new MonopolyEngine(PLAYERS, seed);
+        const p = engine.state.players[0];
+        p.position = JAIL_POSITION;
+        p.inJail = true;
+        p.jailTurns = 2;
+        p.cash = 100;
+        engine.state.phase = Phase.TURN_START;
+        engine.state.currentPlayerIndex = 0;
+        const turn = engine.state.currentTurn;
+        const roll = engine["dice"].roll(turn);
+        if (roll.isDoubles) continue;
+
+        const events = engine.executeAction({ type: "rollDice" });
+        expect(p.jailTurns).toBe(0);
+        expect(p.inJail).toBe(false);
+        expect(events.some(e => e.type === "freedFromJail" && e.method === "maxTurns")).toBe(true);
+        expect(p.cash).toBe(100 - JAIL_FEE);
+        expect(events.some(e => e.type === "playerMoved")).toBe(true);
+        return;
+      }
+    });
+
+    it("sendToJail should set position to JAIL_POSITION and inJail true", () => {
+      const engine = new MonopolyEngine(PLAYERS, SEED);
+      const p = engine.state.players[0];
+      p.position = 25;
+      engine["sendToJail"](p);
+      expect(p.position).toBe(JAIL_POSITION);
+      expect(p.inJail).toBe(true);
+      expect(p.jailTurns).toBe(0);
+    });
+
+    it("should advance when current player is dead and phase is POST_TURN (endTurn allowed)", () => {
+      const engine = new MonopolyEngine(PLAYERS, SEED);
+      engine.state.players[0].alive = false;
+      engine.state.aliveCount = 3;
+      engine.state.phase = Phase.POST_TURN;
+      engine.state.currentPlayerIndex = 0;
+
+      const actions = engine.getLegalActions();
+      expect(actions).toEqual([{ type: "endTurn" }]);
+      const events = engine.executeAction({ type: "endTurn" });
+      expect(engine.state.currentPlayerIndex).toBe(1);
+      expect(events.some(e => e.type === "turnStarted")).toBe(true);
+    });
   });
 
   it("should complete a full game (simulation)", () => {

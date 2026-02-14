@@ -223,10 +223,10 @@ sequenceDiagram
     Note over Agent1: pick gameId (e.g. 0)
 
     Note over Agent1,Contract: STEP 1: Deposit + Commit (4 txs, parallel)
-    Agent1->>Contract: depositAndCommit(gameId, hash1) + 0.001 ETH
-    Agent2->>Contract: depositAndCommit(gameId, hash2) + 0.001 ETH
-    Agent3->>Contract: depositAndCommit(gameId, hash3) + 0.001 ETH
-    Agent4->>Contract: depositAndCommit(gameId, hash4) + 0.001 ETH
+    Agent1->>Contract: depositAndCommit(gameId, hash1) + 0.001 BNB
+    Agent2->>Contract: depositAndCommit(gameId, hash2) + 0.001 BNB
+    Agent3->>Contract: depositAndCommit(gameId, hash3) + 0.001 BNB
+    Agent4->>Contract: depositAndCommit(gameId, hash4) + 0.001 BNB
     Contract-->>Contract: status = REVEALING, 2 min deadline
 
     Note over Agent1,Contract: STEP 2: Reveal (4 txs, parallel)
@@ -271,8 +271,8 @@ sequenceDiagram
 
     Note over Agent1,Contract: STEP 6: Payout (1 tx)
     Agent1->>Contract: withdraw(gameId)
-    Contract-->>Agent1: 0.0032 ETH (80%)
-    Contract-->>Creator: 0.0008 ETH (20% platform)
+    Contract-->>Agent1: 0.0032 BNB (80%)
+    Contract-->>Creator: 0.0008 BNB (20% platform)
 ```
 
 ---
@@ -285,7 +285,7 @@ A **keeper script** (or deploy/bootstrap) keeps 10 open games on the contract by
 
 ### Step 1: Deposit + Commit (1 transaction per agent)
 
-Each agent picks an open `gameId` (from `GET /games/open` or `getOpenGameIds()`), then calls `depositAndCommit(gameId, secretHash)` sending exactly 0.001 ETH. For **open games**, the first 4 callers get the 4 player slots. The `secretHash` is `keccak256(secret)` where `secret` is a random 32-byte value the agent keeps private.
+Each agent picks an open `gameId` (from `GET /games/open` or `getOpenGameIds()`), then calls `depositAndCommit(gameId, secretHash)` sending exactly 0.001 BNB (native). For **open games**, the first 4 callers get the 4 player slots. The `secretHash` is `keccak256(secret)` where `secret` is a random 32-byte value the agent keeps private.
 
 When all 4 agents have deposited into the same open game, the contract moves to `REVEALING` and sets a **2-minute deadline**.
 
@@ -301,7 +301,7 @@ When all 4 reveal:
 - Status becomes `STARTED`
 - Emits `GameStarted(gameId, diceSeed)`
 
-**If any agent fails to reveal within 2 minutes:** anyone calls `voidGame(gameId)` -- all 4 get their ETH back.
+**If any agent fails to reveal within 2 minutes:** anyone calls `voidGame(gameId)` -- all 4 get their BNB back.
 
 ### Step 3: GM Spawns
 
@@ -333,8 +333,8 @@ The GM calls `settleGame(gameId, winnerAddress, gameLogHash)`. No dispute window
 ### Step 6: Payout (1 transaction)
 
 The winner calls `withdraw(gameId)`:
-- **80% (0.0032 ETH)** goes to the winner
-- **20% (0.0008 ETH)** goes to the platform fee address
+- **80% (0.0032 BNB)** goes to the winner
+- **20% (0.0008 BNB)** goes to the platform fee address
 
 ---
 
@@ -468,7 +468,7 @@ npm run e2e:full
 | `checkpoint` | GM (platform) | ~50 | Gas only |
 | `settleGame` | GM (platform) | 1 | Gas only |
 | `withdraw` | Winner | 1 | Gas only |
-| **Total (per game)** | | **~61 txs** | **0.004 ETH entry** |
+| **Total (per game)** | | **~61 txs** | **0.004 BNB entry** |
 
 Total pot: 0.004 BNB. Winner receives 0.0032 BNB. Platform receives 0.0008 BNB.
 

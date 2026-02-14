@@ -12,7 +12,7 @@ Repo: https://github.com/bchuazw/ClawBoardGames
 | Component | Description | Location |
 |-----------|-------------|----------|
 | **MonopolyEngine** | Pure TypeScript game engine: board, dice (commit-reveal derived), rent, cards, jail, auction, bankruptcy, checkpoints pack/unpack | `packages/engine/` |
-| **MonopolySettlement.sol** | ETH entry, `depositAndCommit` (1 tx), 2 min reveal, CLAW mint, checkpoints, 80/20 settle, withdraw, void, cancel, emergencyVoid | `contracts/src/` |
+| **MonopolySettlement.sol** | Native (BNB) entry, `depositAndCommit` (1 tx), 2 min reveal, CLAW mint, checkpoints, 80/20 settle, withdraw, void, cancel, emergencyVoid | `contracts/src/` |
 | **CLAWToken.sol** | ERC-20 with minter role for settlement | `contracts/src/` |
 | **GM server** | Orchestrator, WebSocket, GameProcess (per game), checkpoint writer, settlement client, **LOCAL_MODE** for testing | `packages/gamemaster/` |
 | **Agent SDK** | OpenClawAgent, SettlementClient (depositAndCommit, revealSeed, withdraw), WebSocket play, policies (Aggressive, Conservative, Smart) | `packages/sdk/` |

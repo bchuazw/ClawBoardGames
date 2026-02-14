@@ -87,7 +87,11 @@ export class MonopolyEngine {
     if (this.state.status !== GameStatus.STARTED) return [];
 
     const player = this.currentPlayer();
-    if (!player.alive) return [];
+    // Allow endTurn when current player is dead (e.g. bankrupt from jail fee) so the game can advance
+    if (!player.alive) {
+      if (this.state.phase === Phase.POST_TURN) return [{ type: "endTurn" }];
+      return [];
+    }
 
     const actions: GameAction[] = [];
 
@@ -155,7 +159,8 @@ export class MonopolyEngine {
     if (this.state.status !== GameStatus.STARTED) {
       throw new Error("Game not started");
     }
-    if (!player.alive) {
+    // Allow endTurn when current player is dead so turn can advance after e.g. bankruptcy from jail fee
+    if (!player.alive && action.type !== "endTurn") {
       throw new Error("Current player is not alive");
     }
 

@@ -149,6 +149,9 @@ export class OpenClawAgent {
    * Local mode: use connectAndPlay(gameId) with gameId 0–9 (no deposit/reveal); when 4 join same slot, game starts.
    */
   async runFullGame(gameId: number): Promise<GameSnapshot> {
+    if (gameId == null || typeof gameId !== "number" || gameId < 0) {
+      throw new Error("Invalid gameId; use getOpenGameIds() and pick a valid id, or runFullGameOnAnyOpenSlot()");
+    }
     // Step 1: Deposit + commit
     await this.depositAndCommit(gameId);
 

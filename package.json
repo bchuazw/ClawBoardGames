@@ -18,7 +18,10 @@
     "e2e:full": "node scripts/e2e-full-with-chain.js",
     "create-wallet:bsc-testnet": "node scripts/create-bsc-testnet-wallet.js",
     "deploy:bsc-testnet": "node scripts/deploy-and-setup-bsc-testnet.js",
-    "e2e:bsc-testnet": "node scripts/e2e-bsc-testnet.js"
+    "e2e:bsc-testnet": "node scripts/e2e-bsc-testnet.js",
+    "create-wallets:4agent": "node scripts/create-4agent-wallets.js",
+    "fund-wallets:4agent": "node scripts/fund-4agent-wallets.js",
+    "e2e:testnet-phase5": "node scripts/e2e-testnet-phase5.js"
   },
   "license": "MIT"
 }

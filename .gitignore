@@ -12,5 +12,6 @@ scripts/e2e-state.json
 scripts/base-sepolia-wallet.json
 scripts/bsc-testnet-wallet.json
 scripts/bsc-testnet-deploy-state.json
+scripts/testnet-4agent-wallets.json
 .env.basesepolia
 .env.bsc-testnet

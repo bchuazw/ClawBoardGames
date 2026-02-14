@@ -7,7 +7,7 @@
  * Flow tested:
  *   1. Deploy CLAWToken + MonopolySettlement
  *   2. createGame(4 players)
- *   3. Each player depositAndCommit (0.001 ETH + secret hash)
+ *   3. Each player depositAndCommit (0.001 native + secret hash)
  *   4. Each player revealSeed -> GameStarted event + CLAW minted
  *   5. Engine runs full game with dice seed from contract
  *   6. GM writes checkpoints each round (engine.packForCheckpoint)
@@ -100,7 +100,7 @@ describe("E2E: Full Game Lifecycle (Engine + Contracts)", function () {
         value: entryFee,
       });
       await tx.wait();
-      console.log(`  Player ${i} (${playerAddrs[i].slice(0, 10)}...) deposited 0.001 ETH + committed`);
+      console.log(`  Player ${i} (${playerAddrs[i].slice(0, 10)}...) deposited 0.001 native + committed`);
     }
 
     const gameAfterDeposit = await settlement.getGame(gameId);
@@ -111,7 +111,7 @@ describe("E2E: Full Game Lifecycle (Engine + Contracts)", function () {
     // Verify contract balance
     const contractBalance = await ethers.provider.getBalance(await settlement.getAddress());
     expect(contractBalance).to.equal(entryFee * 4n);
-    console.log(`  Contract balance: ${ethers.formatEther(contractBalance)} ETH`);
+    console.log(`  Contract balance: ${ethers.formatEther(contractBalance)} native`);
 
     // ========== STEP 3: All Players Reveal ==========
     console.log("\nSTEP 3: Players revealing secrets...");
@@ -254,9 +254,9 @@ describe("E2E: Full Game Lifecycle (Engine + Contracts)", function () {
     // ========== STEP 7: Winner Withdraws ==========
     console.log("\nSTEP 7: Winner withdrawing prize...");
 
-    const totalPot = entryFee * 4n;                          // 0.004 ETH
-    const winnerShare = (totalPot * 8000n) / 10000n;         // 0.0032 ETH (80%)
-    const platformShare = totalPot - winnerShare;              // 0.0008 ETH (20%)
+    const totalPot = entryFee * 4n;                          // 0.004 native
+    const winnerShare = (totalPot * 8000n) / 10000n;         // 0.0032 (80%)
+    const platformShare = totalPot - winnerShare;            // 0.0008 (20%)
 
     const winnerBalBefore = await ethers.provider.getBalance(winnerAddr);
     const platformBalBefore = await ethers.provider.getBalance(await platform.getAddress());
@@ -271,17 +271,17 @@ describe("E2E: Full Game Lifecycle (Engine + Contracts)", function () {
     // Winner received 80% minus gas
     const winnerGain = winnerBalAfter - winnerBalBefore + gasUsed;
     expect(winnerGain).to.equal(winnerShare);
-    console.log(`  Winner received: ${ethers.formatEther(winnerShare)} ETH (80%)`);
+    console.log(`  Winner received: ${ethers.formatEther(winnerShare)} native (80%)`);
 
     // Platform received 20%
     const platformGain = platformBalAfter - platformBalBefore;
     expect(platformGain).to.equal(platformShare);
-    console.log(`  Platform received: ${ethers.formatEther(platformShare)} ETH (20%)`);
+    console.log(`  Platform received: ${ethers.formatEther(platformShare)} native (20%)`);
 
     // Contract should be empty now
     const contractBalAfter = await ethers.provider.getBalance(await settlement.getAddress());
     expect(contractBalAfter).to.equal(0n);
-    console.log(`  Contract balance: ${ethers.formatEther(contractBalAfter)} ETH (empty)`);
+    console.log(`  Contract balance: ${ethers.formatEther(contractBalAfter)} native (empty)`);
 
     // ========== STEP 8: Verify Final State ==========
     console.log("\nSTEP 8: Final verification...");
@@ -307,8 +307,8 @@ describe("E2E: Full Game Lifecycle (Engine + Contracts)", function () {
     console.log(`  Actions taken:  ${actionCount}`);
     console.log(`  Checkpoints:    ${checkpointCount}`);
     console.log(`  Winner:         Player ${winnerIdx} (${winnerAddr.slice(0, 20)}...)`);
-    console.log(`  Prize:          ${ethers.formatEther(winnerShare)} ETH`);
-    console.log(`  Platform fee:   ${ethers.formatEther(platformShare)} ETH`);
+    console.log(`  Prize:          ${ethers.formatEther(winnerShare)} native`);
+    console.log(`  Platform fee:   ${ethers.formatEther(platformShare)} native`);
     console.log(`  Total events:   ${allEvents.length}`);
     console.log(`  CLAW per player: 1500`);
     console.log("========================================\n");

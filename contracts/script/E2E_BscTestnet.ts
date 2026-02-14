@@ -4,7 +4,7 @@
  * Deploys contracts to BSC Testnet and runs a full game lifecycle.
  *
  * Prerequisites:
- *   - DEPLOYER_KEY env var set to a private key with BSC Testnet ETH (~0.01 ETH)
+ *   - DEPLOYER_KEY env var set to a private key with BSC Testnet BNB (~0.01 BNB)
  *   - BSC Testnet RPC accessible (defaults to https://data-seed-prebsc-1-s1.binance.org:8545)
  *
  * Usage:
@@ -29,7 +29,7 @@ async function main() {
   console.log("==============================================\n");
   console.log(`Deployer:  ${deployerAddr}`);
   console.log(`Network:   BSC Testnet`);
-  console.log(`Balance:   ${ethers.formatEther(await provider.getBalance(deployerAddr))} ETH`);
+  console.log(`Balance:   ${ethers.formatEther(await provider.getBalance(deployerAddr))} BNB`);
 
   // ========== Generate 4 Agent Wallets ==========
   console.log("\n--- Generating agent wallets ---");
@@ -46,7 +46,7 @@ async function main() {
   const playerAddrs = agents.map(a => a.wallet.address) as [string, string, string, string];
 
   // ========== Fund Agent Wallets ==========
-  console.log("\n--- Funding agent wallets (0.002 ETH each) ---");
+  console.log("\n--- Funding agent wallets (0.002 BNB each) ---");
   const fundAmount = ethers.parseEther("0.002"); // 0.001 entry + 0.001 gas buffer
 
   for (let i = 0; i < 4; i++) {
@@ -58,8 +58,8 @@ async function main() {
     if (!receipt) throw new Error(`Funding agent ${i} failed`);
     await new Promise((r) => setTimeout(r, 1200)); // let nonce + balance propagate on RPC
     const bal = await provider.getBalance(agents[i].wallet.address);
-    if (bal < fundAmount) throw new Error(`Agent ${i} balance too low: ${ethers.formatEther(bal)} ETH`);
-    console.log(`  Agent ${i} funded: ${ethers.formatEther(bal)} ETH`);
+    if (bal < fundAmount) throw new Error(`Agent ${i} balance too low: ${ethers.formatEther(bal)} BNB`);
+    console.log(`  Agent ${i} funded: ${ethers.formatEther(bal)} BNB`);
   }
 
   // ========== Deploy Contracts ==========
@@ -244,11 +244,11 @@ async function main() {
   const winnerGain = balAfter - balBefore + gasUsed;
   const platformGain = deployerBalAfter - deployerBalBefore; // deployer is platform
 
-  console.log(`  Winner gained:    ${ethers.formatEther(winnerGain)} ETH`);
-  console.log(`  Platform gained:  ${ethers.formatEther(platformGain)} ETH`);
+  console.log(`  Winner gained:    ${ethers.formatEther(winnerGain)} BNB`);
+  console.log(`  Platform gained:  ${ethers.formatEther(platformGain)} BNB`);
 
   const contractBal = await provider.getBalance(settlementAddr);
-  console.log(`  Contract balance: ${ethers.formatEther(contractBal)} ETH`);
+  console.log(`  Contract balance: ${ethers.formatEther(contractBal)} BNB`);
 
   // ========== Summary ==========
   console.log("\n==============================================");
@@ -260,7 +260,7 @@ async function main() {
   console.log(`  Rounds:            ${roundCount}`);
   console.log(`  Checkpoints:       ${checkpointCount}`);
   console.log(`  Winner:            Agent ${finalSnap.winner} (${winnerAddr.slice(0, 14)}...)`);
-  console.log(`  Prize:             ${ethers.formatEther(winnerGain)} ETH`);
+  console.log(`  Prize:             ${ethers.formatEther(winnerGain)} BNB`);
   console.log(`  Events:            ${allEvents.length}`);
   console.log("==============================================\n");
 
