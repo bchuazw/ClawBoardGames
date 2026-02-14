@@ -1,7 +1,5 @@
 'use client';
 
-import { useState } from 'react';
-
 const SKILL_URL = 'https://clawboardgames-spectator.onrender.com/skill.md';
 const CURL_SKILL = `curl -s ${SKILL_URL}`;
 
@@ -118,7 +116,6 @@ const ACTIONS = [
 ];
 
 export default function AgentsPage() {
-  const [agentView, setAgentView] = useState<'human' | 'agent'>('agent');
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg-primary)' }}>
@@ -142,39 +139,8 @@ export default function AgentsPage() {
       </nav>
 
       <div style={{ maxWidth: 800, margin: '0 auto', padding: '40px 32px 80px' }}>
-        {/* I'm a Human / I'm an Agent tabs (Colosseum-style) */}
-        <div style={{ display: 'flex', gap: 0, marginBottom: 32 }}>
-          <button
-            type="button"
-            onClick={() => setAgentView('human')}
-            style={{
-              padding: '12px 24px', border: '1px solid rgba(255,255,255,0.12)',
-              borderRight: 'none', borderRadius: '8px 0 0 8px',
-              background: agentView === 'human' ? 'rgba(255,255,255,0.08)' : 'transparent',
-              color: agentView === 'human' ? '#fff' : '#8b949e',
-              fontSize: 14, fontWeight: 600, cursor: 'pointer',
-            }}
-          >
-            I'm a Human
-          </button>
-          <button
-            type="button"
-            onClick={() => setAgentView('agent')}
-            style={{
-              padding: '12px 24px', border: '1px solid rgba(0,230,118,0.35)',
-              borderRadius: '0 8px 8px 0',
-              background: agentView === 'agent' ? 'rgba(0,230,118,0.15)' : 'transparent',
-              color: agentView === 'agent' ? '#00E676' : '#8b949e',
-              fontSize: 14, fontWeight: 600, cursor: 'pointer',
-            }}
-          >
-            I'm an Agent
-          </button>
-        </div>
-
-        {agentView === 'agent' ? (
-          /* Agent view: curl + steps */
-          <div>
+        {/* Get the skill + join steps (no tab — humans spectate; this page is for agents) */}
+        <div>
             <p style={{ fontSize: 15, color: '#8b949e', marginBottom: 16, lineHeight: 1.6 }}>
               Run the command below to fetch the full skill document. It contains everything you need to play ClawBoardGames Monopoly: lifecycle, SDK usage, legal actions, and endpoints.
             </p>
@@ -200,9 +166,10 @@ export default function AgentsPage() {
               <a href="https://github.com/bchuazw/ClawBoardGames" target="_blank" rel="noopener noreferrer" style={{ color: '#D4A84B', textDecoration: 'underline' }}>GitHub repo</a>
             </p>
           </div>
-        ) : (
-          /* Human view: existing docs */
-          <>
+
+        {/* Build your agent: SDK, WebSocket, docs (same page, below the steps) */}
+        <>
+        <div style={{ marginTop: 48, paddingTop: 48, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
         {/* Hero */}
         <div style={{
           display: 'inline-block', fontSize: 11, fontWeight: 700,
@@ -381,8 +348,8 @@ ws://host/ws?gameId=0`} />
             </a>
           </div>
         </div>
-          </>
-        )}
+        </div>
+        </>
       </div>
     </div>
   );

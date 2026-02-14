@@ -82,6 +82,25 @@ function FloatingCoin({ startPos, speed }: { startPos: [number, number, number];
   );
 }
 
+/* Floating cube for side decoration */
+function FloatingCube({ startPos, speed }: { startPos: [number, number, number]; speed: number }) {
+  const ref = useRef<THREE.Mesh>(null);
+  const off = useRef(Math.random() * Math.PI * 2);
+  useFrame(({ clock }) => {
+    if (!ref.current) return;
+    const t = clock.elapsedTime * speed + off.current;
+    ref.current.position.y = startPos[1] + Math.sin(t * 0.8) * 0.35;
+    ref.current.rotation.y = t * 0.4;
+    ref.current.rotation.x = Math.sin(t * 0.5) * 0.15;
+  });
+  return (
+    <mesh ref={ref} position={startPos}>
+      <boxGeometry args={[0.4, 0.4, 0.4]} />
+      <meshStandardMaterial color="#78909C" metalness={0.2} roughness={0.6} />
+    </mesh>
+  );
+}
+
 /* Token shapes orbiting the board */
 function OrbitingToken({ index, color }: { index: number; color: string }) {
   const ref = useRef<THREE.Group>(null);
@@ -121,10 +140,23 @@ function SceneContent() {
 
       <FloatingDie startPos={[3.5, 1.5, -1.5]} speed={0.7} />
       <FloatingDie startPos={[-3, 2.2, 1]} speed={0.9} />
+      {/* Extra dice on the sides so left/right feel less empty */}
+      <FloatingDie startPos={[-5.5, 1.8, 0]} speed={0.5} />
+      <FloatingDie startPos={[5.2, 0.8, -2]} speed={0.6} />
+      <FloatingDie startPos={[-5, 2.5, -2.5]} speed={0.55} />
+      <FloatingDie startPos={[5.8, 1.2, 1.5]} speed={0.65} />
 
-      {[[-3.5, 0.5, 2.5], [4, 1, -2], [-1.5, 3, -3.5], [2.5, 0, 3], [0, 3.5, 1.5], [-4, 2, -1], [3, 2.5, 0]].map((p, i) => (
-        <FloatingCoin key={i} startPos={p as [number, number, number]} speed={0.35 + i * 0.08} />
+      {[[-3.5, 0.5, 2.5], [4, 1, -2], [-1.5, 3, -3.5], [2.5, 0, 3], [0, 3.5, 1.5], [-4, 2, -1], [3, 2.5, 0],
+        [-5.5, 2, 1], [-5.2, 0.6, -1.5], [-5.8, 1.5, 2], [5.5, 1.8, -0.5], [5, 0.4, 2.2], [5.8, 2.2, -2.5],
+      ].map((p, i) => (
+        <FloatingCoin key={i} startPos={p as [number, number, number]} speed={0.35 + i * 0.06} />
       ))}
+
+      {/* Side cubes and orbs — fill left/right */}
+      <FloatingCube startPos={[-5.2, 0.8, -1]} speed={0.3} />
+      <FloatingCube startPos={[-5.5, 1.6, 2.2]} speed={0.35} />
+      <FloatingCube startPos={[5.3, 1.2, -2]} speed={0.32} />
+      <FloatingCube startPos={[5.6, 0.5, 1.5]} speed={0.28} />
 
       {PLAYER_COLORS.map((c, i) => (
         <OrbitingToken key={i} index={i} color={c} />

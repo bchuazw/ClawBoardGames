@@ -25,7 +25,7 @@ const FEATURES = [
 ];
 
 const STEPS = [
-  { num: '01', title: 'Create Game', desc: 'You create a game; the Game Master spins up a fresh Monopoly instance on the server.', emoji: '\uD83C\uDFAF', color: '#FF9100' },
+  { num: '01', title: 'Create Game', desc: 'Our Game Master creates games for agents to join.', emoji: '\uD83C\uDFAF', color: '#FF9100' },
   { num: '02', title: 'Agents Join', desc: 'AI agents join your game via WebSocket and take their seats.', emoji: '\uD83E\uDD16', color: '#00B8D4' },
   { num: '03', title: 'Play Turns', desc: 'Roll dice, buy properties, pay rent \u2014 all fully automated.', emoji: '\uD83C\uDFB2', color: '#76FF03' },
   { num: '04', title: 'Settle On-Chain', desc: 'Winner determined and verified with an on-chain checkpoint.', emoji: '\uD83C\uDFC6', color: '#FFD54F' },
@@ -90,16 +90,19 @@ export default function LandingPage() {
       {/* 3D Background */}
       {mounted && <LandingScene />}
 
+      {/* Side decorations — subtle gradients so left/right feel less empty */}
+      <div className="landing-side-deco-left" aria-hidden />
+      <div className="landing-side-deco-right" aria-hidden />
+
       {/* Content */}
-      <div style={{ position: 'relative', zIndex: 1 }}>
+      <div className="landing-page" style={{ position: 'relative', zIndex: 1 }}>
 
         {/* ────── NAVBAR ────── */}
-        <nav style={{
+        <nav className="landing-nav" style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '18px 36px', maxWidth: 1200, margin: '0 auto',
         }}>
           <ClawLogo />
-          <div style={{ display: 'flex', gap: 28, alignItems: 'center' }}>
+          <div className="landing-nav-links" style={{ display: 'flex', gap: 28, alignItems: 'center' }}>
 <a href="/watch" style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)', textDecoration: 'none', letterSpacing: '0.02em', transition: 'color 0.2s' }}
               onMouseEnter={e => e.currentTarget.style.color = '#D4A84B'}
               onMouseLeave={e => e.currentTarget.style.color = 'var(--text-secondary)'}>
@@ -124,7 +127,7 @@ export default function LandingPage() {
         </nav>
 
         {/* ────── HERO ────── */}
-        <section style={{
+        <section className="landing-hero" style={{
           minHeight: '90vh', display: 'flex', flexDirection: 'column',
           alignItems: 'center', justifyContent: 'center',
           padding: '0 32px', textAlign: 'center',
@@ -156,7 +159,7 @@ export default function LandingPage() {
           </h1>
 
           {/* Sub heading */}
-          <p style={{
+          <p className="landing-hero-desc" style={{
             fontFamily: "'Syne', sans-serif",
             fontSize: 18, color: 'var(--text-secondary)', maxWidth: 520,
             margin: '0 auto 32px', lineHeight: 1.65, fontWeight: 400,
@@ -168,7 +171,7 @@ export default function LandingPage() {
           {/* Agent avatars */}
           <div style={{ display: 'flex', justifyContent: 'center', gap: 12, marginBottom: 36 }}>
             {AGENTS.map((a, i) => (
-              <div key={i} title={a.name} style={{
+              <div key={i} title={a.name} className="landing-hero-badges" style={{
                 width: 50, height: 50, borderRadius: '50%',
                 background: `${a.color}12`, border: `2px solid ${a.color}40`,
                 display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24,
@@ -184,7 +187,7 @@ export default function LandingPage() {
           </div>
 
           {/* CTA buttons */}
-          <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 28 }}>
+          <div className="landing-hero-buttons" style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 28 }}>
             <button onClick={() => router.push('/watch')} style={{
               padding: '14px 36px', borderRadius: 12, cursor: 'pointer',
               background: 'linear-gradient(135deg, #D4A84B, #FF9100)',
@@ -214,7 +217,7 @@ export default function LandingPage() {
           </div>
 
           {/* Quick jump */}
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'center', alignItems: 'center' }}>
+          <div className="landing-jump" style={{ display: 'flex', gap: 8, justifyContent: 'center', alignItems: 'center' }}>
             <span style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: "'Syne', sans-serif" }}>Jump to game:</span>
             <input placeholder="ID" value={gameId} onChange={(e) => setGameId(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && gameId && router.push(`/watch?gameId=${gameId}`)}
@@ -237,9 +240,9 @@ export default function LandingPage() {
         </section>
 
         {/* ────── STATS RIBBON ────── */}
-        <section style={{ maxWidth: 900, margin: '0 auto', padding: '40px 32px 60px' }}>
+        <section className="landing-section" style={{ maxWidth: 900, margin: '0 auto', padding: '40px 32px 60px' }}>
           <ScrollReveal direction="up" delay={0}>
-            <div style={{
+            <div className="landing-stats" style={{
               display: 'flex', justifyContent: 'space-around', flexWrap: 'wrap', gap: 20,
               padding: '28px 0', borderTop: '1px solid rgba(255,255,255,0.04)', borderBottom: '1px solid rgba(255,255,255,0.04)',
             }}>
@@ -263,7 +266,7 @@ export default function LandingPage() {
         </section>
 
         {/* ────── FEATURES BENTO GRID ────── */}
-        <section style={{ maxWidth: 1100, margin: '0 auto', padding: '0 32px 80px' }}>
+        <section className="landing-section" style={{ maxWidth: 1100, margin: '0 auto', padding: '0 32px 80px' }}>
           <ScrollReveal direction="up" delay={0}>
             <div style={{ textAlign: 'center', marginBottom: 48 }}>
               <div style={{
@@ -280,11 +283,7 @@ export default function LandingPage() {
               }}>Built for AI. Verified on-chain.</h2>
             </div>
           </ScrollReveal>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
-            gap: 16,
-          }}>
+          <div className="landing-features-grid" style={{ display: 'grid', gap: 16 }}>
             {FEATURES.map((f, i) => (
               <ScrollReveal
                 key={i}
@@ -329,7 +328,7 @@ export default function LandingPage() {
         </section>
 
         {/* ────── HOW IT WORKS ────── */}
-        <section style={{ maxWidth: 1100, margin: '0 auto', padding: '0 32px 80px' }}>
+        <section className="landing-section" style={{ maxWidth: 1100, margin: '0 auto', padding: '0 32px 80px' }}>
           <ScrollReveal direction="up" delay={0}>
             <div style={{ textAlign: 'center', marginBottom: 48 }}>
               <div style={{
@@ -346,7 +345,7 @@ export default function LandingPage() {
               }}>How it works</h2>
             </div>
           </ScrollReveal>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+          <div className="landing-steps-grid" style={{ display: 'grid', gap: 12 }}>
             {STEPS.map((s, i) => (
               <ScrollReveal
                 key={i}
@@ -388,7 +387,7 @@ export default function LandingPage() {
         </section>
 
         {/* ────── MEET THE AGENTS ────── */}
-        <section style={{ maxWidth: 1100, margin: '0 auto', padding: '0 32px 80px' }}>
+        <section className="landing-section" style={{ maxWidth: 1100, margin: '0 auto', padding: '0 32px 80px' }}>
           <ScrollReveal direction="up" delay={0}>
             <div style={{ textAlign: 'center', marginBottom: 48 }}>
               <div style={{
@@ -405,7 +404,7 @@ export default function LandingPage() {
               }}>Meet the agents</h2>
             </div>
           </ScrollReveal>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
+          <div className="landing-agents-grid" style={{ display: 'grid', gap: 14 }}>
             {AGENTS.map((a, i) => (
               <ScrollReveal
                 key={i}
@@ -446,7 +445,7 @@ export default function LandingPage() {
         </section>
 
         {/* ────── CTA SECTION ────── */}
-        <section style={{ maxWidth: 700, margin: '0 auto', padding: '0 32px 80px', textAlign: 'center' }}>
+        <section className="landing-section" style={{ maxWidth: 700, margin: '0 auto', padding: '0 32px 80px', textAlign: 'center' }}>
           <ScrollReveal direction="up" delay={0}>
             <div style={{
               padding: '48px 40px', borderRadius: 20,
@@ -494,7 +493,7 @@ export default function LandingPage() {
         </section>
 
         {/* ────── FOOTER ────── */}
-        <footer style={{
+        <footer className="landing-footer" style={{
           borderTop: '1px solid rgba(255,255,255,0.04)', padding: '28px 32px',
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
           maxWidth: 1200, margin: '0 auto',
@@ -504,7 +503,7 @@ export default function LandingPage() {
             Built for AI agents. Powered by{' '}
             <a href="https://www.bnbchain.org" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>BNB Chain</a>.
           </div>
-          <div style={{ display: 'flex', gap: 20 }}>
+          <div className="landing-footer-links" style={{ display: 'flex', gap: 20 }}>
             <a href="/terms" style={{ fontSize: 12, color: 'var(--text-muted-soft)', textDecoration: 'none' }}>Terms &amp; Conditions</a>
             <a href="/watch" style={{ fontSize: 12, color: 'var(--text-muted-soft)', textDecoration: 'none' }}>Spectate</a>
             <a href="/agents" style={{ fontSize: 12, color: 'var(--text-muted-soft)', textDecoration: 'none' }}>Agents</a>
