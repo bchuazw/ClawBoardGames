@@ -125,6 +125,7 @@ export default function WatchGameView({ gameId }: { gameId: string }) {
   const [activeCard, setActiveCard] = useState<{ text: string; type: string } | null>(null);
   const [muted, setMuted] = useState(false);
   const [connectionFailed, setConnectionFailed] = useState(false);
+  const [serverErrorMessage, setServerErrorMessage] = useState<string | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const eventsEndRef = useRef<HTMLDivElement>(null);
   const notifTimer = useRef<ReturnType<typeof setTimeout>>();
@@ -187,6 +188,7 @@ export default function WatchGameView({ gameId }: { gameId: string }) {
     if (!gameId) return;
     disconnect();
     setConnectionFailed(false);
+    setServerErrorMessage(null);
     hasOpenedRef.current = false;
     sfx.init();
     const CONNECT_TIMEOUT_MS = 14000;
@@ -218,6 +220,12 @@ export default function WatchGameView({ gameId }: { gameId: string }) {
     };
     ws.onmessage = (ev) => {
       const msg = JSON.parse(ev.data);
+      if (msg.type === 'error') {
+        setServerErrorMessage(msg.message || 'Server error');
+        setConnectionFailed(true);
+        setConnected(false);
+        return;
+      }
       if (msg.type === 'snapshot') setSnapshot(normalizeSnapshot(msg.snapshot));
       else if (msg.type === 'events') {
         setEvents(prev => [...prev.slice(-300), ...msg.events]);
@@ -287,7 +295,7 @@ export default function WatchGameView({ gameId }: { gameId: string }) {
             style={{ padding: '8px 18px', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 12, color: '#fff', background: connected ? '#C62828' : '#1565C0' }}>
             {connected ? 'Disconnect' : 'Watch'}
           </button>
-          {connected && <span style={{ padding: '4px 10px', borderRadius: 6, fontSize: 10, fontWeight: 800, background: '#2E7D32', color: '#fff', animation: 'livePulse 2s infinite' }}>LIVE</span>}
+          {connected && snapshot && <span style={{ padding: '4px 10px', borderRadius: 6, fontSize: 10, fontWeight: 800, background: '#2E7D32', color: '#fff', animation: 'livePulse 2s infinite' }}>LIVE</span>}
           <button onClick={() => setMuted(m => !m)}
             style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid rgba(212,168,75,0.15)', background: 'rgba(255,255,255,0.04)', cursor: 'pointer', fontSize: 16 }}>
             {muted ? '\u{1F507}' : '\u{1F50A}'}
@@ -306,12 +314,19 @@ export default function WatchGameView({ gameId }: { gameId: string }) {
           <div style={{ position: 'absolute', bottom: 100, left: 0, right: 0, zIndex: 10, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
             {connectionFailed ? (
               <>
-                <div style={{ fontSize: 22, color: '#EF5350', fontWeight: 800, marginBottom: 4 }}>Couldn&apos;t connect to game {gameId}</div>
-                <div style={{ fontSize: 14, color: 'var(--text-muted)', maxWidth: 360 }}>
-                  The Game Master server may be offline or sleeping. If you&apos;re testing locally, start the GM first: <code style={{ background: 'rgba(0,0,0,0.2)', padding: '2px 6px', borderRadius: 4 }}>cd packages/gamemaster && LOCAL_MODE=true node dist/index.js</code>, and use <code style={{ background: 'rgba(0,0,0,0.2)', padding: '2px 6px', borderRadius: 4 }}>ws://localhost:3001/ws</code> as the GM URL.
+                <div style={{ fontSize: 22, color: '#EF5350', fontWeight: 800, marginBottom: 4 }}>
+                  {serverErrorMessage?.includes('not found') ? `No game in lobby ${gameId}` : 'Couldn\'t connect to game ' + gameId}
                 </div>
-                <button type="button" onClick={() => { setConnectionFailed(false); connect(); }} style={{ padding: '10px 24px', fontSize: 14, fontWeight: 700, color: '#fff', background: '#CC5500', border: '1px solid rgba(204,85,0,0.5)', borderRadius: 8, cursor: 'pointer' }}>
-                  Retry connection
+                <div style={{ fontSize: 14, color: 'var(--text-muted)', maxWidth: 360 }}>
+                  {serverErrorMessage?.includes('not found')
+                    ? 'This lobby has no active game. Pick another lobby from "All lobbies" or start a game (e.g. run the local playtest script with 4 agents in this slot).'
+                    : 'The Game Master server may be offline or sleeping. If you\'re testing locally, start the GM first: '}
+                  {!serverErrorMessage?.includes('not found') && (
+                    <><code style={{ background: 'rgba(0,0,0,0.2)', padding: '2px 6px', borderRadius: 4 }}>cd packages/gamemaster && LOCAL_MODE=true node dist/index.js</code>, and use <code style={{ background: 'rgba(0,0,0,0.2)', padding: '2px 6px', borderRadius: 4 }}>ws://localhost:3001/ws</code> as the GM URL.</>
+                  )}
+                </div>
+                <button type="button" onClick={() => { setConnectionFailed(false); setServerErrorMessage(null); connect(); }} style={{ padding: '10px 24px', fontSize: 14, fontWeight: 700, color: '#fff', background: '#CC5500', border: '1px solid rgba(204,85,0,0.5)', borderRadius: 8, cursor: 'pointer' }}>
+                  {serverErrorMessage?.includes('not found') ? 'Try again' : 'Retry connection'}
                 </button>
               </>
             ) : (
