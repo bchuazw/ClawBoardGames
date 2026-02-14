@@ -124,10 +124,13 @@ export default function WatchGameView({ gameId }: { gameId: string }) {
   const [moods, setMoods] = useState<Record<number, string>>({ 0: DEFAULT_MOOD, 1: DEFAULT_MOOD, 2: DEFAULT_MOOD, 3: DEFAULT_MOOD });
   const [activeCard, setActiveCard] = useState<{ text: string; type: string } | null>(null);
   const [muted, setMuted] = useState(false);
+  const [connectionFailed, setConnectionFailed] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
   const eventsEndRef = useRef<HTMLDivElement>(null);
   const notifTimer = useRef<ReturnType<typeof setTimeout>>();
   const moodTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
+  const connectTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+  const hasOpenedRef = useRef(false);
 
   useEffect(() => { sfx.muted = muted; }, [muted]);
 
@@ -170,17 +173,49 @@ export default function WatchGameView({ gameId }: { gameId: string }) {
     }
   }
 
-  const disconnect = useCallback(() => { wsRef.current?.close(); wsRef.current = null; setConnected(false); }, []);
+  const disconnect = useCallback(() => {
+    if (connectTimeoutRef.current) {
+      clearTimeout(connectTimeoutRef.current);
+      connectTimeoutRef.current = undefined;
+    }
+    wsRef.current?.close();
+    wsRef.current = null;
+    setConnected(false);
+  }, []);
 
   const connect = useCallback(() => {
     if (!gameId) return;
     disconnect();
+    setConnectionFailed(false);
+    hasOpenedRef.current = false;
     sfx.init();
+    const CONNECT_TIMEOUT_MS = 14000;
+    connectTimeoutRef.current = setTimeout(() => {
+      connectTimeoutRef.current = undefined;
+      setConnectionFailed(true);
+    }, CONNECT_TIMEOUT_MS);
     const ws = new WebSocket(`${gmUrl}?gameId=${gameId}`);
     wsRef.current = ws;
-    ws.onopen = () => setConnected(true);
-    ws.onclose = () => setConnected(false);
-    ws.onerror = () => setConnected(false);
+    ws.onopen = () => {
+      hasOpenedRef.current = true;
+      if (connectTimeoutRef.current) {
+        clearTimeout(connectTimeoutRef.current);
+        connectTimeoutRef.current = undefined;
+      }
+      setConnected(true);
+    };
+    ws.onclose = () => {
+      if (connectTimeoutRef.current) {
+        clearTimeout(connectTimeoutRef.current);
+        connectTimeoutRef.current = undefined;
+      }
+      setConnected(false);
+      if (!hasOpenedRef.current) setConnectionFailed(true);
+    };
+    ws.onerror = () => {
+      setConnected(false);
+      if (!hasOpenedRef.current) setConnectionFailed(true);
+    };
     ws.onmessage = (ev) => {
       const msg = JSON.parse(ev.data);
       if (msg.type === 'snapshot') setSnapshot(normalizeSnapshot(msg.snapshot));
@@ -268,9 +303,23 @@ export default function WatchGameView({ gameId }: { gameId: string }) {
           </div>
         )}
         {!snapshot && !connected && (
-          <div style={{ position: 'absolute', bottom: 100, left: 0, right: 0, zIndex: 10, textAlign: 'center', pointerEvents: 'none' }}>
-            <div style={{ fontSize: 22, color: '#D4A84B', fontWeight: 800, marginBottom: 8 }}>Connecting to game {gameId}...</div>
-            <div style={{ fontSize: 14, color: 'var(--text-muted)' }}>The 3D board will come alive when connected</div>
+          <div style={{ position: 'absolute', bottom: 100, left: 0, right: 0, zIndex: 10, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+            {connectionFailed ? (
+              <>
+                <div style={{ fontSize: 22, color: '#EF5350', fontWeight: 800, marginBottom: 4 }}>Couldn&apos;t connect to game {gameId}</div>
+                <div style={{ fontSize: 14, color: 'var(--text-muted)', maxWidth: 360 }}>
+                  The Game Master server may be offline or sleeping. If you&apos;re testing locally, start the GM first: <code style={{ background: 'rgba(0,0,0,0.2)', padding: '2px 6px', borderRadius: 4 }}>cd packages/gamemaster && LOCAL_MODE=true node dist/index.js</code>, and use <code style={{ background: 'rgba(0,0,0,0.2)', padding: '2px 6px', borderRadius: 4 }}>ws://localhost:3001/ws</code> as the GM URL.
+                </div>
+                <button type="button" onClick={() => { setConnectionFailed(false); connect(); }} style={{ padding: '10px 24px', fontSize: 14, fontWeight: 700, color: '#fff', background: '#CC5500', border: '1px solid rgba(204,85,0,0.5)', borderRadius: 8, cursor: 'pointer' }}>
+                  Retry connection
+                </button>
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize: 22, color: '#D4A84B', fontWeight: 800, marginBottom: 8 }}>Connecting to game {gameId}...</div>
+                <div style={{ fontSize: 14, color: 'var(--text-muted)' }}>The 3D board will come alive when connected</div>
+              </>
+            )}
           </div>
         )}
       </div>
