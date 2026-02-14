@@ -438,6 +438,7 @@ export class MonopolyEngine {
           }
         } else {
           // Stay in jail, end turn
+          this.emit({ type: "stayedInJail", player: player.index });
           this.state.phase = Phase.POST_TURN;
         }
       }

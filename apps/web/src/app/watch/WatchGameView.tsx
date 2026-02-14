@@ -100,6 +100,8 @@ function humanEvent(e: GameEvent): { text: string; color: string } {
       const method = e.method === 'fee' ? 'by paying the $50 fee' : e.method === 'doubles' ? 'by rolling doubles!' : 'after 3 turns';
       return { text: `\uD83D\uDD13 ${emoji} ${n} got out of jail ${method}`, color: '#66BB6A' };
     }
+    case 'stayedInJail':
+      return { text: `\uD83D\uDD12 ${emoji} ${n} didn't roll doubles \u2014 staying in jail`, color: '#FF9800' };
     case 'playerBankrupt':
       return { text: `\uD83D\uDCA5 ${emoji} ${n} went BANKRUPT!`, color: '#EF5350' };
     case 'gameEnded':
@@ -313,9 +315,13 @@ export default function WatchGameView({ gameId }: { gameId: string }) {
         // Show dice roll (or move) announcement first; landing events (rent/card/tax) after delay
         const diceEv = msg.events.find((e: GameEvent) => e.type === 'diceRolled');
         const moveEv = msg.events.find((e: GameEvent) => e.type === 'playerMoved');
+        const stayedInJailEv = msg.events.find((e: GameEvent) => e.type === 'stayedInJail');
         const landingEv = msg.events.find((e: GameEvent) =>
           ['rentPaid', 'taxPaid', 'cardDrawn', 'passedGo', 'propertyBought', 'propertyDeclined'].includes(e.type));
-        const firstNotif = diceEv ? humanEvent(diceEv) : (moveEv ? humanEvent(moveEv) : landingEv ? humanEvent(landingEv) : null);
+        let firstNotif = diceEv ? humanEvent(diceEv) : (moveEv ? humanEvent(moveEv) : landingEv ? humanEvent(landingEv) : null);
+        if (firstNotif && diceEv && stayedInJailEv && stayedInJailEv.player === diceEv.player) {
+          firstNotif = { ...firstNotif, text: firstNotif.text + ' \u2014 Unable to escape jail' };
+        }
         if (firstNotif) {
           setNotification(firstNotif);
           clearTimeout(notifTimer.current);
@@ -400,7 +406,7 @@ export default function WatchGameView({ gameId }: { gameId: string }) {
                 </div>
                 <div style={{ fontSize: 14, color: 'var(--text-muted)', maxWidth: 360 }}>
                   {serverErrorMessage?.includes('not found')
-                    ? 'This lobby has no active game. Pick another lobby from "All lobbies" or start a game (e.g. run the local playtest script with 4 agents in this slot).'
+                    ? 'This lobby has no active game. Pick another lobby from "All lobbies" that is currently live.'
                     : 'The Game Master server may be offline or sleeping. If you\'re testing locally, start the GM first: '}
                   {!serverErrorMessage?.includes('not found') && (
                     <><code style={{ background: 'rgba(0,0,0,0.2)', padding: '2px 6px', borderRadius: 4 }}>cd packages/gamemaster && LOCAL_MODE=true node dist/index.js</code>, and use <code style={{ background: 'rgba(0,0,0,0.2)', padding: '2px 6px', borderRadius: 4 }}>ws://localhost:3001/ws</code> as the GM URL.</>

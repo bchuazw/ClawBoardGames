@@ -136,8 +136,8 @@ function MiniBoard() {
         <Text fontSize={0.12 * S} color="#C62828" anchorX="center" anchorY="middle" fontWeight={800}>GO TO JAIL</Text>
       </group>
 
-      {/* Board center — logo */}
-      <Image url="/clawboardgames-logo.png" position={[0, 0.131 * S, 0]} rotation={[-Math.PI / 2, 0, 0]} scale={[1.1 * S, 1.1 * S]} />
+      {/* Board center — logo fills inner square (same size as inner play area 10.1*S) */}
+      <Image url="/clawboardgames-logo.png" position={[0, 0.131 * S, 0]} rotation={[-Math.PI / 2, 0, 0]} scale={[10.1 * S, 10.1 * S]} />
 
       {/* Corner gold pillars with orbs (like spectator) */}
       {[

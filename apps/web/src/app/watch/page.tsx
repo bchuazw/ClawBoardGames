@@ -124,6 +124,8 @@ function humanEvent(e: GameEvent): { text: string; color: string } {
       const method = e.method === 'fee' ? 'by paying the $50 fee' : e.method === 'doubles' ? 'by rolling doubles!' : 'after 3 turns';
       return { text: `\uD83D\uDD13 ${emoji} ${n} got out of jail ${method}`, color: '#66BB6A' };
     }
+    case 'stayedInJail':
+      return { text: `\uD83D\uDD12 ${emoji} ${n} didn't roll doubles \u2014 staying in jail`, color: '#FF9800' };
     case 'playerBankrupt':
       return { text: `\uD83D\uDCA5 ${emoji} ${n} went BANKRUPT!`, color: '#EF5350' };
     case 'gameEnded':
@@ -377,9 +379,13 @@ function WatchPage() {
         // Show dice roll (or move) announcement first; landing events (rent/card/tax) after delay
         const diceEv = msg.events.find((e: GameEvent) => e.type === 'diceRolled');
         const moveEv = msg.events.find((e: GameEvent) => e.type === 'playerMoved');
+        const stayedInJailEv = msg.events.find((e: GameEvent) => e.type === 'stayedInJail');
         const landingEv = msg.events.find((e: GameEvent) =>
           ['rentPaid', 'taxPaid', 'cardDrawn', 'passedGo', 'propertyBought', 'propertyDeclined'].includes(e.type));
-        const firstNotif = diceEv ? humanEvent(diceEv) : (moveEv ? humanEvent(moveEv) : landingEv ? humanEvent(landingEv) : null);
+        let firstNotif = diceEv ? humanEvent(diceEv) : (moveEv ? humanEvent(moveEv) : landingEv ? humanEvent(landingEv) : null);
+        if (firstNotif && diceEv && stayedInJailEv && stayedInJailEv.player === diceEv.player) {
+          firstNotif = { ...firstNotif, text: firstNotif.text + ' \u2014 Unable to escape jail' };
+        }
         if (firstNotif) {
           setNotification(firstNotif);
           clearTimeout(notifTimer.current);
@@ -541,27 +547,31 @@ function WatchPage() {
                           key={slot.id}
                           className="watch-lobby-card"
                           style={{
-                            padding: '20px 14px', borderRadius: 20,
-                            border: '1px dashed rgba(255,255,255,0.1)', background: 'linear-gradient(145deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.15) 100%)',
-                            color: 'var(--text-muted)', textAlign: 'center', opacity: 0.65,
-                            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10,
-                            minHeight: 128, cursor: 'default', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
+                            padding: '24px 16px', borderRadius: 22,
+                            border: '1px dashed rgba(255,255,255,0.08)', background: 'linear-gradient(160deg, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.12) 100%)',
+                            color: 'var(--text-muted)', textAlign: 'center', opacity: 0.7,
+                            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12,
+                            minHeight: 120, cursor: 'default', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.02)',
                           }}
                         >
-                          <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: 1.2, color: 'var(--text-muted-soft)' }}>LOBBY {slot.id}</span>
-                          <span style={{ width: 20, height: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 1 }} />
-                          <span style={{ fontSize: 12, color: 'var(--text-muted-soft)', fontWeight: 500 }}>No game</span>
+                          <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: 1.4, color: 'rgba(255,255,255,0.35)' }}>LOBBY {slot.id}</span>
+                          <span style={{ width: 24, height: 1, background: 'rgba(255,255,255,0.06)', borderRadius: 1 }} />
+                          <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', fontWeight: 500 }}>No game</span>
                         </div>
                       );
                     }
                     const isWaiting = slot.status === 'waiting';
                     const isActive = slot.status === 'active';
-                    const count = 'playerCount' in slot ? (slot.playerCount ?? 0) : 0;
+                    const count = 'playerCount' in slot ? (slot.playerCount ?? 0) : undefined;
                     const statusColor = isActive ? '#22c55e' : isWaiting ? '#f59e0b' : '#06b6d4';
-                    const statusLabel = isActive ? 'Live now' : isWaiting
-                      ? count === 0 ? 'No players yet' : count === 1 ? '1 player' : count === 2 ? '2 players' : count === 3 ? '3 — almost full!' : 'Full'
-                      : 'Open to join';
-                    const statusIcon = isActive ? '🔴' : isWaiting ? '👥' : '✨';
+                    const statusLabel = isActive
+                      ? 'Live now'
+                      : isWaiting && count !== undefined
+                        ? `${count}/4 players${count >= 4 ? ' — full' : ''}`
+                        : count !== undefined
+                          ? `${count}/4 players`
+                          : 'Open to join';
+                    const statusIcon = isActive ? '🔴' : isWaiting || count !== undefined ? '👥' : '✨';
                     return (
                       <button
                         key={slot.id}
@@ -569,45 +579,41 @@ function WatchPage() {
                         className="watch-lobby-card"
                         type="button"
                         style={{
-                          padding: '22px 14px', borderRadius: 20,
-                          border: `1px solid ${statusColor}60`,
-                          background: `linear-gradient(165deg, ${statusColor}22 0%, ${statusColor}08 40%, rgba(0,0,0,0.3) 100%)`,
+                          padding: '24px 16px', borderRadius: 22,
+                          border: `1px solid ${statusColor}50`,
+                          background: `linear-gradient(165deg, ${statusColor}18 0%, ${statusColor}06 35%, rgba(0,0,0,0.25) 100%)`,
                           color: '#fff', cursor: 'pointer', textAlign: 'center',
-                          fontFamily: 'var(--font-display)', transition: 'all 0.3s cubic-bezier(0.4,0,0.2,1)',
-                          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12,
-                          minHeight: 128,
+                          fontFamily: 'var(--font-display)', transition: 'all 0.35s cubic-bezier(0.4,0,0.2,1)',
+                          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14,
+                          minHeight: 120,
                           position: 'relative' as const,
                           overflow: 'hidden',
-                          boxShadow: `0 4px 24px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.04) inset, 0 0 20px ${statusColor}15`,
+                          boxShadow: `0 6px 28px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.05) inset, 0 0 24px ${statusColor}12`,
                         }}
                         onMouseEnter={(e) => {
-                          e.currentTarget.style.transform = 'translateY(-6px) scale(1.02)';
-                          e.currentTarget.style.boxShadow = `0 20px 48px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.06) inset, 0 0 40px ${statusColor}30, 0 0 60px ${statusColor}12`;
-                          e.currentTarget.style.borderColor = `${statusColor}cc`;
+                          e.currentTarget.style.transform = 'translateY(-4px) scale(1.015)';
+                          e.currentTarget.style.boxShadow = `0 16px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.08) inset, 0 0 32px ${statusColor}25, 0 0 48px ${statusColor}08`;
+                          e.currentTarget.style.borderColor = `${statusColor}99`;
                         }}
                         onMouseLeave={(e) => {
                           e.currentTarget.style.transform = 'translateY(0) scale(1)';
-                          e.currentTarget.style.boxShadow = `0 4px 24px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.04) inset, 0 0 20px ${statusColor}15`;
-                          e.currentTarget.style.borderColor = `${statusColor}60`;
+                          e.currentTarget.style.boxShadow = `0 6px 28px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.05) inset, 0 0 24px ${statusColor}12`;
+                          e.currentTarget.style.borderColor = `${statusColor}50`;
                         }}
                       >
-                        {/* Top highlight */}
-                        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg, transparent, ${statusColor}50, transparent)`, opacity: 0.8 }} />
-                        <span style={{ fontSize: 10, fontWeight: 800, color: 'rgba(255,255,255,0.5)', letterSpacing: 1.2 }}>LOBBY {slot.id}</span>
+                        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg, transparent, ${statusColor}40, transparent)`, opacity: 0.9 }} />
+                        <span style={{ fontSize: 10, fontWeight: 800, color: 'rgba(255,255,255,0.45)', letterSpacing: 1.4 }}>LOBBY {slot.id}</span>
                         <span style={{
-                          display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 20,
-                          background: `${statusColor}20`, border: `1px solid ${statusColor}40`,
-                          fontSize: 13, fontWeight: 700, color: statusColor, boxShadow: `0 0 12px ${statusColor}20`,
+                          display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 14px', borderRadius: 14,
+                          background: `${statusColor}18`, border: `1px solid ${statusColor}35`,
+                          fontSize: 13, fontWeight: 700, color: statusColor, letterSpacing: 0.3,
+                          boxShadow: `0 0 16px ${statusColor}15`,
                         }}>
-                          <span style={{ fontSize: 14 }}>{statusIcon}</span>
+                          <span style={{ fontSize: 15, lineHeight: 1 }}>{statusIcon}</span>
                           <span>{statusLabel}</span>
                         </span>
-                        <span style={{
-                          marginTop: 4, padding: '10px 20px', borderRadius: 12, fontSize: 13, fontWeight: 800, letterSpacing: 0.5,
-                          background: 'linear-gradient(135deg, #CC5500 0%, #e65c00 50%, #a84400 100%)', color: '#fff',
-                          boxShadow: '0 4px 16px rgba(204,85,0,0.4), 0 0 0 1px rgba(255,255,255,0.2) inset', border: 'none',
-                        }}>
-                          Watch
+                        <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', fontWeight: 500, letterSpacing: 0.5 }}>
+                          Click to spectate
                         </span>
                       </button>
                     );

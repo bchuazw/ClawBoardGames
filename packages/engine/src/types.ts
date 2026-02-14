@@ -143,6 +143,7 @@ export type GameEvent =
   | { type: "cashChange"; player: number; amount: number; reason: string }
   | { type: "sentToJail"; player: number }
   | { type: "freedFromJail"; player: number; method: "doubles" | "fee" | "maxTurns" }
+  | { type: "stayedInJail"; player: number }
   | { type: "auctionStarted"; propertyIndex: number; tileName: string }
   | { type: "bidPlaced"; player: number; propertyIndex: number; amount: number }
   | { type: "auctionEnded"; winner: number; propertyIndex: number; amount: number; tileName: string; highBid?: number }
