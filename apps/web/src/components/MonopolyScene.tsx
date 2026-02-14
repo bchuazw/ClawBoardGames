@@ -225,7 +225,9 @@ function BoardTile({ tile, position, ownerIndex, houseCount }: { tile: typeof TI
   if (edge === 'right') tRot = [-Math.PI / 2, 0, -Math.PI / 2];
   if (edge === 'top') tRot = [-Math.PI / 2, 0, Math.PI];
 
-  const displayName = tile.isCorner ? tile.name : (tile.name.length > 14 ? tile.shortName : tile.name.replace(' Ave', '').replace(' Place', ' Pl'));
+  // Always show full tile name (no MED, CON, etc.) — use slightly smaller font for long names so they fit
+  const displayName = tile.name;
+  const nameFontSize = tile.isCorner ? 0.082 : (tile.name.length > 16 ? 0.065 : 0.082);
 
   return (
     <group position={pos}>
@@ -241,7 +243,7 @@ function BoardTile({ tile, position, ownerIndex, houseCount }: { tile: typeof TI
       {tile.position === 30 && <CornerGoToJail rotation={tRot} />}
       {!tile.isCorner && (
         <group>
-          <Text position={[0, 0.08, 0]} rotation={tRot} fontSize={0.082} color="#3A3020" anchorX="center" anchorY="middle" maxWidth={w * 0.85} textAlign="center">{displayName}</Text>
+          <Text position={[0, 0.08, 0]} rotation={tRot} fontSize={nameFontSize} color="#3A3020" anchorX="center" anchorY="middle" maxWidth={w * 0.85} textAlign="center">{displayName}</Text>
           {tile.price > 0 && (
             <Text position={[0, 0.08, edge === 'bottom' ? 0.14 : (edge === 'top' ? -0.14 : 0)]} rotation={tRot} fontSize={0.065} color="#7A6B50" anchorX="center" anchorY="middle">${tile.price}</Text>
           )}
@@ -426,14 +428,44 @@ function OwnerFlag({ position, color }: { position: [number, number, number]; co
   );
 }
 
+/* ---- Bank gold pile (tax / Go money comes from or goes to here) ---- */
+const GOLD_MAT = { color: "#FFD700", emissive: "#FFA000", emissiveIntensity: 0.35, metalness: 0.9, roughness: 0.12 };
+function BankGoldPile() {
+  const ref = useRef<THREE.Group>(null);
+  useFrame(({ clock }) => { if (ref.current) ref.current.rotation.y = clock.elapsedTime * 0.08; });
+  // Stack of coins/bars: slightly offset and rotated for a "pile" look
+  const coins: { y: number; r: number; rotY: number; rotZ: number; scale: number }[] = [
+    { y: 0.02, r: 0.22, rotY: 0, rotZ: 0, scale: 1 },
+    { y: 0.07, r: 0.20, rotY: 0.3, rotZ: 0.05, scale: 0.95 },
+    { y: 0.11, r: 0.18, rotY: 0.6, rotZ: -0.04, scale: 0.9 },
+    { y: 0.14, r: 0.16, rotY: 0.2, rotZ: 0.06, scale: 0.85 },
+    { y: 0.17, r: 0.14, rotY: 0.8, rotZ: -0.03, scale: 0.8 },
+    { y: 0.20, r: 0.12, rotY: 0.4, rotZ: 0.02, scale: 0.75 },
+  ];
+  return (
+    <group ref={ref} position={[0, 0.11, 0]}>
+      {coins.map((c, i) => (
+        <mesh key={i} position={[0, c.y, 0]} rotation={[0, c.rotY, c.rotZ]} scale={[c.scale, 1, c.scale]}>
+          <cylinderGeometry args={[c.r, c.r * 1.02, 0.04, 16]} />
+          <meshStandardMaterial {...GOLD_MAT} />
+        </mesh>
+      ))}
+      <pointLight position={[0, 0.12, 0]} intensity={0.2} color="#FFD700" distance={1.5} />
+    </group>
+  );
+}
+
 /* ---------------------------------------------------------------- */
-/*  BOARD CENTER — city skyline, card decks, trophy                  */
+/*  BOARD CENTER — city skyline, card decks, trophy, bank gold      */
 /* ---------------------------------------------------------------- */
 function BoardCenter() {
   return (
     <group>
       <Text position={[0, 0.13, -1.5]} rotation={[-Math.PI / 2, 0, 0]} fontSize={0.65} color="#D4A84B" anchorX="center" letterSpacing={0.1} fontWeight={800}>MONOPOLY</Text>
       <Text position={[0, 0.13, -0.55]} rotation={[-Math.PI / 2, 0, 0]} fontSize={0.24} color="#5D3A1A" anchorX="center" letterSpacing={0.25}>AI AGENTS</Text>
+
+      {/* Bank gold pile — tax and Go money visual anchor */}
+      <BankGoldPile />
 
       {/* Gold frame */}
       {[[-2.6, -1.8, 5.2, 0.04], [-2.6, -0.1, 5.2, 0.04], [-2.6, -1.8, 0.04, 1.74], [2.56, -1.8, 0.04, 1.74]].map(([x, z, w, d], i) => (
