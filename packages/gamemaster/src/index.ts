@@ -12,6 +12,8 @@ const LOCAL_MODE = process.env.LOCAL_MODE === "true";
 const RPC_URL = process.env.RPC_URL || "https://data-seed-prebsc-1-s1.binance.org:8545";
 const SETTLEMENT_ADDRESS = process.env.SETTLEMENT_ADDRESS || "";
 const GM_PRIVATE_KEY = process.env.GM_PRIVATE_KEY || "";
+const OPEN_GAME_TARGET = parseInt(process.env.OPEN_GAME_TARGET || "10", 10);
+const OPEN_GAME_REPLENISH_INTERVAL_MS = parseInt(process.env.OPEN_GAME_REPLENISH_INTERVAL_MS || "300000", 10); // 5 min
 
 let settlement: SettlementClient | null = null;
 
@@ -41,14 +43,16 @@ app.use((_req, res, next) => {
   next();
 });
 
-// Health check
+// Health check (includes settlementAddress in on-chain mode for frontend to show contract)
 app.get("/health", (_req, res) => {
-  res.json({
+  const payload: Record<string, unknown> = {
     status: "ok",
     mode: LOCAL_MODE ? "local" : "on-chain",
     activeGames: orchestrator.getActiveGames(),
     gmAddress: settlement?.address || "local-mode",
-  });
+  };
+  if (!LOCAL_MODE && SETTLEMENT_ADDRESS) payload.settlementAddress = SETTLEMENT_ADDRESS;
+  res.json(payload);
 });
 
 // List active games
@@ -82,6 +86,38 @@ app.get("/games/slots", async (_req, res) => {
     res.json({ slots });
   } catch (err: any) {
     res.status(500).json({ error: err?.message || "Failed to get slots" });
+  }
+});
+
+// Contract status enum: SETTLED = 5
+const STATUS_SETTLED = 5;
+const HISTORY_LIMIT = 100;
+
+// Past settled games for history page (on-chain only; from contract).
+app.get("/games/history", async (_req, res) => {
+  try {
+    if (LOCAL_MODE) {
+      return res.json({ history: [] });
+    }
+    const total = await settlement!.getGameCount();
+    if (total === 0) return res.json({ history: [] });
+    const start = Math.max(0, total - HISTORY_LIMIT);
+    const entries: { gameId: number; winner: string; players: string[]; status: number }[] = [];
+    for (let gameId = start; gameId < total; gameId++) {
+      const g = await settlement!.getGame(gameId);
+      if (g.status === STATUS_SETTLED && g.winner) {
+        entries.push({
+          gameId,
+          winner: g.winner,
+          players: g.players,
+          status: g.status,
+        });
+      }
+    }
+    entries.reverse();
+    res.json({ history: entries });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || "Failed to get history" });
   }
 });
 
@@ -166,5 +202,27 @@ server.listen(PORT, () => {
 
 // Cleanup every 5 minutes
 setInterval(() => orchestrator.cleanup(), 5 * 60 * 1000);
+
+// Auto-replenish open games (on-chain only): keep at least OPEN_GAME_TARGET open slots
+async function replenishOpenGames(): Promise<void> {
+  if (LOCAL_MODE || !settlement) return;
+  try {
+    const open = await settlement.getOpenGameIds();
+    if (open.length >= OPEN_GAME_TARGET) return;
+    const toCreate = OPEN_GAME_TARGET - open.length;
+    console.log(`[GM Server] Replenishing open games: ${open.length} -> ${OPEN_GAME_TARGET} (creating ${toCreate})`);
+    for (let i = 0; i < toCreate; i++) {
+      await settlement.createOpenGame();
+      console.log(`[GM Server] Created open game ${i + 1}/${toCreate}`);
+    }
+  } catch (err: any) {
+    console.error("[GM Server] replenishOpenGames error:", err?.message || err);
+  }
+}
+
+if (!LOCAL_MODE && settlement) {
+  replenishOpenGames(); // run once on startup
+  setInterval(replenishOpenGames, OPEN_GAME_REPLENISH_INTERVAL_MS);
+}
 
 export { app, server, orchestrator };

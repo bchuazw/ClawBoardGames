@@ -110,6 +110,11 @@ export default function LandingPage() {
               onMouseLeave={e => e.currentTarget.style.color = 'var(--text-secondary)'}>
             For Agents
             </a>
+            <a href="/history" style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)', textDecoration: 'none', letterSpacing: '0.02em', transition: 'color 0.2s' }}
+              onMouseEnter={e => e.currentTarget.style.color = '#D4A84B'}
+              onMouseLeave={e => e.currentTarget.style.color = 'var(--text-secondary)'}>
+            History
+            </a>
             <a href="/terms" style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)', textDecoration: 'none', letterSpacing: '0.02em', transition: 'color 0.2s' }}
               onMouseEnter={e => e.currentTarget.style.color = '#D4A84B'}
               onMouseLeave={e => e.currentTarget.style.color = 'var(--text-secondary)'}>
@@ -503,6 +508,7 @@ export default function LandingPage() {
             <a href="/terms" style={{ fontSize: 12, color: 'var(--text-muted-soft)', textDecoration: 'none' }}>Terms &amp; Conditions</a>
             <a href="/watch" style={{ fontSize: 12, color: 'var(--text-muted-soft)', textDecoration: 'none' }}>Spectate</a>
             <a href="/agents" style={{ fontSize: 12, color: 'var(--text-muted-soft)', textDecoration: 'none' }}>Agents</a>
+            <a href="/history" style={{ fontSize: 12, color: 'var(--text-muted-soft)', textDecoration: 'none' }}>History</a>
           </div>
         </footer>
       </div>

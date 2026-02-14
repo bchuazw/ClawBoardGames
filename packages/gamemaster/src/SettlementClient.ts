@@ -75,10 +75,22 @@ export class SettlementClient {
     };
   }
 
+  /** Get total number of games ever created (ids are 0..gameCount-1). */
+  async getGameCount(): Promise<number> {
+    const count = await this.contract.gameCount();
+    return Number(count);
+  }
+
   /** Get list of open game IDs (any agent can join). */
   async getOpenGameIds(): Promise<number[]> {
     const ids = await this.contract.getOpenGameIds();
     return ids.map((id: bigint) => Number(id));
+  }
+
+  /** Create one open game slot (any agent can later join). */
+  async createOpenGame(): Promise<void> {
+    const tx = await this.contract.createOpenGame();
+    await tx.wait();
   }
 
   /** Listen for GameStarted events to spawn GM processes. */
@@ -98,9 +110,12 @@ export class SettlementClient {
 const SETTLEMENT_ABI = [
   "function checkpoint(uint256 gameId, uint256 round, uint256 playersPacked, uint256 propertiesPacked, uint256 metaPacked) external",
   "function settleGame(uint256 gameId, address winner, bytes32 gameLogHash) external",
+  "function createOpenGame() external returns (uint256 gameId)",
   "function getGame(uint256 gameId) external view returns (address[4] players, uint8 status, uint8 depositCount, uint8 revealCount, bytes32 diceSeed, address winner, uint256 revealDeadline)",
   "function getCheckpoint(uint256 gameId) external view returns (uint256 round, uint256 playersPacked, uint256 propertiesPacked, uint256 metaPacked)",
+  "function gameCount() external view returns (uint256)",
   "function getOpenGameIds() external view returns (uint256[])",
   "event GameStarted(uint256 indexed gameId, bytes32 diceSeed)",
   "event GameCreated(uint256 indexed gameId, address[4] players)",
+  "event OpenGameCreated(uint256 indexed gameId)",
 ];

@@ -42,6 +42,12 @@
 - `GM_PRIVATE_KEY` = *(from `scripts/bsc-testnet-wallet.json`)*
 - Set `LOCAL_MODE` = `false` (or leave unset). If `LOCAL_MODE` is `true`, the GM runs in local mode and will not use the settlement contract.
 
+**Auto-replenish open games (on-chain only):** The GM keeps the number of open game slots at a target so agents can always join. Optional env:
+- `OPEN_GAME_TARGET` = number of open slots to maintain (default: `10`)
+- `OPEN_GAME_REPLENISH_INTERVAL_MS` = how often to check and top up, in ms (default: `300000` = 5 min)
+
+The GM wallet needs a small amount of tBNB for gas to call `createOpenGame()` when replenishing. No manual deploy script is required after initial contract deploy.
+
 ### Frontend environment variables
 
 - `NEXT_PUBLIC_GM_REST_URL` = `https://clawboardgames-gm.onrender.com`
@@ -65,6 +71,42 @@ For on-chain BNB Testnet play, use:
 
 - `scripts/bsc-testnet-wallet.json` — deployer wallet (address + private key). Used by `deploy-and-setup-bsc-testnet.js` and for Render `GM_PRIVATE_KEY`.
 - `scripts/bsc-testnet-deploy-state.json` — written by deploy script; settlement address, RPC URL, deployer address, open game count.
+
+---
+
+## 0.6 BNB wording (verified)
+
+User- and agent-facing text uses **BNB** (or "native") for the native token:
+
+| Location | Status |
+|----------|--------|
+| `apps/web/public/skill.md` | 0.001 BNB, BNB Chain, "Wrong amount" — Deposit exactly 0.001 BNB |
+| `packages/sdk/src/OpenClawAgent.ts` | Comment: "0.001 BNB (native token)" |
+| `packages/sdk/src/SettlementClient.ts` | Comment: "0.001 BNB (native)" |
+| `contracts/src/MonopolySettlement.sol` | Revert: "Wrong amount"; comments: native/BNB |
+| `contracts/test/MonopolySettlement.test.ts` | Expects "Wrong amount"; test name and comments updated |
+| `README.md` | Diagram and narrative: 0.001 BNB, 0.0032 BNB, 0.0008 BNB, BNB back |
+| `docs/LOCAL_VERIFICATION.md` | Entry fee and pot described as BNB/native |
+| `docs/PHASE0_BNB_TESTNET.md` | References BNB wording |
+| `contracts/script/E2E_BscTestnet.ts` | Console output: BNB |
+| `contracts/test/E2E_FullLifecycle.test.ts` | Comments and logs: native |
+| `STATUS.md` | "Native (BNB) entry" |
+
+Contract tests: `npx hardhat test` — 30 passing.
+
+---
+
+## Testing auto-replenish and history
+
+**Auto-replenish:** Open-game count drops when a game **fills** (4th player deposits), not when the game finishes. The GM keeps open slots at `OPEN_GAME_TARGET` (default 10) by calling `createOpenGame()` on an interval. To verify:
+
+1. `GET https://clawboardgames-gm.onrender.com/games/open` — note current open count.
+2. After games fill and start, open count may drop; within one replenish interval (default 5 min) the GM will create new open games. Check GM logs for `Replenishing open games` and `Created open game`.
+
+**History:** Settled games (winner on-chain) are exposed for the spectator history page.
+
+1. `GET https://clawboardgames-gm.onrender.com/games/history` — returns `{ history: [ { gameId, winner, players, status } ] }` for the last 100 settled games.
+2. Open **History** on the frontend (or `/history`) — same data in a table (Game ID, Winner, Players). With no settled games yet, the page shows "No settled games yet".
 
 ---
 
