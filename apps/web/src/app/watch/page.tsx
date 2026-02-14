@@ -55,6 +55,11 @@ const MOOD_MAP: Record<string, { self?: string; other?: string; payer?: string; 
 /* ---------------------------------------------------------------- */
 /*  Human-readable event text — engine camelCase types               */
 /* ---------------------------------------------------------------- */
+function truncateAddress(addr: string): string {
+  if (!addr || addr.length < 12) return addr;
+  return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+}
+
 function humanEvent(e: GameEvent): { text: string; color: string } {
   const n = e.player !== undefined ? PLAYER_NAMES[e.player] : '';
   const emoji = e.player !== undefined ? PLAYER_EMOJIS[e.player] : '';
@@ -143,6 +148,8 @@ function WatchPage() {
   const [gameId, setGameId] = useState(params.get('gameId') || '');
   const [openLobbies, setOpenLobbies] = useState<number[]>([]);
   const [slotDetails, setSlotDetails] = useState<{ id: number; status: string; playerCount?: number }[]>([]);
+  const [settlementAddress, setSettlementAddress] = useState<string | null>(null);
+  const [activeGameIds, setActiveGameIds] = useState<number[]>([]);
   const [lobbiesLoading, setLobbiesLoading] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [connected, setConnected] = useState(false);
@@ -166,30 +173,52 @@ function WatchPage() {
 
   useEffect(() => { sfx.muted = muted; }, [muted]);
 
-  // Fetch slot/lobby details when no gameId (lobby picker view). Prefer /games/slots for status & counts.
+  const SLOT_COUNT = 10;
+
+  // Fetch health, open games, active games. Always show fixed SLOT_COUNT slots (0..9); empty = dotted "Empty".
   useEffect(() => {
     if (gameId) return;
     setLobbiesLoading(true);
     const restUrl = process.env.NEXT_PUBLIC_GM_REST_URL || gmWsToRest(gmUrl);
     Promise.all([
+      fetch(`${restUrl}/health`).then((r) => r.ok ? r.json() : {}),
       fetch(`${restUrl}/games/slots`).then((r) => r.ok ? r.json() : { slots: null }),
       fetch(`${restUrl}/games/open`).then((r) => r.json()),
+      fetch(`${restUrl}/games`).then((r) => r.ok ? r.json() : { games: [] }),
     ])
-      .then(([slotsData, openData]: [{ slots?: { id: number; status: string; playerCount?: number }[] } | null, { open?: number[] }]) => {
-        const slots = slotsData?.slots && Array.isArray(slotsData.slots) ? slotsData.slots : null;
+      .then(([healthData, slotsData, openData, gamesData]: [
+        { settlementAddress?: string },
+        { slots?: { id: number; status: string; playerCount?: number }[] } | null,
+        { open?: number[] },
+        { games?: number[] },
+      ]) => {
         const openList = Array.isArray(openData?.open) ? openData.open : (openData as { games?: number[] })?.games ?? [];
-        const ids = openList.length > 0 ? openList : Array.from({ length: 10 }, (_, i) => i);
-        setOpenLobbies(ids);
+        const activeList = Array.isArray(gamesData?.games) ? gamesData.games : [];
+        setSettlementAddress(healthData?.settlementAddress ?? null);
+        setOpenLobbies(openList);
+        setActiveGameIds(activeList);
+        const slots = slotsData?.slots && Array.isArray(slotsData.slots) ? slotsData.slots : null;
+        let filled: { id: number; status: string; playerCount?: number }[];
         if (slots && slots.length > 0) {
-          setSlotDetails(slots);
+          const slotIds = new Set(slots.map((s: { id: number }) => s.id));
+          const activeOnly = activeList.filter((id: number) => !slotIds.has(id));
+          const activeSlots = activeOnly.map((id: number) => ({ id, status: 'active' as const }));
+          filled = [...slots, ...activeSlots].sort((a, b) => a.id - b.id);
         } else {
-          setSlotDetails(ids.map((id: number) => ({ id, status: 'open' })));
+          const openSlots = openList.map((id: number) => ({ id, status: 'open' as const }));
+          const activeOnly = activeList.filter((id: number) => !openList.includes(id));
+          const activeSlots = activeOnly.map((id: number) => ({ id, status: 'active' as const }));
+          filled = [...openSlots, ...activeSlots].sort((a, b) => a.id - b.id);
         }
+        const byId = new Map(filled.map((s) => [s.id, s]));
+        const tenSlots = Array.from({ length: SLOT_COUNT }, (_, i) => byId.get(i) ?? { id: i, status: 'empty' as const });
+        setSlotDetails(tenSlots);
       })
       .catch(() => {
-        const fallback = Array.from({ length: 10 }, (_, i) => i);
-        setOpenLobbies(fallback);
-        setSlotDetails(fallback.map((id) => ({ id, status: 'waiting', playerCount: 0 })));
+        setSettlementAddress(null);
+        setOpenLobbies([]);
+        setActiveGameIds([]);
+        setSlotDetails(Array.from({ length: SLOT_COUNT }, (_, i) => ({ id: i, status: 'empty' as const })));
       })
       .finally(() => setLobbiesLoading(false));
   }, [gameId, gmUrl]);
@@ -300,7 +329,7 @@ function WatchPage() {
     }
   }
 
-  const slotsToShow = slotDetails.length > 0 ? slotDetails : openLobbies.map((id) => ({ id, status: 'open' as const }));
+  const slotsToShow = slotDetails.length > 0 ? slotDetails : Array.from({ length: SLOT_COUNT }, (_, i) => ({ id: i, status: 'empty' as const }));
 
   return (
     <div className="watch-layout">
@@ -384,6 +413,11 @@ function WatchPage() {
                   Pick a lobby below — the 3D Monopoly board will load as soon as you connect.
                 </p>
               </div>
+              {settlementAddress && (
+                <p style={{ marginBottom: 16, fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', textAlign: 'center' }}>
+                  Contract: <span style={{ color: 'rgba(212,168,75,0.9)' }}>{truncateAddress(settlementAddress)}</span>
+                </p>
+              )}
               {lobbiesLoading ? (
                 <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)', fontSize: 15 }}>
                   <div style={{ display: 'inline-block', width: 32, height: 32, border: '3px solid rgba(212,168,75,0.3)', borderTopColor: '#D4A84B', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
@@ -394,6 +428,25 @@ function WatchPage() {
                   display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 14, marginTop: 24,
                 }}>
                   {slotsToShow.map((slot) => {
+                    const isEmpty = slot.status === 'empty';
+                    if (isEmpty) {
+                      return (
+                        <div
+                          key={slot.id}
+                          className="watch-lobby-card"
+                          style={{
+                            padding: '18px 14px', borderRadius: 16,
+                            border: '2px dashed rgba(212,168,75,0.35)', background: 'rgba(0,0,0,0.15)',
+                            color: 'var(--text-muted)', textAlign: 'center',
+                            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8,
+                            minHeight: 110, cursor: 'default',
+                          }}
+                        >
+                          <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5 }}>LOBBY {slot.id}</span>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-muted-soft)' }}>Empty</span>
+                        </div>
+                      );
+                    }
                     const isWaiting = slot.status === 'waiting';
                     const isActive = slot.status === 'active';
                     const count = 'playerCount' in slot ? (slot.playerCount ?? 0) : 0;
@@ -429,6 +482,9 @@ function WatchPage() {
                         }}
                       >
                         <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: 0.5 }}>LOBBY {slot.id}</span>
+                        {settlementAddress && (
+                          <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'rgba(212,168,75,0.7)' }}>{truncateAddress(settlementAddress)}</span>
+                        )}
                         <span style={{ fontSize: 13, fontWeight: 700, color: statusColor, display: 'flex', alignItems: 'center', gap: 4 }}>
                           <span>{statusIcon}</span>
                           <span>{statusLabel}</span>
