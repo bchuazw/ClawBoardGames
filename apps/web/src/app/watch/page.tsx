@@ -4,7 +4,7 @@ import { Suspense, useEffect, useState, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import { PLAYER_COLORS, PLAYER_NAMES, PLAYER_EMOJIS, TILE_DATA, GROUP_COLORS } from '@/lib/boardPositions';
+import { PLAYER_COLORS, PLAYER_NAMES, PLAYER_EMOJIS, TILE_DATA, GROUP_COLORS, getPropertyNameByIndex } from '@/lib/boardPositions';
 import { sfx } from '@/lib/soundFx';
 
 const MonopolyScene = dynamic(() => import('@/components/MonopolyScene'), {
@@ -97,10 +97,14 @@ function humanEvent(e: GameEvent): { text: string; color: string } {
     }
     case 'passedGo':
       return { text: `\u2728 ${emoji} ${n} passed GO and collected $${e.amount || 200}!`, color: '#66BB6A' };
-    case 'propertyBought':
-      return { text: `\uD83C\uDFE0 ${emoji} ${n} bought ${e.tileName} for $${e.price}!`, color: pc };
-    case 'propertyDeclined':
-      return { text: `${emoji} ${n} passed on ${e.tileName}`, color: '#888' };
+    case 'propertyBought': {
+      const name = e.tileName ?? (e.propertyIndex != null ? getPropertyNameByIndex(e.propertyIndex) : '');
+      return { text: `\uD83C\uDFE0 ${emoji} ${n} bought ${name} for $${e.price ?? 0}!`, color: pc };
+    }
+    case 'propertyDeclined': {
+      const name = e.tileName ?? (e.propertyIndex != null ? getPropertyNameByIndex(e.propertyIndex) : '');
+      return { text: `${emoji} ${n} passed on ${name}`, color: '#888' };
+    }
     case 'rentPaid': {
       const payerIdx = e.from ?? e.player;
       const recvIdx = e.to ?? e.toPlayer;
@@ -116,27 +120,65 @@ function humanEvent(e: GameEvent): { text: string; color: string } {
       return { text: `\uD83C\uDCCF ${emoji} ${n} drew a ${e.deck || e.cardType || 'card'}: ${e.description || 'Unknown'}`, color: '#AB47BC' };
     case 'sentToJail':
       return { text: `\uD83D\uDEA8 ${emoji} ${n} was sent to JAIL!`, color: '#EF5350' };
-    case 'freedFromJail':
-      return { text: `\uD83D\uDD13 ${emoji} ${n} got out of jail!`, color: '#66BB6A' };
+    case 'freedFromJail': {
+      const method = e.method === 'fee' ? 'by paying the $50 fee' : e.method === 'doubles' ? 'by rolling doubles!' : 'after 3 turns';
+      return { text: `\uD83D\uDD13 ${emoji} ${n} got out of jail ${method}`, color: '#66BB6A' };
+    }
     case 'playerBankrupt':
       return { text: `\uD83D\uDCA5 ${emoji} ${n} went BANKRUPT!`, color: '#EF5350' };
     case 'gameEnded':
       return { text: `\uD83C\uDFC6 GAME OVER \u2014 ${e.winner !== undefined ? `${PLAYER_EMOJIS[e.winner]} ${PLAYER_NAMES[e.winner]}` : 'Unknown'} wins!`, color: '#FFD54F' };
-    case 'auctionStarted':
-      return { text: `\uD83D\uDD28 Auction started for ${e.tileName}!`, color: '#AB47BC' };
-    case 'auctionEnded':
-      return { text: `\uD83D\uDD28 ${e.winner !== undefined ? PLAYER_NAMES[e.winner] : '?'} won the auction for $${e.price}`, color: '#AB47BC' };
+    case 'auctionStarted': {
+      const aucName = e.tileName ?? (e.propertyIndex != null ? getPropertyNameByIndex(e.propertyIndex) : '');
+      return { text: `\uD83D\uDD28 Auction started for ${aucName}!`, color: '#AB47BC' };
+    }
+    case 'auctionEnded': {
+      const aucName = e.tileName ?? (e.propertyIndex != null ? getPropertyNameByIndex(e.propertyIndex) : '');
+      const winnerName = e.winner !== undefined ? PLAYER_NAMES[e.winner] : '?';
+      const winnerEmoji = e.winner !== undefined ? PLAYER_EMOJIS[e.winner] : '';
+      const winningAmount = Number(e.amount ?? e.price ?? (e as GameEvent & { highBid?: number }).highBid ?? 0);
+      return { text: `\uD83D\uDD28 ${winnerEmoji} ${winnerName} won ${aucName} for $${winningAmount}!`, color: '#AB47BC' };
+    }
     case 'turnStarted':
       return { text: `\uD83D\uDCCD ${emoji} ${n}'s turn (Round ${e.round ?? ''})`, color: pc };
+    case 'turnEnded':
+      return { text: `\u23F8 ${emoji} ${n} ended their turn`, color: pc };
+    case 'gameStarted':
+      return { text: `\uD83C\uDFC1 Game started!`, color: '#66BB6A' };
     case 'cashChange':
       return { text: `${emoji} ${n} ${(e.amount ?? 0) >= 0 ? 'received' : 'paid'} $${Math.abs(e.amount ?? 0)} \u2014 ${e.reason || ''}`, color: (e.amount ?? 0) >= 0 ? '#66BB6A' : '#EF5350' };
-    case 'houseBuilt':
-      return { text: `\u{1F3E0} ${emoji} ${n} built a house (now ${e.newCount})`, color: '#66BB6A' };
-    case 'houseSold':
-      return { text: `\u{1F4B0} ${emoji} ${n} sold a house (now ${e.newCount})`, color: '#FF9100' };
-    case 'turnEnded': case 'gameStarted': case 'auctionEndedNoBids': case 'bidPlaced':
-    case 'propertyMortgaged': case 'propertyUnmortgaged': case 'autoMortgage':
-      return { text: '', color: '#555' }; // minor events — hide
+    case 'auctionEndedNoBids': {
+      const noBidName = e.tileName ?? (e.propertyIndex != null ? getPropertyNameByIndex(e.propertyIndex) : '');
+      return { text: `\uD83D\uDD28 No bids for ${noBidName} \u2014 back to bank`, color: '#AB47BC' };
+    }
+    case 'bidPlaced': {
+      const bidName = e.propertyIndex != null ? getPropertyNameByIndex(e.propertyIndex) : '';
+      const bidderN = e.player !== undefined ? PLAYER_NAMES[e.player] : '?';
+      const bidderE = e.player !== undefined ? PLAYER_EMOJIS[e.player] : '';
+      return { text: `\uD83D\uDD28 ${bidderE} ${bidderN} bid $${e.amount ?? 0} on ${bidName}`, color: '#AB47BC' };
+    }
+    case 'propertyMortgaged': {
+      const mortName = e.propertyIndex != null ? getPropertyNameByIndex(e.propertyIndex) : '';
+      return { text: `\uD83D\uDCB3 ${emoji} ${n} mortgaged ${mortName} for $${e.value ?? 0}`, color: '#FF9100' };
+    }
+    case 'propertyUnmortgaged': {
+      const unmortName = e.propertyIndex != null ? getPropertyNameByIndex(e.propertyIndex) : '';
+      return { text: `\uD83D\uDCB3 ${emoji} ${n} unmortgaged ${unmortName} for $${e.cost ?? 0}`, color: '#66BB6A' };
+    }
+    case 'autoMortgage': {
+      const autoName = e.propertyIndex != null ? getPropertyNameByIndex(e.propertyIndex) : '';
+      return { text: `\uD83D\uDCB3 ${emoji} ${n} auto-mortgaged ${autoName} to pay debt`, color: '#EF5350' };
+    }
+    case 'houseBuilt': {
+      const houseName = e.propertyIndex != null ? getPropertyNameByIndex(e.propertyIndex) : '';
+      return { text: `\uD83C\uDFE0 ${emoji} ${n} built a house on ${houseName} (${e.newCount ?? 0} total)`, color: '#66BB6A' };
+    }
+    case 'houseSold': {
+      const soldName = e.propertyIndex != null ? getPropertyNameByIndex(e.propertyIndex) : '';
+      return { text: `\uD83C\uDFE0 ${emoji} ${n} sold a house on ${soldName} (${e.newCount ?? 0} left)`, color: '#FF9100' };
+    }
+    case 'landedOnGo':
+      return { text: `\u2728 ${emoji} ${n} landed on GO and collected $${e.amount ?? 200}!`, color: '#66BB6A' };
     default:
       return { text: `${e.type}${n ? ` (${n})` : ''}`, color: '#888' };
   }
@@ -322,7 +364,7 @@ function WatchPage() {
         const landDelayMs = getLandDelayMs(msg.events);
         playSounds(msg.events, landDelayMs);
 
-        // Card display — after piece lands so it matches the 3D timing
+        // Card display — after piece lands so dice roll + movement are shown first
         const cardEv = msg.events.find((e: GameEvent) => e.type === 'cardDrawn');
         if (cardEv) {
           setTimeout(() => {
@@ -331,29 +373,14 @@ function WatchPage() {
           }, landDelayMs);
         }
 
-        // Notification — show dice/roll first, then passedGo/rent/tax/card after piece lands
-        const afterLandEv = msg.events.find((e: GameEvent) => e.type === 'rentPaid' || e.type === 'taxPaid' || e.type === 'cardDrawn' || e.type === 'passedGo');
-        const immediateNotable = msg.events.find((e: GameEvent) => e.type === 'diceRolled') ?? msg.events.find((e: GameEvent) => e.type === 'playerMoved')
-          ?? msg.events.find((e: GameEvent) => e.type === 'playerBankrupt') ?? msg.events.find((e: GameEvent) => e.type === 'sentToJail')
-          ?? msg.events.find((e: GameEvent) => e.type === 'propertyBought')
-          ?? msg.events[0];
-        if (immediateNotable) {
-          const h = humanEvent(immediateNotable);
-          if (h.text) {
-            setNotification(h);
-            clearTimeout(notifTimer.current);
-            notifTimer.current = setTimeout(() => setNotification(null), 2800);
-          }
-        }
-        if (afterLandEv && landDelayMs > 0) {
-          setTimeout(() => {
-            const h = humanEvent(afterLandEv);
-            if (h.text) {
-              setNotification(h);
-              clearTimeout(notifTimer.current);
-              notifTimer.current = setTimeout(() => setNotification(null), 2800);
-            }
-          }, landDelayMs);
+        // Notification — first event with text (event order = dice before chance/rent) so dice roll is announced first
+        const withText = msg.events
+          .map((e: GameEvent) => ({ e, h: humanEvent(e) }))
+          .filter((x: { e: GameEvent; h: { text: string } }) => x.h.text);
+        if (withText.length > 0) {
+          setNotification(withText[0].h);
+          clearTimeout(notifTimer.current);
+          notifTimer.current = setTimeout(() => setNotification(null), 2600);
         }
       } else if (msg.type === 'gameEnded') {
         setSnapshot(msg.snapshot);

@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useMemo, useEffect, useState, useCallback } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Text, Sparkles, Image } from '@react-three/drei';
 import * as THREE from 'three';
 import {
@@ -981,10 +981,17 @@ function JailSiren({ playerPos }: { playerPos: [number, number, number] }) {
   );
 }
 
+/** Board bounds for orbit target: keep center inside the board (inner play area ~±5, rim ~±7.25). */
+const ORBIT_TARGET_BOUND = 6.5;
+
 function Scene({ snapshot, latestEvents, activeCard }: { snapshot: Snapshot | null; latestEvents: GameEvent[]; activeCard: { text: string; type: string } | null }) {
   const [effects, setEffects] = useState<FxDef[]>([]);
   const [jailTarget, setJailTarget] = useState<number | null>(null);
+  const [orbitTarget, setOrbitTarget] = useState<[number, number, number]>([0, 0, 0]);
   const fxId = useRef(0);
+  const { gl, camera } = useThree();
+  const plane = useMemo(() => new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), []);
+  const intersect = useMemo(() => new THREE.Vector3(), []);
 
   const owners = useMemo(() => {
     const o: Record<number, number> = {};
@@ -1003,6 +1010,29 @@ function Scene({ snapshot, latestEvents, activeCard }: { snapshot: Snapshot | nu
     }
     return h;
   }, [snapshot]);
+
+  // Ctrl+click: move orbit center to clicked point on the board, clamped to board bounds
+  useEffect(() => {
+    const el = gl.domElement;
+    const onPointerDown = (e: PointerEvent) => {
+      if (!e.ctrlKey || e.button !== 0) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const ndc = new THREE.Vector2(
+        (e.offsetX / el.clientWidth) * 2 - 1,
+        -(e.offsetY / el.clientHeight) * 2 + 1
+      );
+      const raycaster = new THREE.Raycaster();
+      raycaster.setFromCamera(ndc, camera);
+      if (raycaster.ray.intersectPlane(plane, intersect)) {
+        const x = Math.max(-ORBIT_TARGET_BOUND, Math.min(ORBIT_TARGET_BOUND, intersect.x));
+        const z = Math.max(-ORBIT_TARGET_BOUND, Math.min(ORBIT_TARGET_BOUND, intersect.z));
+        setOrbitTarget([x, 0, z]);
+      }
+    };
+    el.addEventListener('pointerdown', onPointerDown, true);
+    return () => el.removeEventListener('pointerdown', onPointerDown, true);
+  }, [gl, camera, plane, intersect]);
 
   useEffect(() => {
     if (!snapshot || !latestEvents.length) return;
@@ -1106,7 +1136,7 @@ function Scene({ snapshot, latestEvents, activeCard }: { snapshot: Snapshot | nu
       {activeCard && <CardAnimation text={activeCard.text} type={activeCard.type} visible={!!activeCard} />}
       {effects.map(fx => <MoneyParticle key={fx.id} fx={fx} onDone={() => rmFx(fx.id)} />)}
 
-      <OrbitControls target={[0, 0, 0]} maxPolarAngle={Math.PI / 2.1} minPolarAngle={0.15} minDistance={7} maxDistance={30} enableDamping dampingFactor={0.05} autoRotate={!snapshot} autoRotateSpeed={0.4} />
+      <OrbitControls target={orbitTarget} maxPolarAngle={Math.PI / 2.1} minPolarAngle={0.15} minDistance={7} maxDistance={30} enableDamping dampingFactor={0.05} autoRotate={!snapshot} autoRotateSpeed={0.4} />
     </>
   );
 }

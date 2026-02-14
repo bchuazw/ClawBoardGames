@@ -155,6 +155,13 @@ export const PROPERTY_TO_TILE: number[] = [
   37, 39,
 ];
 
+/** Resolve property name by engine property index (0–27). Used when event has propertyIndex but no tileName. */
+export function getPropertyNameByIndex(propertyIndex: number): string {
+  const pos = PROPERTY_TO_TILE[propertyIndex];
+  const tile = TILE_DATA.find(t => t.position === pos);
+  return tile?.name ?? `Property ${propertyIndex}`;
+}
+
 export function getTileEdge(position: number): 'bottom' | 'left' | 'top' | 'right' | 'corner' {
   if ([0, 10, 20, 30].includes(position)) return 'corner';
   if (position < 10) return 'bottom';

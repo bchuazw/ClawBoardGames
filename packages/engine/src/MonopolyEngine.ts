@@ -486,7 +486,7 @@ export class MonopolyEngine {
 
     player.cash -= tile.price;
     prop.owner = player.index;
-    this.emit({ type: "propertyBought", player: player.index, propertyIndex: prop.index, price: tile.price });
+    this.emit({ type: "propertyBought", player: player.index, propertyIndex: prop.index, price: tile.price, tileName: tile.name });
     this.state.phase = Phase.POST_TURN;
   }
 
@@ -495,7 +495,7 @@ export class MonopolyEngine {
       throw new Error("Cannot decline buy in this phase");
     }
     const tile = TILES[player.position];
-    this.emit({ type: "propertyDeclined", player: player.index, propertyIndex: tile.propertyIndex });
+    this.emit({ type: "propertyDeclined", player: player.index, propertyIndex: tile.propertyIndex, tileName: tile.name });
     this.startAuction(tile.propertyIndex);
   }
 
@@ -1002,7 +1002,7 @@ export class MonopolyEngine {
       currentBidder: firstBidder,
       playersActed: new Set(),
     };
-    this.emit({ type: "auctionStarted", propertyIndex });
+    this.emit({ type: "auctionStarted", propertyIndex, tileName: PROPERTY_TILES[propertyIndex].name });
   }
 
   private advanceAuctionBidder(): void {
@@ -1036,7 +1036,7 @@ export class MonopolyEngine {
 
     if (auction.highBidder === -1) {
       auction.active = false;
-      this.emit({ type: "auctionEndedNoBids", propertyIndex: auction.propertyIndex });
+      this.emit({ type: "auctionEndedNoBids", propertyIndex: auction.propertyIndex, tileName: PROPERTY_TILES[auction.propertyIndex].name });
       this.state.phase = Phase.POST_TURN;
       return;
     }
@@ -1045,7 +1045,7 @@ export class MonopolyEngine {
     const prop = this.state.properties[auction.propertyIndex];
     winner.cash -= auction.highBid;
     prop.owner = winner.index;
-    this.emit({ type: "auctionEnded", winner: winner.index, propertyIndex: auction.propertyIndex, amount: auction.highBid });
+    this.emit({ type: "auctionEnded", winner: winner.index, propertyIndex: auction.propertyIndex, amount: auction.highBid, tileName: PROPERTY_TILES[auction.propertyIndex].name });
 
     auction.active = false;
     this.state.phase = Phase.POST_TURN;

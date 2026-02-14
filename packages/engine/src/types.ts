@@ -135,18 +135,18 @@ export type GameEvent =
   | { type: "playerMoved"; player: number; from: number; to: number; passedGo: boolean }
   | { type: "passedGo"; player: number; amount: number }
   | { type: "landedOnGo"; player: number; amount: number }
-  | { type: "propertyBought"; player: number; propertyIndex: number; price: number }
-  | { type: "propertyDeclined"; player: number; propertyIndex: number }
+  | { type: "propertyBought"; player: number; propertyIndex: number; price: number; tileName: string }
+  | { type: "propertyDeclined"; player: number; propertyIndex: number; tileName: string }
   | { type: "rentPaid"; from: number; to: number; amount: number }
   | { type: "taxPaid"; player: number; amount: number }
   | { type: "cardDrawn"; player: number; deck: "chance" | "community"; description: string }
   | { type: "cashChange"; player: number; amount: number; reason: string }
   | { type: "sentToJail"; player: number }
   | { type: "freedFromJail"; player: number; method: "doubles" | "fee" | "maxTurns" }
-  | { type: "auctionStarted"; propertyIndex: number }
+  | { type: "auctionStarted"; propertyIndex: number; tileName: string }
   | { type: "bidPlaced"; player: number; propertyIndex: number; amount: number }
-  | { type: "auctionEnded"; winner: number; propertyIndex: number; amount: number }
-  | { type: "auctionEndedNoBids"; propertyIndex: number }
+  | { type: "auctionEnded"; winner: number; propertyIndex: number; amount: number; tileName: string }
+  | { type: "auctionEndedNoBids"; propertyIndex: number; tileName: string }
   | { type: "propertyMortgaged"; player: number; propertyIndex: number; value: number }
   | { type: "propertyUnmortgaged"; player: number; propertyIndex: number; cost: number }
   | { type: "autoMortgage"; player: number; propertyIndex: number; value: number }
