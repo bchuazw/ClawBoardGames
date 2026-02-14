@@ -307,7 +307,7 @@ function WatchPage() {
           <input placeholder="Game ID" value={gameId} onChange={(e) => setGameId(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && connect()}
             style={{ width: 60, padding: '5px 8px', borderRadius: 6, fontSize: 13, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(212,168,75,0.15)', color: '#fff', textAlign: 'center', fontFamily: 'var(--font-mono)' }} />
-          <button onClick={connected ? disconnect : connect}
+          <button onClick={connected ? () => disconnect() : () => connect()}
             style={{ padding: '5px 16px', borderRadius: 6, border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 12, color: '#fff', background: connected ? '#C62828' : '#1565C0' }}>
             {connected ? 'Disconnect' : 'Watch'}
           </button>
