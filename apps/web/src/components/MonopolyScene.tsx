@@ -200,28 +200,28 @@ function TileHouses({ count, edge, color, tileW, tileD }: { count: number; edge:
   );
 }
 
-/* ---- 3D Treasure chest for Community Chest tiles ---- */
+/* ---- 3D Treasure chest for Community Chest tiles (classic blue) ---- */
 function CommunityChest3D() {
   return (
     <group position={[0, 0.06, 0]} scale={[1.1, 1.1, 1.1]}>
-      {/* Chest body — rounded box */}
+      {/* Chest body — blue like classic Community Chest */}
       <mesh position={[0, 0.04, 0]}>
         <boxGeometry args={[0.2, 0.08, 0.14]} />
-        <meshStandardMaterial color="#8D6E63" metalness={0.15} roughness={0.7} />
+        <meshStandardMaterial color="#1976D2" metalness={0.2} roughness={0.6} />
       </mesh>
-      {/* Lid (arched) — two boxes to suggest open lid or closed chest */}
+      {/* Lid */}
       <mesh position={[0, 0.11, 0]} rotation={[0.15, 0, 0]}>
         <boxGeometry args={[0.21, 0.03, 0.15]} />
-        <meshStandardMaterial color="#A1887F" metalness={0.1} roughness={0.75} />
+        <meshStandardMaterial color="#1E88E5" metalness={0.15} roughness={0.65} />
       </mesh>
       {/* Lock / clasp */}
       <mesh position={[0, 0.08, 0.07]}>
         <boxGeometry args={[0.06, 0.03, 0.02]} />
         <meshStandardMaterial color="#FFD700" metalness={0.85} roughness={0.2} emissive="#FFA000" emissiveIntensity={0.2} />
       </mesh>
-      {/* Band straps */}
-      <mesh position={[0.08, 0.04, 0]}><boxGeometry args={[0.02, 0.08, 0.14]} /><meshStandardMaterial color="#5D4037" /></mesh>
-      <mesh position={[-0.08, 0.04, 0]}><boxGeometry args={[0.02, 0.08, 0.14]} /><meshStandardMaterial color="#5D4037" /></mesh>
+      {/* Band straps — darker blue */}
+      <mesh position={[0.08, 0.04, 0]}><boxGeometry args={[0.02, 0.08, 0.14]} /><meshStandardMaterial color="#0D47A1" /></mesh>
+      <mesh position={[-0.08, 0.04, 0]}><boxGeometry args={[0.02, 0.08, 0.14]} /><meshStandardMaterial color="#0D47A1" /></mesh>
     </group>
   );
 }
