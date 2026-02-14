@@ -922,19 +922,20 @@ function Scene({ snapshot, latestEvents, activeCard }: { snapshot: Snapshot | nu
             for (let c = 0; c < 4; c++) nf.push({ id: fxId.current++, from: bankCenter, to: [toPos[0], 0, toPos[2]], start: Date.now() + landDelayMs + c * 100 });
           }
         } else if (/pay each player/i.test(desc)) {
-        // "Pay each player $50" — money from this player to every other alive player
-        const payer = snapshot.players[ev.player];
-        if (payer?.alive) {
-          const fromPos = BOARD_POSITIONS[payer.position] ?? BOARD_POSITIONS[0];
-          let stagger = 0;
-          for (let i = 0; i < snapshot.players.length; i++) {
-            if (i === ev.player) continue;
-            const recv = snapshot.players[i];
-            if (!recv?.alive) continue;
-            const toPos = BOARD_POSITIONS[recv.position] ?? BOARD_POSITIONS[0];
-            for (let c = 0; c < 2; c++) {
-              nf.push({ id: fxId.current++, from: [fromPos[0], 0, fromPos[2]], to: [toPos[0], 0, toPos[2]], start: Date.now() + landDelayMs + stagger * 80 });
-              stagger++;
+          // "Pay each player $50" — money from this player to every other alive player
+          const payer = snapshot.players[ev.player];
+          if (payer?.alive) {
+            const fromPos = BOARD_POSITIONS[payer.position] ?? BOARD_POSITIONS[0];
+            let stagger = 0;
+            for (let i = 0; i < snapshot.players.length; i++) {
+              if (i === ev.player) continue;
+              const recv = snapshot.players[i];
+              if (!recv?.alive) continue;
+              const toPos = BOARD_POSITIONS[recv.position] ?? BOARD_POSITIONS[0];
+              for (let c = 0; c < 2; c++) {
+                nf.push({ id: fxId.current++, from: [fromPos[0], 0, fromPos[2]], to: [toPos[0], 0, toPos[2]], start: Date.now() + landDelayMs + stagger * 80 });
+                stagger++;
+              }
             }
           }
         }
