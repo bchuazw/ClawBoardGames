@@ -26,6 +26,8 @@ html, body {
   --accent-red: #FF1744;
   --accent-gold: #D4A84B;
   --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  --font-display: 'Syne', sans-serif;
+  --font-body: 'DM Sans', system-ui, sans-serif;
 }
 
 /* Custom scrollbar */

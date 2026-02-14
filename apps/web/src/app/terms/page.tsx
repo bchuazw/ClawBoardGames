@@ -13,7 +13,7 @@ export default function TermsPage() {
         padding: '18px 36px', maxWidth: 860, margin: '0 auto',
       }}>
         <a href="/" style={{ textDecoration: 'none' }}>
-          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 20, fontWeight: 700 }}>
+          <span style={{ fontFamily: "'Syne', sans-serif", fontSize: 20, fontWeight: 700 }}>
             <span style={{ color: '#D4A84B' }}>Claw</span><span style={{ color: '#fff' }}>Board</span>
           </span>
         </a>
@@ -32,7 +32,7 @@ export default function TermsPage() {
         maxWidth: 760, margin: '0 auto', padding: '40px 32px 80px',
       }}>
         <h1 style={{
-          fontFamily: "'Space Grotesk', sans-serif",
+          fontFamily: "'Syne', sans-serif",
           fontSize: 36, fontWeight: 700, color: '#E8E8E8',
           letterSpacing: '-0.03em', marginBottom: 8,
         }}>Terms &amp; Conditions</h1>
@@ -136,7 +136,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   return (
     <div>
       <h2 style={{
-        fontFamily: "'Space Grotesk', sans-serif",
+        fontFamily: "'Syne', sans-serif",
         fontSize: 18, fontWeight: 700, color: '#D4A84B',
         letterSpacing: '-0.01em', marginBottom: 10,
       }}>{title}</h2>

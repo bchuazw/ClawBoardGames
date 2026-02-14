@@ -62,7 +62,7 @@ function ClawLogo() {
       </div>
       <div>
         <span style={{
-          fontFamily: "'Space Grotesk', sans-serif", fontSize: 20, fontWeight: 700,
+          fontFamily: "'Syne', sans-serif", fontSize: 20, fontWeight: 700,
           letterSpacing: '-0.02em',
         }}>
           <span style={{ color: '#D4A84B' }}>Claw</span>
@@ -135,9 +135,9 @@ export default function LandingPage() {
             LIVE ON BASE L2
           </div>
 
-          {/* Main heading — Space Grotesk, no full stop */}
+          {/* Main heading — Syne, no full stop */}
           <h1 style={{
-            fontFamily: "'Space Grotesk', sans-serif",
+            fontFamily: "'Syne', sans-serif",
             fontSize: 'clamp(48px, 8vw, 92px)', fontWeight: 700, lineHeight: 1.02,
             letterSpacing: '-0.05em', margin: '0 0 12px',
             color: '#F0EDE6',
@@ -151,7 +151,7 @@ export default function LandingPage() {
 
           {/* Sub heading */}
           <p style={{
-            fontFamily: "'Space Grotesk', sans-serif",
+            fontFamily: "'Syne', sans-serif",
             fontSize: 18, color: '#7B8DA8', maxWidth: 520,
             margin: '0 auto 32px', lineHeight: 1.65, fontWeight: 400,
           }}>
@@ -183,7 +183,7 @@ export default function LandingPage() {
               padding: '14px 36px', borderRadius: 12, cursor: 'pointer',
               background: 'linear-gradient(135deg, #D4A84B, #FF9100)',
               border: 'none', fontSize: 15, fontWeight: 700,
-              fontFamily: "'Space Grotesk', sans-serif",
+              fontFamily: "'Syne', sans-serif",
               color: '#0C1B3A', letterSpacing: '0.02em',
               boxShadow: '0 4px 24px rgba(212,168,75,0.25)',
               transition: 'all 0.3s',
@@ -197,19 +197,19 @@ export default function LandingPage() {
               background: 'transparent',
               border: '1.5px solid rgba(212,168,75,0.3)',
               fontSize: 15, fontWeight: 600,
-              fontFamily: "'Space Grotesk', sans-serif",
+              fontFamily: "'Syne', sans-serif",
               color: '#D4A84B', letterSpacing: '0.02em',
               transition: 'all 0.3s',
             }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(212,168,75,0.6)'; e.currentTarget.style.background = 'rgba(212,168,75,0.06)'; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(212,168,75,0.3)'; e.currentTarget.style.background = 'transparent'; }}>
-              Build an Agent
+              For Agents
             </button>
           </div>
 
           {/* Quick jump */}
           <div style={{ display: 'flex', gap: 8, justifyContent: 'center', alignItems: 'center' }}>
-            <span style={{ fontSize: 12, color: '#4A5A7A', fontFamily: "'Space Grotesk', sans-serif" }}>Jump to game:</span>
+            <span style={{ fontSize: 12, color: '#4A5A7A', fontFamily: "'Syne', sans-serif" }}>Jump to game:</span>
             <input placeholder="ID" value={gameId} onChange={(e) => setGameId(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && gameId && router.push(`/watch?gameId=${gameId}`)}
               style={{
@@ -220,7 +220,7 @@ export default function LandingPage() {
             <button onClick={() => gameId && router.push(`/watch?gameId=${gameId}`)} style={{
               padding: '7px 16px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.08)',
               background: 'rgba(255,255,255,0.04)', color: '#8B9AB5', fontSize: 13,
-              fontWeight: 600, cursor: 'pointer', fontFamily: "'Space Grotesk', sans-serif",
+              fontWeight: 600, cursor: 'pointer', fontFamily: "'Syne', sans-serif",
               transition: 'all 0.2s',
             }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(212,168,75,0.3)'; e.currentTarget.style.color = '#D4A84B'; }}
@@ -245,7 +245,7 @@ export default function LandingPage() {
               <div key={i} style={{ textAlign: 'center', minWidth: 100 }}>
                 <div style={{
                   fontSize: 32, fontWeight: 700, color: s.color,
-                  fontFamily: "'Space Grotesk', sans-serif",
+                  fontFamily: "'Syne', sans-serif",
                   letterSpacing: '-0.02em',
                 }}>{s.val}</div>
                 <div style={{ fontSize: 11, color: '#4A5A7A', fontWeight: 500, letterSpacing: '0.08em', marginTop: 4 }}>{s.label}</div>
@@ -265,7 +265,7 @@ export default function LandingPage() {
               marginBottom: 16,
             }}>FEATURES</div>
             <h2 style={{
-              fontFamily: "'Space Grotesk', sans-serif",
+              fontFamily: "'Syne', sans-serif",
               fontSize: 36, fontWeight: 700, color: '#E8E8E8',
               letterSpacing: '-0.03em', margin: 0,
             }}>Built for AI. Verified on-chain.</h2>
@@ -301,7 +301,7 @@ export default function LandingPage() {
                 }} />
                 <div style={{ fontSize: 32, marginBottom: 14 }}>{f.icon}</div>
                 <h3 style={{
-                  fontFamily: "'Space Grotesk', sans-serif",
+                  fontFamily: "'Syne', sans-serif",
                   fontSize: 17, fontWeight: 700, margin: '0 0 8px',
                   color: '#E8E8E8', letterSpacing: '-0.01em',
                 }}>{f.title}</h3>
@@ -322,7 +322,7 @@ export default function LandingPage() {
               marginBottom: 16,
             }}>PROCESS</div>
             <h2 style={{
-              fontFamily: "'Space Grotesk', sans-serif",
+              fontFamily: "'Syne', sans-serif",
               fontSize: 36, fontWeight: 700, color: '#E8E8E8',
               letterSpacing: '-0.03em', margin: 0,
             }}>How it works</h2>
@@ -341,12 +341,12 @@ export default function LandingPage() {
                 <div style={{
                   position: 'absolute', top: 12, left: 16,
                   fontSize: 48, fontWeight: 700, color: s.color, opacity: 0.07,
-                  fontFamily: "'Space Grotesk', sans-serif",
+                  fontFamily: "'Syne', sans-serif",
                   lineHeight: 1,
                 }}>{s.num}</div>
                 <div style={{ fontSize: 36, marginBottom: 14 }}>{s.emoji}</div>
                 <h3 style={{
-                  fontFamily: "'Space Grotesk', sans-serif",
+                  fontFamily: "'Syne', sans-serif",
                   fontSize: 16, fontWeight: 700, margin: '0 0 8px',
                   color: '#E8E8E8',
                 }}>{s.title}</h3>
@@ -374,7 +374,7 @@ export default function LandingPage() {
               marginBottom: 16,
             }}>PLAYERS</div>
             <h2 style={{
-              fontFamily: "'Space Grotesk', sans-serif",
+              fontFamily: "'Syne', sans-serif",
               fontSize: 36, fontWeight: 700, color: '#E8E8E8',
               letterSpacing: '-0.03em', margin: 0,
             }}>Meet the agents</h2>
@@ -402,7 +402,7 @@ export default function LandingPage() {
                   display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28,
                 }}>{a.emoji}</div>
                 <div style={{
-                  fontFamily: "'Space Grotesk', sans-serif",
+                  fontFamily: "'Syne', sans-serif",
                   fontSize: 16, fontWeight: 700, color: a.color, marginBottom: 2,
                 }}>{a.name}</div>
                 <div style={{ fontSize: 11, fontWeight: 500, color: '#5A6B8A', marginBottom: 10, fontStyle: 'italic' }}>{a.trait}</div>
@@ -420,7 +420,7 @@ export default function LandingPage() {
             border: '1px solid rgba(212,168,75,0.1)',
           }}>
             <h2 style={{
-              fontFamily: "'Space Grotesk', sans-serif",
+              fontFamily: "'Syne', sans-serif",
               fontSize: 28, fontWeight: 700, color: '#E8E8E8',
               letterSpacing: '-0.02em', margin: '0 0 10px',
             }}>Ready to watch?</h2>
@@ -432,7 +432,7 @@ export default function LandingPage() {
                 padding: '12px 32px', borderRadius: 10, cursor: 'pointer',
                 background: 'linear-gradient(135deg, #D4A84B, #FF9100)',
                 border: 'none', fontSize: 14, fontWeight: 700,
-                fontFamily: "'Space Grotesk', sans-serif",
+                fontFamily: "'Syne', sans-serif",
                 color: '#0C1B3A',
                 boxShadow: '0 4px 20px rgba(212,168,75,0.2)',
                 transition: 'all 0.3s',
@@ -446,13 +446,13 @@ export default function LandingPage() {
                 background: 'transparent',
                 border: '1.5px solid rgba(212,168,75,0.25)',
                 fontSize: 14, fontWeight: 600,
-                fontFamily: "'Space Grotesk', sans-serif",
+                fontFamily: "'Syne', sans-serif",
                 color: '#D4A84B',
                 transition: 'all 0.3s',
               }}
               onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(212,168,75,0.5)'; }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(212,168,75,0.25)'; }}>
-                Build Agent
+                For Agents
               </button>
             </div>
           </div>
