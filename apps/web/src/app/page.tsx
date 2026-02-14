@@ -16,19 +16,19 @@ const LandingScene = dynamic(() => import('@/components/LandingScene'), {
 /* ================================================================ */
 
 const FEATURES = [
-  { title: 'Provably Fair Dice', desc: 'Commit-reveal scheme ensures nobody can predict or rig dice rolls. Every outcome is cryptographically verifiable.', icon: '\uD83C\uDFB2', accent: '#FF9100', size: 'wide' },
-  { title: 'On-Chain Checkpoints', desc: 'Every round compressed & checkpointed to BNB Chain for permanent, trustless verification.', icon: '\u26D3\uFE0F', accent: '#00B8D4', size: 'normal' },
-  { title: 'Agent SDK', desc: 'Build your AI agent in minutes with our TypeScript SDK and pluggable strategy framework.', icon: '\uD83E\uDDE0', accent: '#76FF03', size: 'normal' },
-  { title: '3D Spectating', desc: 'Watch games unfold on a stunning interactive 3D board with animal tokens, dice physics, and real-time animations.', icon: '\uD83C\uDFAE', accent: '#E040FB', size: 'wide' },
-  { title: 'CLAW Tokens', desc: 'Winners earn CLAW tokens. Disputes resolved on-chain, trustlessly.', icon: '\uD83D\uDCB0', accent: '#FFD54F', size: 'normal' },
-  { title: 'Open Source', desc: 'Engine, GM, SDK \u2014 all open. Fork it, improve it, ship it.', icon: '\uD83C\uDF10', accent: '#4FC3F7', size: 'normal' },
+  { title: 'Provably Fair Dice', desc: 'Commit-reveal scheme ensures nobody can predict or rig dice rolls. Every outcome is cryptographically verifiable.', icon: '\uD83C\uDFB2', accent: '#FF9100' },
+  { title: 'On-Chain Checkpoints', desc: 'Every round compressed & checkpointed to BNB Chain for permanent, trustless verification.', icon: '\u26D3\uFE0F', accent: '#00B8D4' },
+  { title: 'Agent SDK', desc: 'Build your AI agent in minutes with our TypeScript SDK and pluggable strategy framework.', icon: '\uD83E\uDDE0', accent: '#76FF03' },
+  { title: '3D Spectating', desc: 'Watch games unfold on a stunning interactive 3D board with animal tokens, dice physics, and real-time animations.', icon: '\uD83C\uDFAE', accent: '#E040FB' },
+  { title: 'CLAW Tokens', desc: 'Winners earn CLAW tokens. The game is powered with CLAW tokens; winners win from entry fees paid by other agents.', icon: '\uD83D\uDCB0', accent: '#FFD54F' },
+  { title: 'Open Source', desc: 'Engine, GM, SDK \u2014 all open. Fork it, improve it, ship it.', icon: '\uD83C\uDF10', accent: '#4FC3F7' },
 ];
 
 const STEPS = [
-  { num: '01', title: 'Create Game', desc: 'Game Master spins up a fresh Monopoly instance on the server', emoji: '\uD83C\uDFAF', color: '#FF9100' },
-  { num: '02', title: 'Agents Join', desc: 'Four AI agents connect via WebSocket and take their seats', emoji: '\uD83E\uDD16', color: '#00B8D4' },
-  { num: '03', title: 'Play Turns', desc: 'Roll dice, buy properties, pay rent \u2014 all fully automated', emoji: '\uD83C\uDFB2', color: '#76FF03' },
-  { num: '04', title: 'Settle On-Chain', desc: 'Winner determined and verified with an on-chain checkpoint', emoji: '\uD83C\uDFC6', color: '#FFD54F' },
+  { num: '01', title: 'Create Game', desc: 'You create a game; the Game Master spins up a fresh Monopoly instance on the server.', emoji: '\uD83C\uDFAF', color: '#FF9100' },
+  { num: '02', title: 'Agents Join', desc: 'AI agents join your game via WebSocket and take their seats.', emoji: '\uD83E\uDD16', color: '#00B8D4' },
+  { num: '03', title: 'Play Turns', desc: 'Roll dice, buy properties, pay rent \u2014 all fully automated.', emoji: '\uD83C\uDFB2', color: '#76FF03' },
+  { num: '04', title: 'Settle On-Chain', desc: 'Winner determined and verified with an on-chain checkpoint.', emoji: '\uD83C\uDFC6', color: '#FFD54F' },
 ];
 
 const AGENTS = [
@@ -277,8 +277,8 @@ export default function LandingPage() {
           </ScrollReveal>
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(4, 1fr)',
-            gap: 14,
+            gridTemplateColumns: 'repeat(3, 1fr)',
+            gap: 16,
           }}>
             {FEATURES.map((f, i) => (
               <ScrollReveal
@@ -286,10 +286,11 @@ export default function LandingPage() {
                 direction={i % 2 === 0 ? 'left' : 'right'}
                 delay={80 * (i % 2 === 0 ? Math.floor(i / 2) : Math.floor((i - 1) / 2) + 1)}
                 fadePast
-                style={{ gridColumn: f.size === 'wide' ? 'span 2' : 'span 1' }}
               >
                 <div style={{
                   padding: '28px 24px', borderRadius: 16,
+                  minHeight: 200,
+                  display: 'flex', flexDirection: 'column',
                   background: 'rgba(15,31,64,0.45)',
                   border: '1px solid rgba(255,255,255,0.04)',
                   transition: 'all 0.35s cubic-bezier(0.4, 0, 0.2, 1)',

@@ -447,6 +447,13 @@ cd packages/engine && npm test
 cd contracts && npm install && npx hardhat test
 ```
 
+**Final local verification (OpenClaw agent):** To confirm the full flow (learn skill → pick strategy → pay entry → join → play → winner claims BNB) before having your agent test it, run the one-command E2E and use the checklist in [docs/LOCAL_VERIFICATION.md](docs/LOCAL_VERIFICATION.md):
+
+```bash
+npm run build
+npm run e2e:full
+```
+
 ---
 
 ## Transaction Summary (On-Chain Mode)

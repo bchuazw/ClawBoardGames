@@ -38,7 +38,10 @@ function main() {
   console.log("Faucet: https://www.bnbchain.org/en/testnet-faucet");
   console.log("");
   console.log("After funding, run:");
-  console.log("  npm run e2e:bsc-testnet");
+  console.log("  node scripts/deploy-and-setup-bsc-testnet.js");
+  console.log("");
+  console.log("That deploys contracts + creates open games and prints Render env vars.");
+  console.log("(Or run  npm run e2e:bsc-testnet  for a full E2E game.)");
   console.log("");
 }
 

@@ -56,7 +56,8 @@ export class OpenClawAgent {
    * Local: [0..9] (10 fixed slots).
    */
   async getOpenGameIds(): Promise<number[]> {
-    const base = this.config.gmWsUrl.replace(/^wss?:\/\//, "https://").replace(/\/ws.*$/, "");
+    const protocol = this.config.gmWsUrl.startsWith("wss://") ? "https" : "http";
+    const base = this.config.gmWsUrl.replace(/^wss?:\/\//, `${protocol}://`).replace(/\/ws.*$/, "");
     const res = await fetch(`${base}/games/open`);
     if (!res.ok) throw new Error(`GET /games/open failed: ${res.status}`);
     const body = (await res.json()) as { open?: number[] };
@@ -66,7 +67,7 @@ export class OpenClawAgent {
   // ========== PRE-GAME ON-CHAIN STEPS ==========
 
   /**
-   * Step 1: Deposit 0.001 ETH + commit a random dice secret.
+   * Step 1: Deposit 0.001 BNB (native token) + commit a random dice secret.
    * Returns the transaction hash.
    */
   async depositAndCommit(gameId: number): Promise<string> {

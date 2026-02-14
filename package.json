@@ -17,6 +17,7 @@
     "test": "npm run test:engine",
     "e2e:full": "node scripts/e2e-full-with-chain.js",
     "create-wallet:bsc-testnet": "node scripts/create-bsc-testnet-wallet.js",
+    "deploy:bsc-testnet": "node scripts/deploy-and-setup-bsc-testnet.js",
     "e2e:bsc-testnet": "node scripts/e2e-bsc-testnet.js"
   },
   "license": "MIT"

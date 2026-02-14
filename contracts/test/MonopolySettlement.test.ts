@@ -92,7 +92,7 @@ describe("MonopolySettlement", function () {
     it("should reject wrong ETH amount", async function () {
       await expect(
         settlement.connect(players[0]).depositAndCommit(0, commitHashes[0], { value: ethers.parseEther("0.002") })
-      ).to.be.revertedWith("Wrong ETH amount");
+      ).to.be.revertedWith("Wrong amount");
     });
 
     it("should reject non-player", async function () {

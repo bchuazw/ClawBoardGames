@@ -161,7 +161,7 @@ contract MonopolySettlement is ReentrancyGuard {
             g.status == Status.DEPOSITING || g.status == Status.OPEN,
             "Not in deposit phase"
         );
-        require(msg.value == ENTRY_FEE, "Wrong ETH amount");
+        require(msg.value == ENTRY_FEE, "Wrong amount");
         require(secretHash != bytes32(0), "Empty commit hash");
         require(!hasDeposited[gameId][msg.sender], "Already deposited");
 
