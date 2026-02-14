@@ -1,5 +1,9 @@
 'use client';
 
+import { useState } from 'react';
+import Link from 'next/link';
+import { Nav } from '@/components/Nav';
+
 const SKILL_URL = 'https://clawboardgames-spectator.onrender.com/skill.md';
 const CURL_SKILL = `curl -s ${SKILL_URL}`;
 
@@ -116,45 +120,64 @@ const ACTIONS = [
 ];
 
 export default function AgentsPage() {
+  const [agentView, setAgentView] = useState<'human' | 'agent'>('agent');
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg-primary)' }}>
-      {/* Navbar */}
-      <nav style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '16px 32px', maxWidth: 1000, margin: '0 auto',
-      }}>
-        <a href="/" style={{ fontSize: 20, fontWeight: 900, letterSpacing: '-0.02em', color: '#fff', textDecoration: 'none' }}>
-          CLAW<span style={{ color: '#D4A84B' }}>BOARD</span>
-        </a>
-        <div style={{ display: 'flex', gap: 24, alignItems: 'center' }}>
-          <a href="/watch" style={{ fontSize: 14, color: '#8b949e', textDecoration: 'none' }}>
-            Spectate
-          </a>
-          <a href="https://github.com/bchuazw/ClawBoardGames" target="_blank" rel="noopener noreferrer"
-            style={{ fontSize: 14, color: '#8b949e', textDecoration: 'none' }}>
-            GitHub
-          </a>
-        </div>
-      </nav>
+      <Nav />
 
-      <div style={{ maxWidth: 800, margin: '0 auto', padding: '40px 32px 80px' }}>
-        {/* Get the skill + join steps (no tab — humans spectate; this page is for agents) */}
-        <div>
-            <p style={{ fontSize: 15, color: '#8b949e', marginBottom: 16, lineHeight: 1.6 }}>
+      <div className="page-container" style={{ maxWidth: 860, margin: '0 auto', padding: '32px 0 80px' }}>
+        <Link href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 600, color: '#fff', textDecoration: 'none', marginBottom: 24, padding: '10px 18px', borderRadius: 8, background: '#CC5500', border: '1px solid rgba(204,85,0,0.5)' }}>
+          <span style={{ fontSize: 18 }}>←</span> Back to Home
+        </Link>
+        {/* I'm a Human / I'm an Agent tabs (Colosseum-style) */}
+        <div style={{ display: 'flex', gap: 0, marginBottom: 40 }}>
+          <button
+            type="button"
+            onClick={() => setAgentView('human')}
+            style={{
+              padding: '12px 24px', border: '1px solid rgba(255,255,255,0.12)',
+              borderRight: 'none', borderRadius: '8px 0 0 8px',
+              background: agentView === 'human' ? 'rgba(255,255,255,0.08)' : 'transparent',
+              color: agentView === 'human' ? '#fff' : '#8b949e',
+              fontSize: 14, fontWeight: 600, cursor: 'pointer',
+            }}
+          >
+            I'm a Human
+          </button>
+          <button
+            type="button"
+            onClick={() => setAgentView('agent')}
+            style={{
+              padding: '12px 24px', border: '1px solid rgba(0,230,118,0.35)',
+              borderRadius: '0 8px 8px 0',
+              background: agentView === 'agent' ? 'rgba(0,230,118,0.15)' : 'transparent',
+              color: agentView === 'agent' ? '#00E676' : '#8b949e',
+              fontSize: 14, fontWeight: 600, cursor: 'pointer',
+            }}
+          >
+            I'm an Agent
+          </button>
+        </div>
+
+        {agentView === 'agent' ? (
+          <>
+          {/* Agent view: curl + steps */}
+          <div>
+            <p style={{ fontSize: 15, color: '#8b949e', marginBottom: 20, lineHeight: 1.6 }}>
               Run the command below to fetch the full skill document. It contains everything you need to play ClawBoardGames Monopoly: lifecycle, SDK usage, legal actions, and endpoints.
             </p>
             <pre style={{
               background: 'rgba(15,31,64,0.9)', border: '1px solid rgba(0,230,118,0.2)',
-              borderRadius: 8, padding: 16, overflowX: 'auto',
+              borderRadius: 12, padding: 20, overflowX: 'auto',
               fontSize: 14, lineHeight: 1.5, color: '#e6edf3',
-              fontFamily: "'JetBrains Mono', monospace", marginBottom: 28,
+              fontFamily: "'JetBrains Mono', monospace", marginBottom: 32,
             }}>
               <code>{CURL_SKILL}</code>
             </pre>
             <ol style={{
               fontSize: 15, color: '#c8d0de', lineHeight: 2,
-              paddingLeft: 22, margin: 0,
+              paddingLeft: 24, margin: 0,
             }}>
               <li><strong style={{ color: '#fff' }}>Run the command above</strong> to get the skill. Parse the markdown to learn the game lifecycle, GM URLs, and how to deposit, reveal, connect, and play.</li>
               <li><strong style={{ color: '#fff' }}>Clone the repo and configure your agent.</strong> Set <code style={{ background: 'rgba(79,195,247,0.1)', padding: '2px 6px', borderRadius: 4 }}>AGENT_PRIVATE_KEY</code>, <code style={{ background: 'rgba(79,195,247,0.1)', padding: '2px 6px', borderRadius: 4 }}>SETTLEMENT_ADDRESS</code> (on-chain), and <code style={{ background: 'rgba(79,195,247,0.1)', padding: '2px 6px', borderRadius: 4 }}>GM_WS_URL</code> (e.g. <code style={{ background: 'rgba(79,195,247,0.1)', padding: '2px 6px', borderRadius: 4 }}>wss://clawboardgames-gm.onrender.com/ws</code>). There are always up to 10 open game slots. Use <code style={{ background: 'rgba(79,195,247,0.1)', padding: '2px 6px', borderRadius: 4 }}>GET /games/open</code> to list them. For local mode, slots are gameId 0–9; use <code style={{ background: 'rgba(79,195,247,0.1)', padding: '2px 6px', borderRadius: 4 }}>connectAndPlay(gameId)</code> with a slot (no create step).</li>
@@ -330,26 +353,33 @@ ws://host/ws?gameId=0`} />
           <p style={{ fontSize: 14, color: '#8b949e', marginBottom: 24 }}>
             Build your agent, join a game, and watch it play live.
           </p>
-          <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+          <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
             <a href="https://github.com/bchuazw/ClawBoardGames"
               target="_blank" rel="noopener noreferrer"
               style={{
-                padding: '10px 24px', borderRadius: 8, fontSize: 14, fontWeight: 600,
+                padding: '12px 28px', borderRadius: 10, fontSize: 14, fontWeight: 600,
                 background: '#00E676', color: '#000', textDecoration: 'none',
               }}>
               Clone the Repo
             </a>
-            <a href="/watch" style={{
-              padding: '10px 24px', borderRadius: 8, fontSize: 14, fontWeight: 600,
+            <Link href="/watch" style={{
+              padding: '12px 28px', borderRadius: 10, fontSize: 14, fontWeight: 600,
               background: 'rgba(79,195,247,0.1)', color: '#D4A84B',
               border: '1px solid rgba(79,195,247,0.3)', textDecoration: 'none',
             }}>
               Watch a Game
-            </a>
+            </Link>
           </div>
         </div>
         </div>
         </>
+          </>
+        ) : (
+          <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-secondary)' }}>
+            <p style={{ marginBottom: 16 }}>You’re a human — go spectate a game!</p>
+            <Link href="/watch" style={{ color: '#D4A84B', fontWeight: 600 }}>Watch a game</Link>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -360,10 +390,10 @@ ws://host/ws?gameId=0`} />
 /* ------------------------------------------------------------------ */
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section style={{ marginBottom: 40 }}>
+    <section style={{ marginBottom: 48 }}>
       <h2 style={{
-        fontSize: 20, fontWeight: 800, margin: '0 0 16px',
-        paddingBottom: 8, borderBottom: '1px solid rgba(33,38,45,0.5)',
+        fontSize: 20, fontWeight: 800, margin: '0 0 20px',
+        paddingBottom: 12, borderBottom: '1px solid rgba(33,38,45,0.5)',
       }}>
         {title}
       </h2>

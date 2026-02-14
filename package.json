@@ -15,6 +15,7 @@
     "dev:web": "cd apps/web && npm run dev",
     "build": "npm run build:engine && npm run build:sdk && npm run build:gm",
     "test": "npm run test:engine",
+    "test:contracts": "npm run build:engine && cd contracts && npx hardhat test",
     "e2e:full": "node scripts/e2e-full-with-chain.js",
     "create-wallet:bsc-testnet": "node scripts/create-bsc-testnet-wallet.js",
     "deploy:bsc-testnet": "node scripts/deploy-and-setup-bsc-testnet.js",

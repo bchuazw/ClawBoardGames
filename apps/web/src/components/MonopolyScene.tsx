@@ -2,7 +2,7 @@
 
 import { useRef, useMemo, useEffect, useState, useCallback } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, Text, Sparkles } from '@react-three/drei';
+import { OrbitControls, Text, Sparkles, Image } from '@react-three/drei';
 import * as THREE from 'three';
 import {
   BOARD_POSITIONS, TILE_DATA, GROUP_COLORS,
@@ -312,10 +312,11 @@ function BoardTile({ tile, position, ownerIndex, houseCount }: { tile: typeof TI
     if (edge === 'right') { sPos = [-w * 0.34, 0.03, 0]; sW = w * 0.32; sD = d; }
   }
 
-  let tRot: [number, number, number] = [-Math.PI / 2, 0, 0];
-  if (edge === 'left') tRot = [-Math.PI / 2, 0, Math.PI / 2];
-  if (edge === 'right') tRot = [-Math.PI / 2, 0, -Math.PI / 2];
-  if (edge === 'top') tRot = [-Math.PI / 2, 0, Math.PI];
+  // Rotate tile text: left/right (orange,pink / green,blue) readable from outside; bottom/top (brown,lightblue / red,yellow) unchanged
+  let tRot: [number, number, number] = [-Math.PI / 2, 0, 0];              // bottom: brown/light blue — no flip
+  if (edge === 'left') tRot = [-Math.PI / 2, 0, -Math.PI / 2];           // left: orange/pink — readable from west
+  if (edge === 'right') tRot = [-Math.PI / 2, 0, Math.PI / 2];            // right: green/blue — readable from east
+  if (edge === 'top') tRot = [-Math.PI / 2, 0, Math.PI];                  // top: red/yellow — no flip
 
   // Always show full tile name (no MED, CON, etc.) — use slightly smaller font for long names so they fit
   const displayName = tile.name;
@@ -569,18 +570,7 @@ function BankGoldPile() {
 function BoardCenter() {
   return (
     <group>
-      <Text position={[0, 0.13, -1.5]} rotation={[-Math.PI / 2, 0, 0]} fontSize={0.65} color="#D4A84B" anchorX="center" letterSpacing={0.1} fontWeight={800}>MONOPOLY</Text>
-      <Text position={[0, 0.13, -0.55]} rotation={[-Math.PI / 2, 0, 0]} fontSize={0.24} color="#5D3A1A" anchorX="center" letterSpacing={0.25}>AI AGENTS</Text>
-
-      {/* Bank gold pile — tax and Go money visual anchor */}
-      <BankGoldPile />
-
-      {/* Gold frame */}
-      {[[-2.6, -1.8, 5.2, 0.04], [-2.6, -0.1, 5.2, 0.04], [-2.6, -1.8, 0.04, 1.74], [2.56, -1.8, 0.04, 1.74]].map(([x, z, w, d], i) => (
-        <mesh key={i} position={[x + (w as number) / 2, 0.125, z + (d as number) / 2]}>
-          <boxGeometry args={[w, 0.015, d]} /><meshStandardMaterial color="#D4A84B" metalness={0.8} roughness={0.15} />
-        </mesh>
-      ))}
+      <Image url="/clawboardgames-logo.png" position={[0, 0.131, 0]} rotation={[-Math.PI / 2, 0, 0]} scale={[2.4, 2.4]} />
 
       <CardDeck position={[-2.1, 0, 1.6]} color="#FF9100" label="CHANCE" symbol="?" />
       <CardDeck position={[2.1, 0, 1.6]} color="#42A5F5" label="COMMUNITY" symbol="C" />

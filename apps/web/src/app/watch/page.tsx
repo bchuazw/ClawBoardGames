@@ -1,7 +1,8 @@
 'use client';
 
 import { Suspense, useEffect, useState, useRef, useCallback } from 'react';
-import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { PLAYER_COLORS, PLAYER_NAMES, PLAYER_EMOJIS, TILE_DATA, GROUP_COLORS } from '@/lib/boardPositions';
 import { sfx } from '@/lib/soundFx';
@@ -162,9 +163,10 @@ function gmWsToRest(wsUrl: string): string {
 }
 
 function WatchPage() {
-  const params = useSearchParams();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [gmUrl, setGmUrl] = useState(process.env.NEXT_PUBLIC_GM_WS_URL || 'wss://clawboardgames-gm.onrender.com/ws');
-  const [gameId, setGameId] = useState(params.get('gameId') || '');
+  const [gameId, setGameId] = useState(searchParams.get('gameId') || '');
   const [openLobbies, setOpenLobbies] = useState<number[]>([]);
   const [slotDetails, setSlotDetails] = useState<{ id: number; status: string; playerCount?: number }[]>([]);
   const [settlementAddress, setSettlementAddress] = useState<string | null>(null);
@@ -184,11 +186,16 @@ function WatchPage() {
   const notifTimer = useRef<ReturnType<typeof setTimeout>>();
   const moodTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
 
+  // Redirect /watch?gameId=5 → /watch/5 so the slug always reflects the game
   useEffect(() => {
-    const gid = params.get('gameId'), gm = params.get('gm');
-    if (gid) setGameId(gid);
+    const gid = searchParams.get('gameId');
+    const gm = searchParams.get('gm');
+    if (gid) {
+      router.replace(`/watch/${gid}`);
+      return;
+    }
     if (gm) setGmUrl(gm);
-  }, [params]);
+  }, [searchParams, router]);
 
   useEffect(() => { sfx.muted = muted; }, [muted]);
 
@@ -447,44 +454,47 @@ function WatchPage() {
           </div>
         )}
 
-        {/* Lobby picker overlay: lighter backdrop so board is visible; premium card with rich lobby details */}
+        {/* Lobby picker overlay */}
         {!gameId && (
           <div style={{
             position: 'absolute', inset: 0, zIndex: 15, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-            background: 'linear-gradient(180deg, rgba(12,27,58,0.5) 0%, rgba(12,27,58,0.65) 100%)',
-            backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', padding: 24,
+            background: 'linear-gradient(160deg, rgba(12,27,58,0.72) 0%, rgba(8,18,38,0.88) 100%)',
+            backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', padding: 28,
           }}>
+            <Link href="/" style={{ position: 'absolute', top: 28, left: 28, display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 600, color: '#fff', textDecoration: 'none', padding: '12px 20px', borderRadius: 10, background: '#CC5500', border: '1px solid rgba(204,85,0,0.5)', boxShadow: '0 4px 14px rgba(204,85,0,0.25)', transition: 'transform 0.2s, box-shadow 0.2s' }}>
+              <span style={{ fontSize: 18 }}>←</span> Back to Home
+            </Link>
             <div style={{
-              maxWidth: 600, width: '100%', padding: '32px 28px', borderRadius: 24,
-              background: 'linear-gradient(165deg, rgba(18,35,65,0.95) 0%, rgba(10,22,42,0.98) 100%)',
-              border: '1px solid rgba(212,168,75,0.35)',
-              boxShadow: '0 32px 64px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.04), 0 0 80px rgba(212,168,75,0.08)',
+              maxWidth: 640, width: '100%', padding: '40px 36px 36px', borderRadius: 28,
+              background: 'linear-gradient(165deg, rgba(20,40,75,0.96) 0%, rgba(12,25,50,0.98) 100%)',
+              border: '1px solid rgba(212,168,75,0.28)',
+              boxShadow: '0 40px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.06), 0 0 120px rgba(212,168,75,0.06)',
             }}>
-              <div style={{ textAlign: 'center', marginBottom: 24 }}>
-                <div style={{ fontSize: 32, marginBottom: 8, lineHeight: 1 }}>🎮</div>
+              <div style={{ textAlign: 'center', marginBottom: 28 }}>
+                <div style={{ fontSize: 40, marginBottom: 12, lineHeight: 1, filter: 'drop-shadow(0 2px 8px rgba(212,168,75,0.3))' }}>👀</div>
                 <h1 style={{
-                  fontSize: 'clamp(22px, 4.5vw, 28px)', fontWeight: 800, letterSpacing: '-0.03em', marginBottom: 8,
-                  background: 'linear-gradient(135deg, #fff 0%, #D4A84B 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
+                  fontFamily: "'Syne', sans-serif", fontSize: 'clamp(24px, 5vw, 30px)', fontWeight: 800, letterSpacing: '-0.03em', marginBottom: 10,
+                  background: 'linear-gradient(135deg, #fff 0%, #D4A84B 80%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
                 }}>
                   Choose a lobby to spectate
                 </h1>
-                <p style={{ fontSize: 15, color: 'var(--text-secondary)', lineHeight: 1.5, maxWidth: 400, margin: '0 auto' }}>
-                  Pick a lobby below — the 3D Monopoly board will load as soon as you connect.
+                <p style={{ fontSize: 16, color: 'rgba(255,255,255,0.75)', lineHeight: 1.55, maxWidth: 420, margin: '0 auto' }}>
+                  Pick a lobby below — the 3D board loads as soon as you connect.
                 </p>
+                {settlementAddress && (
+                  <p style={{ marginTop: 14, marginBottom: 0, fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', letterSpacing: 0.5 }}>
+                    Contract <span style={{ color: 'rgba(212,168,75,0.85)' }}>{truncateAddress(settlementAddress)}</span>
+                  </p>
+                )}
               </div>
-              {settlementAddress && (
-                <p style={{ marginBottom: 16, fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', textAlign: 'center' }}>
-                  Contract: <span style={{ color: 'rgba(212,168,75,0.9)' }}>{truncateAddress(settlementAddress)}</span>
-                </p>
-              )}
               {lobbiesLoading ? (
-                <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)', fontSize: 15 }}>
-                  <div style={{ display: 'inline-block', width: 32, height: 32, border: '3px solid rgba(212,168,75,0.3)', borderTopColor: '#D4A84B', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-                  <div style={{ marginTop: 12 }}>Loading lobbies...</div>
+                <div style={{ textAlign: 'center', padding: 48, color: 'var(--text-muted)', fontSize: 15 }}>
+                  <div style={{ display: 'inline-block', width: 36, height: 36, border: '3px solid rgba(212,168,75,0.25)', borderTopColor: '#D4A84B', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                  <div style={{ marginTop: 14, fontWeight: 500 }}>Loading lobbies...</div>
                 </div>
               ) : (
                 <div className="watch-lobby-grid" style={{
-                  display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 14, marginTop: 24,
+                  display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 18, marginTop: 28,
                 }}>
                   {slotsToShow.map((slot) => {
                     const isEmpty = slot.status === 'empty';
@@ -494,15 +504,16 @@ function WatchPage() {
                           key={slot.id}
                           className="watch-lobby-card"
                           style={{
-                            padding: '18px 14px', borderRadius: 16,
-                            border: '2px dashed rgba(212,168,75,0.35)', background: 'rgba(0,0,0,0.15)',
-                            color: 'var(--text-muted)', textAlign: 'center',
-                            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8,
-                            minHeight: 110, cursor: 'default',
+                            padding: '20px 14px', borderRadius: 20,
+                            border: '1px dashed rgba(255,255,255,0.1)', background: 'linear-gradient(145deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.15) 100%)',
+                            color: 'var(--text-muted)', textAlign: 'center', opacity: 0.65,
+                            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10,
+                            minHeight: 128, cursor: 'default', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
                           }}
                         >
-                          <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5 }}>LOBBY {slot.id}</span>
-                          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-muted-soft)' }}>Empty</span>
+                          <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: 1.2, color: 'var(--text-muted-soft)' }}>LOBBY {slot.id}</span>
+                          <span style={{ width: 20, height: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 1 }} />
+                          <span style={{ fontSize: 12, color: 'var(--text-muted-soft)', fontWeight: 500 }}>No game</span>
                         </div>
                       );
                     }
@@ -517,41 +528,47 @@ function WatchPage() {
                     return (
                       <button
                         key={slot.id}
-                        onClick={() => connectToLobby(slot.id)}
+                        onClick={() => router.push(`/watch/${slot.id}`)}
                         className="watch-lobby-card"
+                        type="button"
                         style={{
-                          padding: '18px 14px', borderRadius: 16, border: `2px solid ${statusColor}40`,
-                          background: `linear-gradient(180deg, ${statusColor}12 0%, rgba(0,0,0,0.2) 100%)`,
+                          padding: '22px 14px', borderRadius: 20,
+                          border: `1px solid ${statusColor}60`,
+                          background: `linear-gradient(165deg, ${statusColor}22 0%, ${statusColor}08 40%, rgba(0,0,0,0.3) 100%)`,
                           color: '#fff', cursor: 'pointer', textAlign: 'center',
-                          fontFamily: 'var(--font-display)', transition: 'all 0.25s cubic-bezier(0.4,0,0.2,1)',
-                          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8,
-                          minHeight: 110,
+                          fontFamily: 'var(--font-display)', transition: 'all 0.3s cubic-bezier(0.4,0,0.2,1)',
+                          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12,
+                          minHeight: 128,
                           position: 'relative' as const,
                           overflow: 'hidden',
+                          boxShadow: `0 4px 24px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.04) inset, 0 0 20px ${statusColor}15`,
                         }}
                         onMouseEnter={(e) => {
-                          e.currentTarget.style.transform = 'translateY(-4px) scale(1.02)';
-                          e.currentTarget.style.boxShadow = `0 12px 32px rgba(0,0,0,0.35), 0 0 24px ${statusColor}30`;
-                          e.currentTarget.style.borderColor = `${statusColor}99`;
+                          e.currentTarget.style.transform = 'translateY(-6px) scale(1.02)';
+                          e.currentTarget.style.boxShadow = `0 20px 48px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.06) inset, 0 0 40px ${statusColor}30, 0 0 60px ${statusColor}12`;
+                          e.currentTarget.style.borderColor = `${statusColor}cc`;
                         }}
                         onMouseLeave={(e) => {
                           e.currentTarget.style.transform = 'translateY(0) scale(1)';
-                          e.currentTarget.style.boxShadow = 'none';
-                          e.currentTarget.style.borderColor = `${statusColor}40`;
+                          e.currentTarget.style.boxShadow = `0 4px 24px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.04) inset, 0 0 20px ${statusColor}15`;
+                          e.currentTarget.style.borderColor = `${statusColor}60`;
                         }}
                       >
-                        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: 0.5 }}>LOBBY {slot.id}</span>
-                        {settlementAddress && (
-                          <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'rgba(212,168,75,0.7)' }}>{truncateAddress(settlementAddress)}</span>
-                        )}
-                        <span style={{ fontSize: 13, fontWeight: 700, color: statusColor, display: 'flex', alignItems: 'center', gap: 4 }}>
-                          <span>{statusIcon}</span>
+                        {/* Top highlight */}
+                        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg, transparent, ${statusColor}50, transparent)`, opacity: 0.8 }} />
+                        <span style={{ fontSize: 10, fontWeight: 800, color: 'rgba(255,255,255,0.5)', letterSpacing: 1.2 }}>LOBBY {slot.id}</span>
+                        <span style={{
+                          display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 20,
+                          background: `${statusColor}20`, border: `1px solid ${statusColor}40`,
+                          fontSize: 13, fontWeight: 700, color: statusColor, boxShadow: `0 0 12px ${statusColor}20`,
+                        }}>
+                          <span style={{ fontSize: 14 }}>{statusIcon}</span>
                           <span>{statusLabel}</span>
                         </span>
                         <span style={{
-                          marginTop: 4, padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 800,
-                          background: 'linear-gradient(135deg, #D4A84B 0%, #b8860b 100%)', color: '#0C1B3A',
-                          boxShadow: '0 2px 8px rgba(212,168,75,0.4)',
+                          marginTop: 4, padding: '10px 20px', borderRadius: 12, fontSize: 13, fontWeight: 800, letterSpacing: 0.5,
+                          background: 'linear-gradient(135deg, #CC5500 0%, #e65c00 50%, #a84400 100%)', color: '#fff',
+                          boxShadow: '0 4px 16px rgba(204,85,0,0.4), 0 0 0 1px rgba(255,255,255,0.2) inset', border: 'none',
                         }}>
                           Watch
                         </span>
@@ -560,8 +577,8 @@ function WatchPage() {
                   })}
                 </div>
               )}
-              <p style={{ marginTop: 24, fontSize: 12, color: 'var(--text-muted-soft)', textAlign: 'center' }}>
-                Or add <code style={{ background: 'rgba(255,255,255,0.08)', padding: '2px 6px', borderRadius: 4 }}>?gameId=5</code> to the URL
+              <p style={{ marginTop: 28, fontSize: 13, color: 'var(--text-muted-soft)', textAlign: 'center' }}>
+                Or open <code style={{ background: 'rgba(255,255,255,0.06)', padding: '4px 10px', borderRadius: 6, fontFamily: 'var(--font-mono)', fontSize: 12 }}>/watch/5</code> to jump to game 5
               </p>
             </div>
           </div>

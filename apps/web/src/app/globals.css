@@ -63,6 +63,10 @@ html, body {
   50% { opacity: 0.5; }
 }
 
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 @keyframes glow {
   0%, 100% { box-shadow: 0 0 8px rgba(79, 195, 247, 0.3); }
   50% { box-shadow: 0 0 24px rgba(79, 195, 247, 0.6); }
@@ -253,3 +257,42 @@ a:hover { text-decoration: underline; }
   .landing-section h2 { font-size: 28px !important; }
   .landing-footer { padding: 20px 16px !important; }
 }
+/* Nav links: no underline on hover, gold highlight */
+.nav-link:hover { color: #D4A84B !important; text-decoration: none; }
+
+/* Full-width nav bar (breaks out of any centered container) */
+.nav-full-bleed {
+  box-sizing: border-box;
+}
+
+/* Nav inner: full width with edge padding only (no max-width) */
+.nav-inner {
+  width: 100%;
+  padding-left: 24px;
+  padding-right: 24px;
+}
+@media (min-width: 768px) {
+  .nav-inner { padding-left: 32px; padding-right: 32px; }
+}
+@media (min-width: 1024px) {
+  .nav-inner { padding-left: 40px; padding-right: 40px; }
+}
+
+/* Page container for consistent max-width + padding */
+.page-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding-left: 24px;
+  padding-right: 24px;
+  width: 100%;
+}
+@media (min-width: 768px) {
+  .page-container { padding-left: 32px; padding-right: 32px; }
+}
+@media (min-width: 1024px) {
+  .page-container { padding-left: 40px; padding-right: 40px; }
+}
+
+.section-padding { padding-top: 48px; padding-bottom: 48px; }
+.section-padding-lg { padding-top: 64px; padding-bottom: 64px; }
+.section-padding-xl { padding-top: 80px; padding-bottom: 80px; }

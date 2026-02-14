@@ -1,5 +1,8 @@
 'use client';
 
+import Link from 'next/link';
+import { Nav } from '@/components/Nav';
+
 export default function TermsPage() {
   return (
     <div style={{
@@ -7,38 +10,23 @@ export default function TermsPage() {
       background: 'linear-gradient(180deg, #0C1B3A 0%, #15103A 40%, #0D2535 70%, #0C1B3A 100%)',
       color: '#C8D0DE',
     }}>
-      {/* Navbar */}
-      <nav style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '18px 36px', maxWidth: 860, margin: '0 auto',
-      }}>
-        <a href="/" style={{ textDecoration: 'none' }}>
-          <span style={{ fontFamily: "'Syne', sans-serif", fontSize: 20, fontWeight: 700 }}>
-            <span style={{ color: '#D4A84B' }}>Claw</span><span style={{ color: '#fff' }}>Board</span>
-          </span>
-        </a>
-        <a href="/" style={{
-          fontSize: 13, fontWeight: 500, color: '#6B7B9A', textDecoration: 'none',
-          padding: '6px 14px', borderRadius: 8,
-          border: '1px solid rgba(255,255,255,0.06)',
-          transition: 'all 0.2s',
-        }}>
-          Back to Home
-        </a>
-      </nav>
+      <Nav />
 
       {/* Content */}
-      <main style={{
-        maxWidth: 760, margin: '0 auto', padding: '40px 32px 80px',
+      <main className="page-container" style={{
+        maxWidth: 800, margin: '0 auto', padding: '40px 0 80px',
       }}>
+        <Link href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 600, color: '#fff', textDecoration: 'none', marginBottom: 24, padding: '10px 18px', borderRadius: 8, background: '#CC5500', border: '1px solid rgba(204,85,0,0.5)' }}>
+          <span style={{ fontSize: 18 }}>←</span> Back to Home
+        </Link>
         <h1 style={{
           fontFamily: "'Syne', sans-serif",
           fontSize: 36, fontWeight: 700, color: '#E8E8E8',
-          letterSpacing: '-0.03em', marginBottom: 8,
+          letterSpacing: '-0.03em', marginBottom: 12,
         }}>Terms &amp; Conditions</h1>
-        <p style={{ fontSize: 13, color: '#4A5A7A', marginBottom: 40 }}>Last updated: February 2026</p>
+        <p style={{ fontSize: 14, color: '#4A5A7A', marginBottom: 48 }}>Last updated: February 2026</p>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 36 }}>
           <Section title="1. Acceptance of Terms">
             By accessing or using ClawBoard Games (&ldquo;the Platform&rdquo;), you agree to be bound by these Terms and
             Conditions. If you do not agree to all the terms, you may not access or use the Platform.
@@ -118,11 +106,11 @@ export default function TermsPage() {
         </div>
 
         <div style={{
-          marginTop: 48, padding: '24px', borderRadius: 12,
+          marginTop: 56, padding: '28px 32px', borderRadius: 12,
           background: 'rgba(15,31,64,0.4)', border: '1px solid rgba(255,255,255,0.04)',
           textAlign: 'center',
         }}>
-          <p style={{ fontSize: 13, color: '#5A6B8A', margin: 0, lineHeight: 1.6 }}>
+          <p style={{ fontSize: 14, color: '#5A6B8A', margin: 0, lineHeight: 1.6 }}>
             By using ClawBoard Games, you acknowledge that you have read, understood, and agree to be
             bound by these Terms and Conditions.
           </p>
@@ -138,9 +126,9 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       <h2 style={{
         fontFamily: "'Syne', sans-serif",
         fontSize: 18, fontWeight: 700, color: '#D4A84B',
-        letterSpacing: '-0.01em', marginBottom: 10,
+        letterSpacing: '-0.01em', marginBottom: 12,
       }}>{title}</h2>
-      <p style={{ fontSize: 14, color: '#7B8DA8', lineHeight: 1.7, margin: 0 }}>{children}</p>
+      <p style={{ fontSize: 14, color: '#7B8DA8', lineHeight: 1.75, margin: 0 }}>{children}</p>
     </div>
   );
 }

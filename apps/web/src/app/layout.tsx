@@ -31,6 +31,7 @@ export default function RootLayout({
         background: "var(--bg-primary)",
         color: "var(--text-primary)",
         minHeight: "100vh",
+        padding: 0,
       }}>
         {children}
       </body>

@@ -2,50 +2,206 @@
 
 import { useRef, useMemo } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Sparkles } from '@react-three/drei';
+import { Sparkles, Text, Image } from '@react-three/drei';
 import * as THREE from 'three';
-import { PLAYER_COLORS } from '@/lib/boardPositions';
+import {
+  PLAYER_COLORS,
+  TILE_DATA,
+  BOARD_POSITIONS,
+  GROUP_COLORS,
+  getTileEdge,
+} from '@/lib/boardPositions';
 
-/* Slowly rotating simplified Monopoly board */
+/* Scale factor: spectator board is ~14.9 units, we want ~6.5 for landing */
+const S = 0.45;
+
+/* Scaled-down replica of the spectator Monopoly board */
 function MiniBoard() {
   const ref = useRef<THREE.Group>(null);
   useFrame(({ clock }) => {
     if (!ref.current) return;
-    ref.current.rotation.y = clock.elapsedTime * 0.06;
-    ref.current.position.y = -1.5 + Math.sin(clock.elapsedTime * 0.25) * 0.25;
+    ref.current.rotation.y = clock.elapsedTime * 0.05;
+    ref.current.position.y = -1.5 + Math.sin(clock.elapsedTime * 0.2) * 0.2;
   });
+
   return (
-    <group ref={ref} rotation={[0.35, 0, 0.08]}>
-      <mesh><boxGeometry args={[5.5, 0.28, 5.5]} /><meshStandardMaterial color="#6D3A1A" metalness={0.15} roughness={0.65} /></mesh>
-      <mesh position={[0, 0.15, 0]}><boxGeometry args={[5.2, 0.04, 5.2]} /><meshStandardMaterial color="#2E8B3C" metalness={0.05} roughness={0.9} /></mesh>
-      <mesh position={[0, 0.18, 0]}><boxGeometry args={[5.4, 0.02, 5.4]} /><meshStandardMaterial color="#D4A84B" metalness={0.8} roughness={0.15} emissive="#D4A84B" emissiveIntensity={0.1} /></mesh>
-      {/* Tile strips along edges */}
-      {[-2, -1, 0, 1, 2].map(i => (
-        <group key={i}>
-          <mesh position={[i, 0.2, 2.5]}><boxGeometry args={[0.7, 0.04, 0.4]} /><meshStandardMaterial color="#F5EED6" /></mesh>
-          <mesh position={[i, 0.2, -2.5]}><boxGeometry args={[0.7, 0.04, 0.4]} /><meshStandardMaterial color="#F5EED6" /></mesh>
-          <mesh position={[2.5, 0.2, i]}><boxGeometry args={[0.4, 0.04, 0.7]} /><meshStandardMaterial color="#F5EED6" /></mesh>
-          <mesh position={[-2.5, 0.2, i]}><boxGeometry args={[0.4, 0.04, 0.7]} /><meshStandardMaterial color="#F5EED6" /></mesh>
-        </group>
+    <group ref={ref} rotation={[0.32, 0, 0.06]}>
+      {/* Same structure as MonopolyScene GameBoard, scaled by S */}
+      {/* Thick board body */}
+      <mesh position={[0, -0.24 * S, 0]}>
+        <boxGeometry args={[14.9 * S, 0.65 * S, 14.9 * S]} />
+        <meshStandardMaterial color="#6D3A1A" metalness={0.15} roughness={0.65} />
+      </mesh>
+      {/* Board rim */}
+      <mesh position={[0, -0.01 * S, 0]}>
+        <boxGeometry args={[14.5 * S, 0.14 * S, 14.5 * S]} />
+        <meshStandardMaterial color="#8B5E3C" metalness={0.1} roughness={0.7} />
+      </mesh>
+      {/* Green felt */}
+      <mesh position={[0, 0.07 * S, 0]}>
+        <boxGeometry args={[13.9 * S, 0.06 * S, 13.9 * S]} />
+        <meshStandardMaterial color="#2E8B3C" metalness={0.05} roughness={0.92} />
+      </mesh>
+      {/* Inner play area */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.103 * S, 0]}>
+        <planeGeometry args={[10.1 * S, 10.1 * S]} />
+        <meshStandardMaterial color="#1E7832" />
+      </mesh>
+      {/* Gold trim rails (same as spectator) */}
+      {[
+        [0, 7.0 * S, 14.4 * S, 0.1 * S],
+        [0, -7.0 * S, 14.4 * S, 0.1 * S],
+        [7.0 * S, 0, 0.1 * S, 14.4 * S],
+        [-7.0 * S, 0, 0.1 * S, 14.4 * S],
+      ].map(([x, z, w, d], i) => (
+        <mesh key={i} position={[x as number, 0.12 * S, z as number]}>
+          <boxGeometry args={[w as number, 0.07 * S, d as number]} />
+          <meshStandardMaterial color="#D4A84B" metalness={0.8} roughness={0.15} emissive="#D4A84B" emissiveIntensity={0.08} />
+        </mesh>
       ))}
-      {/* Color strips */}
-      {[['#9C27B0', -2], ['#2196F3', -1], ['#4CAF50', 0], ['#F44336', 1], ['#FF9800', 2]].map(([c, i], k) => (
-        <mesh key={k} position={[i as number, 0.24, 2.5]}><boxGeometry args={[0.65, 0.025, 0.12]} /><meshStandardMaterial color={c as string} emissive={c as string} emissiveIntensity={0.15} /></mesh>
-      ))}
-      {/* Corner pillars */}
-      {[[2.6, 2.6], [-2.6, 2.6], [-2.6, -2.6], [2.6, -2.6]].map(([x, z], i) => (
-        <group key={i} position={[x, 0.18, z]}>
-          <mesh position={[0, 0.18, 0]}><cylinderGeometry args={[0.035, 0.045, 0.32, 8]} /><meshStandardMaterial color="#D4A84B" metalness={0.85} roughness={0.15} /></mesh>
-          <mesh position={[0, 0.36, 0]}><sphereGeometry args={[0.06, 10, 10]} /><meshStandardMaterial color="#FFD700" metalness={0.9} roughness={0.08} emissive="#FFD700" emissiveIntensity={0.25} /></mesh>
+
+      {/* All 40 tiles — same layout as spectator */}
+      {TILE_DATA.map((tile, i) => {
+        const pos = BOARD_POSITIONS[i];
+        const edge = getTileEdge(tile.position);
+        const isProp = tile.group > 0;
+        let w = 1.1 * S,
+          d = 1.1 * S;
+        if (tile.isCorner) {
+          w = 1.2 * S;
+          d = 1.2 * S;
+        } else if (edge === 'bottom' || edge === 'top') {
+          w = 1.1 * S;
+          d = 0.78 * S;
+        } else {
+          w = 0.78 * S;
+          d = 1.1 * S;
+        }
+        const gc = GROUP_COLORS[tile.group] ?? '#2E8B3C';
+        const tilePos: [number, number, number] = [pos[0] * S, 0.11 * S, pos[2] * S];
+        return (
+          <group key={i} position={tilePos}>
+            <mesh>
+              <boxGeometry args={[w, 0.06 * S, d]} />
+              <meshStandardMaterial
+                color={tile.isCorner ? '#E8DCC8' : '#F5EED6'}
+                metalness={0.04}
+                roughness={0.8}
+              />
+            </mesh>
+            {isProp && !tile.isCorner && (
+              <>
+                {/* Color bar on property tile */}
+                {edge === 'bottom' && (
+                  <mesh position={[0, 0.03 * S, -d * 0.34]}>
+                    <boxGeometry args={[w * 0.9, 0.04 * S, d * 0.28]} />
+                    <meshStandardMaterial color={gc} emissive={gc} emissiveIntensity={0.2} metalness={0.3} roughness={0.5} />
+                  </mesh>
+                )}
+                {edge === 'top' && (
+                  <mesh position={[0, 0.03 * S, d * 0.34]}>
+                    <boxGeometry args={[w * 0.9, 0.04 * S, d * 0.28]} />
+                    <meshStandardMaterial color={gc} emissive={gc} emissiveIntensity={0.2} metalness={0.3} roughness={0.5} />
+                  </mesh>
+                )}
+                {edge === 'left' && (
+                  <mesh position={[w * 0.34, 0.03 * S, 0]}>
+                    <boxGeometry args={[w * 0.28, 0.04 * S, d * 0.9]} />
+                    <meshStandardMaterial color={gc} emissive={gc} emissiveIntensity={0.2} metalness={0.3} roughness={0.5} />
+                  </mesh>
+                )}
+                {edge === 'right' && (
+                  <mesh position={[-w * 0.34, 0.03 * S, 0]}>
+                    <boxGeometry args={[w * 0.28, 0.04 * S, d * 0.9]} />
+                    <meshStandardMaterial color={gc} emissive={gc} emissiveIntensity={0.2} metalness={0.3} roughness={0.5} />
+                  </mesh>
+                )}
+              </>
+            )}
+          </group>
+        );
+      })}
+
+      {/* Corner labels — GO, JAIL, FREE PARKING, GO TO JAIL */}
+      <group position={[6 * S, 0.08 * S, 6 * S]} rotation={[-Math.PI / 2, 0, 0]}>
+        <Text fontSize={0.22 * S} color="#2E7D32" anchorX="center" anchorY="middle" fontWeight={800}>GO</Text>
+      </group>
+      <group position={[-6 * S, 0.08 * S, 6 * S]} rotation={[-Math.PI / 2, 0, Math.PI / 2]}>
+        <Text fontSize={0.17 * S} color="#D84315" anchorX="center" anchorY="middle" fontWeight={800}>JAIL</Text>
+      </group>
+      <group position={[-6 * S, 0.08 * S, -6 * S]} rotation={[-Math.PI / 2, 0, Math.PI]}>
+        <Text fontSize={0.1 * S} color="#F9A825" anchorX="center" anchorY="middle">FREE PARKING</Text>
+      </group>
+      <group position={[6 * S, 0.08 * S, -6 * S]} rotation={[-Math.PI / 2, 0, -Math.PI / 2]}>
+        <Text fontSize={0.12 * S} color="#C62828" anchorX="center" anchorY="middle" fontWeight={800}>GO TO JAIL</Text>
+      </group>
+
+      {/* Board center — logo */}
+      <Image url="/clawboardgames-logo.png" position={[0, 0.131 * S, 0]} rotation={[-Math.PI / 2, 0, 0]} scale={[1.1 * S, 1.1 * S]} />
+
+      {/* Corner gold pillars with orbs (like spectator) */}
+      {[
+        [6.4 * S, 6.4 * S],
+        [-6.4 * S, 6.4 * S],
+        [-6.4 * S, -6.4 * S],
+        [6.4 * S, -6.4 * S],
+      ].map(([x, z], i) => (
+        <group key={i} position={[x, 0.12 * S, z]}>
+          <mesh position={[0, 0.04 * S, 0]}>
+            <boxGeometry args={[0.2 * S, 0.08 * S, 0.2 * S]} />
+            <meshStandardMaterial color="#D4A84B" metalness={0.9} roughness={0.1} />
+          </mesh>
+          <mesh position={[0, 0.42 * S, 0]}>
+            <cylinderGeometry args={[0.05 * S, 0.065 * S, 0.65 * S, 8]} />
+            <meshStandardMaterial color="#D4A84B" metalness={0.85} roughness={0.15} />
+          </mesh>
+          <mesh position={[0, 0.78 * S, 0]}>
+            <sphereGeometry args={[0.09 * S, 12, 12]} />
+            <meshStandardMaterial color="#FFD700" metalness={0.9} roughness={0.08} emissive="#FFD700" emissiveIntensity={0.2} />
+          </mesh>
         </group>
       ))}
     </group>
   );
 }
 
+/* Pip layout: half-size 0.175, pip radius 0.022, offset from face center 0.055, pip just off face at 0.195 */
+const DIE_PIP_R = 0.022;
+const DIE_PIP_OFF = 0.055;
+const DIE_PIP_Z = 0.175 + 0.02;
+
+function DiePips() {
+  const pipMat = useMemo(() => new THREE.MeshStandardMaterial({ color: '#1a1a1a', roughness: 0.6 }), []);
+  return (
+    <>
+      {/* +X face: 1 pip */}
+      <mesh position={[DIE_PIP_Z, 0, 0]} material={pipMat}><sphereGeometry args={[DIE_PIP_R, 10, 10]} /></mesh>
+      {/* -X face: 6 pips */}
+      {[[DIE_PIP_OFF, DIE_PIP_OFF], [-DIE_PIP_OFF, -DIE_PIP_OFF], [DIE_PIP_OFF, -DIE_PIP_OFF], [-DIE_PIP_OFF, DIE_PIP_OFF], [0, DIE_PIP_OFF], [0, -DIE_PIP_OFF]].map(([y, z], i) => (
+        <mesh key={i} position={[-DIE_PIP_Z, y, z]} material={pipMat}><sphereGeometry args={[DIE_PIP_R, 10, 10]} /></mesh>
+      ))}
+      {/* +Y face: 2 pips */}
+      <mesh position={[DIE_PIP_OFF, DIE_PIP_Z, DIE_PIP_OFF]} material={pipMat}><sphereGeometry args={[DIE_PIP_R, 10, 10]} /></mesh>
+      <mesh position={[-DIE_PIP_OFF, DIE_PIP_Z, -DIE_PIP_OFF]} material={pipMat}><sphereGeometry args={[DIE_PIP_R, 10, 10]} /></mesh>
+      {/* -Y face: 5 pips */}
+      {[[DIE_PIP_OFF, DIE_PIP_OFF], [-DIE_PIP_OFF, -DIE_PIP_OFF], [DIE_PIP_OFF, -DIE_PIP_OFF], [-DIE_PIP_OFF, DIE_PIP_OFF], [0, 0]].map(([x, z], i) => (
+        <mesh key={i} position={[x, -DIE_PIP_Z, z]} material={pipMat}><sphereGeometry args={[DIE_PIP_R, 10, 10]} /></mesh>
+      ))}
+      {/* +Z face: 3 pips */}
+      <mesh position={[DIE_PIP_OFF, DIE_PIP_OFF, DIE_PIP_Z]} material={pipMat}><sphereGeometry args={[DIE_PIP_R, 10, 10]} /></mesh>
+      <mesh position={[0, 0, DIE_PIP_Z]} material={pipMat}><sphereGeometry args={[DIE_PIP_R, 10, 10]} /></mesh>
+      <mesh position={[-DIE_PIP_OFF, -DIE_PIP_OFF, DIE_PIP_Z]} material={pipMat}><sphereGeometry args={[DIE_PIP_R, 10, 10]} /></mesh>
+      {/* -Z face: 4 pips */}
+      {[[DIE_PIP_OFF, DIE_PIP_OFF], [-DIE_PIP_OFF, DIE_PIP_OFF], [DIE_PIP_OFF, -DIE_PIP_OFF], [-DIE_PIP_OFF, -DIE_PIP_OFF]].map(([x, y], i) => (
+        <mesh key={i} position={[x, y, -DIE_PIP_Z]} material={pipMat}><sphereGeometry args={[DIE_PIP_R, 10, 10]} /></mesh>
+      ))}
+    </>
+  );
+}
+
 /* Floating tumbling dice */
 function FloatingDie({ startPos, speed }: { startPos: [number, number, number]; speed: number }) {
-  const ref = useRef<THREE.Mesh>(null);
+  const ref = useRef<THREE.Group>(null);
   const off = useRef(Math.random() * Math.PI * 2);
   useFrame(({ clock }) => {
     if (!ref.current) return;
@@ -56,14 +212,17 @@ function FloatingDie({ startPos, speed }: { startPos: [number, number, number]; 
     ref.current.rotation.y = t * 0.3;
   });
   return (
-    <mesh ref={ref} position={startPos}>
-      <boxGeometry args={[0.35, 0.35, 0.35]} />
-      <meshStandardMaterial color="#FFFDF5" metalness={0.02} roughness={0.2} />
-    </mesh>
+    <group ref={ref} position={startPos}>
+      <mesh>
+        <boxGeometry args={[0.35, 0.35, 0.35]} />
+        <meshStandardMaterial color="#F8F4E8" metalness={0.05} roughness={0.25} />
+      </mesh>
+      <DiePips />
+    </group>
   );
 }
 
-/* Floating gold coins */
+/* Floating coins */
 function FloatingCoin({ startPos, speed }: { startPos: [number, number, number]; speed: number }) {
   const ref = useRef<THREE.Mesh>(null);
   const off = useRef(Math.random() * Math.PI * 2);
@@ -76,8 +235,8 @@ function FloatingCoin({ startPos, speed }: { startPos: [number, number, number];
   });
   return (
     <mesh ref={ref} position={startPos}>
-      <cylinderGeometry args={[0.1, 0.1, 0.03, 16]} />
-      <meshStandardMaterial color="#FFD700" metalness={0.9} roughness={0.1} emissive="#FFA000" emissiveIntensity={0.3} />
+      <cylinderGeometry args={[0.1, 0.1, 0.03, 24]} />
+      <meshStandardMaterial color="#E65C00" metalness={0.85} roughness={0.12} emissive="#CC5500" emissiveIntensity={0.25} />
     </mesh>
   );
 }
@@ -127,14 +286,17 @@ function OrbitingToken({ index, color }: { index: number; color: string }) {
 function SceneContent() {
   return (
     <>
-      <ambientLight intensity={0.35} />
-      <directionalLight position={[6, 12, 5]} intensity={0.6} color="#FFFAF0" />
-      <pointLight position={[-5, 8, -5]} intensity={0.25} color="#D4A84B" distance={20} />
-      <pointLight position={[5, 5, 5]} intensity={0.2} color="#4FC3F7" distance={15} />
-      <fog attach="fog" args={['#0C1B3A', 12, 30]} />
+      <ambientLight intensity={0.4} />
+      <directionalLight position={[4, 14, 6]} intensity={0.7} color="#FFF8F0" />
+      <directionalLight position={[-3, 8, -4]} intensity={0.25} color="#CC5500" />
+      <pointLight position={[0, 6, 4]} intensity={0.4} color="#CC5500" distance={25} />
+      <pointLight position={[-4, 5, 2]} intensity={0.2} color="#FFD54F" distance={18} />
+      <pointLight position={[5, 4, -2]} intensity={0.15} color="#4FC3F7" distance={15} />
+      <fog attach="fog" args={['#0C1B3A', 14, 35]} />
 
-      <Sparkles count={180} scale={22} size={3} color="#FFD54F" speed={0.2} opacity={0.2} />
-      <Sparkles count={80} scale={18} size={2} color="#E040FB" speed={0.15} opacity={0.1} />
+      <Sparkles count={200} scale={24} size={2.5} color="#CC5500" speed={0.15} opacity={0.25} />
+      <Sparkles count={100} scale={20} size={1.5} color="#FFD54F" speed={0.2} opacity={0.15} />
+      <Sparkles count={60} scale={16} size={2} color="#E040FB" speed={0.1} opacity={0.08} />
 
       <MiniBoard />
 
@@ -168,7 +330,7 @@ function SceneContent() {
 export default function LandingScene() {
   return (
     <Canvas
-      camera={{ position: [0, 4, 10], fov: 40 }}
+      camera={{ position: [0, 3.5, 11], fov: 38 }}
       style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none' }}
       gl={{ antialias: true, alpha: true }}
       dpr={[1, 1.5]}

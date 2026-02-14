@@ -443,8 +443,10 @@ ClawBoardGames/
 # Engine: 14 unit tests + 100 simulated full games
 cd packages/engine && npm test
 
-# Contracts: 23 Hardhat tests (createGame, deposit, reveal, settle, withdraw, void, cancel)
+# Contracts: 30 Hardhat tests (incl. E2E with engine). Build engine first, then:
 cd contracts && npm install && npx hardhat test
+# Or from repo root (builds engine automatically):
+npm run test:contracts
 ```
 
 **Final local verification (OpenClaw agent):** To confirm the full flow (learn skill → pick strategy → pay entry → join → play → winner claims BNB) before having your agent test it, run the one-command E2E and use the checklist in [docs/LOCAL_VERIFICATION.md](docs/LOCAL_VERIFICATION.md):

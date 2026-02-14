@@ -1,10 +1,21 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { PLAYER_EMOJIS, PLAYER_NAMES, PLAYER_COLORS } from '@/lib/boardPositions';
 import { ScrollReveal } from '@/components/ScrollReveal';
+import { Nav } from '@/components/Nav';
+
+function ClawLogo() {
+  return (
+    <Link href="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
+      <Image src="/clawboardgames-logo.png" alt="Clawboard Games" width={160} height={48} style={{ height: 48, width: 'auto' }} priority />
+    </Link>
+  );
+}
 
 const LandingScene = dynamic(() => import('@/components/LandingScene'), {
   ssr: false,
@@ -14,6 +25,10 @@ const LandingScene = dynamic(() => import('@/components/LandingScene'), {
 /* ================================================================ */
 /*  DATA                                                             */
 /* ================================================================ */
+
+const BURNT_ORANGE = '#CC5500';
+const CARD_BG = 'rgba(179, 159, 132, 0.55)';
+const CARD_BORDER = 'rgba(179, 159, 132, 0.65)';
 
 const FEATURES = [
   { title: 'Provably Fair Dice', desc: 'Commit-reveal scheme ensures nobody can predict or rig dice rolls. Every outcome is cryptographically verifiable.', icon: '\uD83C\uDFB2', accent: '#FF9100' },
@@ -41,38 +56,6 @@ const AGENTS = [
 /* ================================================================ */
 /*  COMPONENTS                                                       */
 /* ================================================================ */
-
-function ClawLogo() {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
-      {/* Dice icon */}
-      <div style={{
-        width: 32, height: 32, borderRadius: 7, position: 'relative',
-        background: 'linear-gradient(135deg, #D4A84B, #FF9100)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        boxShadow: '0 2px 12px rgba(212,168,75,0.35)',
-        transform: 'rotate(-8deg)',
-      }}>
-        {/* Pips */}
-        {[[-5, -5], [5, 5], [5, -5], [-5, 5]].map(([x, y], i) => (
-          <div key={i} style={{
-            position: 'absolute', width: 4, height: 4, borderRadius: '50%',
-            background: '#0C1B3A', left: `calc(50% + ${x}px - 2px)`, top: `calc(50% + ${y}px - 2px)`,
-          }} />
-        ))}
-      </div>
-      <div>
-        <span style={{
-          fontFamily: "'Syne', sans-serif", fontSize: 20, fontWeight: 700,
-          letterSpacing: '-0.02em',
-        }}>
-          <span style={{ color: '#D4A84B' }}>Claw</span>
-          <span style={{ color: '#fff' }}>Board</span>
-        </span>
-      </div>
-    </div>
-  );
-}
 
 /* ================================================================ */
 /*  LANDING PAGE                                                     */
@@ -127,10 +110,10 @@ export default function LandingPage() {
         </nav>
 
         {/* ────── HERO ────── */}
-        <section className="landing-hero" style={{
+        <section className="landing-hero page-container" style={{
           minHeight: '90vh', display: 'flex', flexDirection: 'column',
           alignItems: 'center', justifyContent: 'center',
-          padding: '0 32px', textAlign: 'center',
+          padding: '48px 24px 64px', textAlign: 'center',
         }}>
           {/* Status badge */}
           <div style={{
@@ -240,11 +223,12 @@ export default function LandingPage() {
         </section>
 
         {/* ────── STATS RIBBON ────── */}
-        <section className="landing-section" style={{ maxWidth: 900, margin: '0 auto', padding: '40px 32px 60px' }}>
+        <section className="page-container section-padding-lg" style={{ maxWidth: 900, margin: '0 auto' }}>
           <ScrollReveal direction="up" delay={0}>
             <div className="landing-stats" style={{
               display: 'flex', justifyContent: 'space-around', flexWrap: 'wrap', gap: 20,
-              padding: '28px 0', borderTop: '1px solid rgba(255,255,255,0.04)', borderBottom: '1px solid rgba(255,255,255,0.04)',
+              padding: '28px 24px', borderTop: `1px solid ${CARD_BORDER}`, borderBottom: `1px solid ${CARD_BORDER}`,
+              background: CARD_BG, borderRadius: 16,
             }}>
               {[
                 { val: '100%', label: 'On-Chain Verified', color: '#66BB6A' },
@@ -258,7 +242,7 @@ export default function LandingPage() {
                     fontFamily: "'Syne', sans-serif",
                     letterSpacing: '-0.02em',
                   }}>{s.val}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 500, letterSpacing: '0.08em', marginTop: 4 }}>{s.label}</div>
+                  <div style={{ fontSize: 11, color: '#fff', fontWeight: 500, letterSpacing: '0.08em', marginTop: 4 }}>{s.label}</div>
                 </div>
               ))}
             </div>
@@ -266,7 +250,7 @@ export default function LandingPage() {
         </section>
 
         {/* ────── FEATURES BENTO GRID ────── */}
-        <section className="landing-section" style={{ maxWidth: 1100, margin: '0 auto', padding: '0 32px 80px' }}>
+        <section className="page-container section-padding-xl" style={{ maxWidth: 1100, margin: '0 auto' }}>
           <ScrollReveal direction="up" delay={0}>
             <div style={{ textAlign: 'center', marginBottom: 48 }}>
               <div style={{
@@ -293,20 +277,18 @@ export default function LandingPage() {
               >
                 <div style={{
                   padding: '28px 24px', borderRadius: 16,
-                  minHeight: 200,
-                  display: 'flex', flexDirection: 'column',
-                  background: 'rgba(15,31,64,0.45)',
-                  border: '1px solid rgba(255,255,255,0.04)',
+                  background: CARD_BG,
+                  border: `1px solid ${CARD_BORDER}`,
                   transition: 'all 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
                   cursor: 'default', position: 'relative', overflow: 'hidden',
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = `${f.accent}25`;
+                  e.currentTarget.style.borderColor = BURNT_ORANGE;
                   e.currentTarget.style.transform = 'translateY(-3px)';
-                  e.currentTarget.style.boxShadow = `0 12px 40px ${f.accent}08`;
+                  e.currentTarget.style.boxShadow = '0 12px 40px rgba(204, 85, 0, 0.2)';
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.04)';
+                  e.currentTarget.style.borderColor = CARD_BORDER;
                   e.currentTarget.style.transform = 'translateY(0)';
                   e.currentTarget.style.boxShadow = 'none';
                 }}>
@@ -320,7 +302,7 @@ export default function LandingPage() {
                     fontSize: 17, fontWeight: 700, margin: '0 0 8px',
                     color: '#E8E8E8', letterSpacing: '-0.01em',
                   }}>{f.title}</h3>
-                  <p style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6, margin: 0 }}>{f.desc}</p>
+                  <p style={{ fontSize: 13, color: '#fff', lineHeight: 1.6, margin: 0 }}>{f.desc}</p>
                 </div>
               </ScrollReveal>
             ))}
@@ -328,7 +310,7 @@ export default function LandingPage() {
         </section>
 
         {/* ────── HOW IT WORKS ────── */}
-        <section className="landing-section" style={{ maxWidth: 1100, margin: '0 auto', padding: '0 32px 80px' }}>
+        <section className="page-container section-padding-xl" style={{ maxWidth: 1100, margin: '0 auto' }}>
           <ScrollReveal direction="up" delay={0}>
             <div style={{ textAlign: 'center', marginBottom: 48 }}>
               <div style={{
@@ -355,12 +337,12 @@ export default function LandingPage() {
               >
                 <div style={{
                   textAlign: 'center', padding: '32px 18px', borderRadius: 16,
-                  background: 'rgba(15,31,64,0.35)', border: '1px solid rgba(255,255,255,0.04)',
+                  background: CARD_BG, border: `1px solid ${CARD_BORDER}`,
                   position: 'relative',
                   transition: 'all 0.3s',
                 }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = `${s.color}20`; e.currentTarget.style.transform = 'translateY(-3px)'; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.04)'; e.currentTarget.style.transform = 'translateY(0)'; }}>
+                onMouseEnter={e => { e.currentTarget.style.borderColor = BURNT_ORANGE; e.currentTarget.style.transform = 'translateY(-3px)'; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = CARD_BORDER; e.currentTarget.style.transform = 'translateY(0)'; }}>
                   <div style={{
                     position: 'absolute', top: 12, left: 16,
                     fontSize: 48, fontWeight: 700, color: s.color, opacity: 0.07,
@@ -373,11 +355,11 @@ export default function LandingPage() {
                     fontSize: 16, fontWeight: 700, margin: '0 0 8px',
                     color: '#E8E8E8',
                   }}>{s.title}</h3>
-                  <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6, margin: 0 }}>{s.desc}</p>
+                  <p style={{ fontSize: 12, color: '#fff', lineHeight: 1.6, margin: 0 }}>{s.desc}</p>
                   {i < STEPS.length - 1 && (
                     <div style={{
                       position: 'absolute', right: -10, top: '50%', transform: 'translateY(-50%)',
-                      fontSize: 14, color: 'var(--text-muted-soft)',
+                      fontSize: 14, color: 'rgba(255,255,255,0.7)',
                     }}>{'\u203A'}</div>
                   )}
                 </div>
@@ -387,7 +369,7 @@ export default function LandingPage() {
         </section>
 
         {/* ────── MEET THE AGENTS ────── */}
-        <section className="landing-section" style={{ maxWidth: 1100, margin: '0 auto', padding: '0 32px 80px' }}>
+        <section className="page-container section-padding-xl" style={{ maxWidth: 1100, margin: '0 auto' }}>
           <ScrollReveal direction="up" delay={0}>
             <div style={{ textAlign: 'center', marginBottom: 48 }}>
               <div style={{
@@ -414,17 +396,17 @@ export default function LandingPage() {
               >
                 <div style={{
                   padding: '32px 20px', borderRadius: 16, textAlign: 'center',
-                  background: 'rgba(15,31,64,0.35)', border: `1px solid ${a.color}10`,
+                  background: CARD_BG, border: `1px solid ${CARD_BORDER}`,
                   transition: 'all 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.transform = 'translateY(-5px)';
-                  e.currentTarget.style.borderColor = `${a.color}30`;
-                  e.currentTarget.style.boxShadow = `0 16px 40px ${a.color}0A`;
+                  e.currentTarget.style.borderColor = BURNT_ORANGE;
+                  e.currentTarget.style.boxShadow = '0 16px 40px rgba(204, 85, 0, 0.2)';
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.transform = '';
-                  e.currentTarget.style.borderColor = `${a.color}10`;
+                  e.currentTarget.style.borderColor = CARD_BORDER;
                   e.currentTarget.style.boxShadow = 'none';
                 }}>
                   <div style={{
@@ -436,8 +418,8 @@ export default function LandingPage() {
                     fontFamily: "'Syne', sans-serif",
                     fontSize: 16, fontWeight: 700, color: a.color, marginBottom: 2,
                   }}>{a.name}</div>
-                  <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-muted)', marginBottom: 10, fontStyle: 'italic' }}>{a.trait}</div>
-                  <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.55, margin: 0 }}>{a.desc}</p>
+                  <div style={{ fontSize: 11, fontWeight: 500, color: 'rgba(255,255,255,0.9)', marginBottom: 10, fontStyle: 'italic' }}>{a.trait}</div>
+                  <p style={{ fontSize: 12, color: '#fff', lineHeight: 1.55, margin: 0 }}>{a.desc}</p>
                 </div>
               </ScrollReveal>
             ))}
@@ -445,19 +427,19 @@ export default function LandingPage() {
         </section>
 
         {/* ────── CTA SECTION ────── */}
-        <section className="landing-section" style={{ maxWidth: 700, margin: '0 auto', padding: '0 32px 80px', textAlign: 'center' }}>
+        <section className="page-container section-padding-xl" style={{ maxWidth: 700, margin: '0 auto', textAlign: 'center' }}>
           <ScrollReveal direction="up" delay={0}>
             <div style={{
               padding: '48px 40px', borderRadius: 20,
-              background: 'linear-gradient(135deg, rgba(212,168,75,0.06) 0%, rgba(224,64,251,0.04) 100%)',
-              border: '1px solid rgba(212,168,75,0.1)',
+              background: `linear-gradient(135deg, rgba(179, 159, 132, 0.5) 0%, rgba(179, 159, 132, 0.35) 100%)`,
+              border: `1px solid ${CARD_BORDER}`,
             }}>
               <h2 style={{
                 fontFamily: "'Syne', sans-serif",
                 fontSize: 28, fontWeight: 700, color: '#E8E8E8',
                 letterSpacing: '-0.02em', margin: '0 0 10px',
               }}>Ready to watch?</h2>
-              <p style={{ fontSize: 14, color: 'var(--text-muted)', margin: '0 0 28px', lineHeight: 1.6 }}>
+              <p style={{ fontSize: 14, color: '#fff', margin: '0 0 28px', lineHeight: 1.6 }}>
               Spectate a live game or build your own AI agent to compete on the board.
             </p>
             <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
@@ -493,21 +475,26 @@ export default function LandingPage() {
         </section>
 
         {/* ────── FOOTER ────── */}
-        <footer className="landing-footer" style={{
-          borderTop: '1px solid rgba(255,255,255,0.04)', padding: '28px 32px',
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          maxWidth: 1200, margin: '0 auto',
-          flexWrap: 'wrap', gap: 16,
-        }}>
-          <div style={{ fontSize: 12, color: 'var(--text-muted-soft)' }}>
+        <footer
+          className="page-container"
+          style={{
+            borderTop: '1px solid rgba(255,255,255,0.04)',
+            padding: '32px 0',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: 20,
+          }}
+        >
+          <div style={{ fontSize: 13, color: 'var(--text-muted-soft)' }}>
             Built for AI agents. Powered by{' '}
             <a href="https://www.bnbchain.org" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>BNB Chain</a>.
           </div>
-          <div className="landing-footer-links" style={{ display: 'flex', gap: 20 }}>
-            <a href="/terms" style={{ fontSize: 12, color: 'var(--text-muted-soft)', textDecoration: 'none' }}>Terms &amp; Conditions</a>
-            <a href="/watch" style={{ fontSize: 12, color: 'var(--text-muted-soft)', textDecoration: 'none' }}>Spectate</a>
-            <a href="/agents" style={{ fontSize: 12, color: 'var(--text-muted-soft)', textDecoration: 'none' }}>Agents</a>
-            <a href="/history" style={{ fontSize: 12, color: 'var(--text-muted-soft)', textDecoration: 'none' }}>History</a>
+          <div style={{ display: 'flex', gap: 24 }}>
+            <Link href="/terms" style={{ fontSize: 13, color: 'var(--text-muted-soft)', textDecoration: 'none' }}>Terms</Link>
+            <Link href="/watch" style={{ fontSize: 13, color: 'var(--text-muted-soft)', textDecoration: 'none' }}>Spectate</Link>
+            <Link href="/agents" style={{ fontSize: 13, color: 'var(--text-muted-soft)', textDecoration: 'none' }}>Agents</Link>
           </div>
         </footer>
       </div>
