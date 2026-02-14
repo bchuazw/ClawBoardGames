@@ -251,6 +251,25 @@ export class Orchestrator {
     return [];
   }
 
+  /** Get slot details for UI (local mode only): id, status (waiting|active), playerCount for waiting lobbies. */
+  getSlotDetails(): { id: number; status: "waiting" | "active"; playerCount?: number }[] {
+    if (this.settlement) return [];
+    const out: { id: number; status: "waiting" | "active"; playerCount?: number }[] = [];
+    for (let i = 0; i < NUM_LOCAL_SLOTS; i++) {
+      const slot = this.slots.get(i);
+      if (!slot) {
+        out.push({ id: i, status: "waiting", playerCount: 0 });
+        continue;
+      }
+      if (slot instanceof Lobby) {
+        out.push({ id: i, status: "waiting", playerCount: slot.size });
+      } else {
+        out.push({ id: i, status: "active" });
+      }
+    }
+    return out;
+  }
+
   /** Clean up finished games (on-chain only; local slots are reset via onEnd). */
   cleanup(): void {
     for (const [id, process] of this.games) {

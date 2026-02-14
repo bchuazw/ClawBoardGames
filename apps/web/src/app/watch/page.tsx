@@ -142,7 +142,9 @@ function WatchPage() {
   const [gmUrl, setGmUrl] = useState(process.env.NEXT_PUBLIC_GM_WS_URL || 'wss://clawboardgames-gm.onrender.com/ws');
   const [gameId, setGameId] = useState(params.get('gameId') || '');
   const [openLobbies, setOpenLobbies] = useState<number[]>([]);
+  const [slotDetails, setSlotDetails] = useState<{ id: number; status: string; playerCount?: number }[]>([]);
   const [lobbiesLoading, setLobbiesLoading] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [connected, setConnected] = useState(false);
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [events, setEvents] = useState<GameEvent[]>([]);
@@ -164,18 +166,31 @@ function WatchPage() {
 
   useEffect(() => { sfx.muted = muted; }, [muted]);
 
-  // Fetch open lobbies when no gameId (lobby picker view)
+  // Fetch slot/lobby details when no gameId (lobby picker view). Prefer /games/slots for status & counts.
   useEffect(() => {
     if (gameId) return;
     setLobbiesLoading(true);
     const restUrl = process.env.NEXT_PUBLIC_GM_REST_URL || gmWsToRest(gmUrl);
-    fetch(`${restUrl}/games/open`)
-      .then((res) => res.json())
-      .then((data: { open?: number[] }) => {
-        const list = Array.isArray(data.open) ? data.open : (data as { games?: number[] }).games ?? [];
-        setOpenLobbies(list.length > 0 ? list : Array.from({ length: 10 }, (_, i) => i));
+    Promise.all([
+      fetch(`${restUrl}/games/slots`).then((r) => r.ok ? r.json() : { slots: null }),
+      fetch(`${restUrl}/games/open`).then((r) => r.json()),
+    ])
+      .then(([slotsData, openData]: [{ slots?: { id: number; status: string; playerCount?: number }[] } | null, { open?: number[] }]) => {
+        const slots = slotsData?.slots && Array.isArray(slotsData.slots) ? slotsData.slots : null;
+        const openList = Array.isArray(openData?.open) ? openData.open : (openData as { games?: number[] })?.games ?? [];
+        const ids = openList.length > 0 ? openList : Array.from({ length: 10 }, (_, i) => i);
+        setOpenLobbies(ids);
+        if (slots && slots.length > 0) {
+          setSlotDetails(slots);
+        } else {
+          setSlotDetails(ids.map((id: number) => ({ id, status: 'open' })));
+        }
       })
-      .catch(() => setOpenLobbies(Array.from({ length: 10 }, (_, i) => i)))
+      .catch(() => {
+        const fallback = Array.from({ length: 10 }, (_, i) => i);
+        setOpenLobbies(fallback);
+        setSlotDetails(fallback.map((id) => ({ id, status: 'waiting', playerCount: 0 })));
+      })
       .finally(() => setLobbiesLoading(false));
   }, [gameId, gmUrl]);
 
@@ -285,36 +300,45 @@ function WatchPage() {
     }
   }
 
-  return (
-    <div style={{ width: '100vw', height: '100vh', display: 'flex', overflow: 'hidden', background: '#0C1B3A' }}>
+  const slotsToShow = slotDetails.length > 0 ? slotDetails : openLobbies.map((id) => ({ id, status: 'open' as const }));
 
-      {/* ===== CENTER: 3D BOARD ===== */}
-      <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+  return (
+    <div className="watch-layout">
+      {/* ===== CENTER: 3D BOARD (always visible) ===== */}
+      <div className="watch-center">
         <div style={{ position: 'absolute', inset: 0 }}>
           <MonopolyScene snapshot={snapshot} latestEvents={latestEvents} activeCard={activeCard} />
         </div>
 
-        {/* Top bar */}
+        {/* Top bar — responsive: hide inputs on small screens, show menu toggle */}
         <div style={{
           position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10,
           display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px',
-          background: 'linear-gradient(to bottom, rgba(12,27,58,0.95), transparent)',
+          background: 'linear-gradient(to bottom, rgba(12,27,58,0.92), transparent)',
+          backdropFilter: 'blur(8px)',
         }}>
-          <a href="/" style={{ fontSize: 18, fontWeight: 900, color: '#D4A84B', textDecoration: 'none' }}>CLAW<span style={{ color: '#fff' }}>BOARD</span></a>
+          <a href="/" style={{ fontSize: 18, fontWeight: 900, color: '#D4A84B', textDecoration: 'none', letterSpacing: '-0.02em' }}>CLAW<span style={{ color: '#fff' }}>BOARD</span></a>
           <div style={{ flex: 1 }} />
-          <input placeholder="GM WS URL" value={gmUrl} onChange={(e) => setGmUrl(e.target.value)}
-            style={{ width: 230, padding: '5px 8px', borderRadius: 6, fontSize: 11, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(212,168,75,0.15)', color: '#aaa', fontFamily: 'var(--font-mono)' }} />
-          <input placeholder="Game ID" value={gameId} onChange={(e) => setGameId(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && connect()}
-            style={{ width: 60, padding: '5px 8px', borderRadius: 6, fontSize: 13, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(212,168,75,0.15)', color: '#fff', textAlign: 'center', fontFamily: 'var(--font-mono)' }} />
+          <div className={`watch-topbar-inputs ${mobileMenuOpen ? 'mobile-open' : ''}`} style={{ gap: 8 }}>
+            <input placeholder="GM WS URL" value={gmUrl} onChange={(e) => setGmUrl(e.target.value)}
+              style={{ width: 200, padding: '6px 10px', borderRadius: 8, fontSize: 11, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(212,168,75,0.2)', color: '#aaa', fontFamily: 'var(--font-mono)' }} />
+            <input placeholder="Game ID" value={gameId} onChange={(e) => setGameId(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && connect()}
+              style={{ width: 56, padding: '6px 8px', borderRadius: 8, fontSize: 13, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(212,168,75,0.2)', color: '#fff', textAlign: 'center', fontFamily: 'var(--font-mono)' }} />
+          </div>
           <button onClick={connected ? () => disconnect() : () => connect()}
-            style={{ padding: '5px 16px', borderRadius: 6, border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 12, color: '#fff', background: connected ? '#C62828' : '#1565C0' }}>
+            style={{ padding: '6px 18px', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 13, color: '#fff', background: connected ? '#C62828' : '#1565C0', boxShadow: connected ? 'none' : '0 2px 12px rgba(21,101,192,0.4)' }}>
             {connected ? 'Disconnect' : 'Watch'}
           </button>
-          {connected && <span style={{ padding: '2px 8px', borderRadius: 4, fontSize: 10, fontWeight: 800, background: '#2E7D32', color: '#fff', animation: 'livePulse 2s infinite' }}>LIVE</span>}
+          {connected && <span style={{ padding: '3px 10px', borderRadius: 6, fontSize: 10, fontWeight: 800, background: '#2E7D32', color: '#fff', animation: 'livePulse 2s infinite' }}>LIVE</span>}
           <button onClick={() => setMuted(m => !m)}
-            style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid rgba(212,168,75,0.15)', background: 'rgba(255,255,255,0.04)', cursor: 'pointer', fontSize: 16 }}>
+            style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid rgba(212,168,75,0.2)', background: 'rgba(255,255,255,0.06)', cursor: 'pointer', fontSize: 18 }}>
             {muted ? '\u{1F507}' : '\u{1F50A}'}
+          </button>
+          <button type="button" aria-label="Toggle menu" onClick={() => setMobileMenuOpen((o) => !o)}
+            style={{ padding: 8, borderRadius: 8, border: '1px solid rgba(212,168,75,0.2)', background: 'rgba(255,255,255,0.06)', cursor: 'pointer', fontSize: 18 }}
+            className="watch-mobile-menu-btn">
+            {mobileMenuOpen ? '\u2715' : '\u2630'}
           </button>
         </div>
 
@@ -335,45 +359,71 @@ function WatchPage() {
           </div>
         )}
 
+        {/* Lobby picker overlay: board stays visible behind dimmed backdrop; centered card with lobby details */}
         {!gameId && (
           <div style={{
             position: 'absolute', inset: 0, zIndex: 15, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-            background: 'linear-gradient(180deg, #0C1B3A 0%, #0D2535 100%)', padding: 24,
+            background: 'rgba(12,27,58,0.75)', backdropFilter: 'blur(6px)', padding: 20,
           }}>
-            <div style={{ fontSize: 22, color: '#D4A84B', fontWeight: 800, marginBottom: 8 }}>Choose a lobby to spectate</div>
-            <div style={{ fontSize: 14, color: 'var(--text-muted)', marginBottom: 24 }}>10 lobbies are always open — pick one to watch</div>
-            {lobbiesLoading ? (
-              <div style={{ color: 'var(--text-muted)', fontSize: 14 }}>Loading lobbies...</div>
-            ) : (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, justifyContent: 'center', maxWidth: 520 }}>
-                {openLobbies.map((id) => (
-                  <button
-                    key={id}
-                    onClick={() => connectToLobby(id)}
-                    style={{
-                      width: 72, height: 72, borderRadius: 16, border: '1px solid rgba(212,168,75,0.25)',
-                      background: 'rgba(212,168,75,0.06)', color: '#D4A84B', fontSize: 18, fontWeight: 800,
-                      cursor: 'pointer', fontFamily: "'Syne', sans-serif",
-                      transition: 'all 0.25s',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = 'rgba(212,168,75,0.12)';
-                      e.currentTarget.style.borderColor = 'rgba(212,168,75,0.5)';
-                      e.currentTarget.style.transform = 'scale(1.05)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'rgba(212,168,75,0.06)';
-                      e.currentTarget.style.borderColor = 'rgba(212,168,75,0.25)';
-                      e.currentTarget.style.transform = 'scale(1)';
-                    }}
-                  >
-                    Lobby {id}
-                  </button>
-                ))}
+            <div style={{
+              maxWidth: 560, width: '100%', padding: '28px 24px', borderRadius: 20,
+              background: 'linear-gradient(165deg, rgba(15,31,64,0.97) 0%, rgba(10,24,48,0.98) 100%)',
+              border: '1px solid rgba(212,168,75,0.25)', boxShadow: '0 24px 48px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.03)',
+            }}>
+              <div style={{ textAlign: 'center', marginBottom: 8 }}>
+                <h1 style={{ fontSize: 'clamp(20px, 4vw, 26px)', color: '#fff', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 4 }}>Choose a lobby to spectate</h1>
+                <p style={{ fontSize: 14, color: 'var(--text-muted)' }}>10 lobbies are always open — pick one to watch the 3D board</p>
               </div>
-            )}
-            <div style={{ marginTop: 24, fontSize: 12, color: 'var(--text-muted-soft)' }}>
+              {lobbiesLoading ? (
+                <div style={{ textAlign: 'center', padding: 32, color: 'var(--text-muted)', fontSize: 14 }}>Loading lobbies...</div>
+              ) : (
+                <div className="watch-lobby-grid" style={{
+                  display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12, marginTop: 20,
+                }}>
+                  {slotsToShow.map((slot) => {
+                    const isWaiting = slot.status === 'waiting';
+                    const isActive = slot.status === 'active';
+                    const count = 'playerCount' in slot ? (slot.playerCount ?? 0) : 0;
+                    const statusText = isActive ? 'LIVE' : isWaiting ? `Waiting ${count}/4` : 'Open';
+                    const statusColor = isActive ? '#2E7D32' : isWaiting ? '#FF9800' : '#00B8D4';
+                    return (
+                      <button
+                        key={slot.id}
+                        onClick={() => connectToLobby(slot.id)}
+                        className="watch-lobby-card"
+                        style={{
+                          padding: '16px 14px', borderRadius: 14, border: '1px solid rgba(212,168,75,0.2)',
+                          background: 'rgba(212,168,75,0.05)', color: '#fff', cursor: 'pointer', textAlign: 'center',
+                          fontFamily: 'var(--font-display)', transition: 'all 0.2s ease',
+                          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6,
+                          minHeight: 96,
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = 'rgba(212,168,75,0.12)';
+                          e.currentTarget.style.borderColor = 'rgba(212,168,75,0.45)';
+                          e.currentTarget.style.transform = 'translateY(-2px)';
+                          e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.25)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = 'rgba(212,168,75,0.05)';
+                          e.currentTarget.style.borderColor = 'rgba(212,168,75,0.2)';
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.boxShadow = 'none';
+                        }}
+                      >
+                        <span style={{ fontSize: 15, fontWeight: 800, color: '#D4A84B' }}>Lobby {slot.id}</span>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: statusColor, padding: '2px 8px', borderRadius: 6, background: `${statusColor}22` }}>
+                          {statusText}
+                        </span>
+                        <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Spectate</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              <p style={{ marginTop: 20, fontSize: 11, color: 'var(--text-muted-soft)', textAlign: 'center' }}>
                 Or add ?gameId=5 to the URL to watch a specific game
+              </p>
             </div>
           </div>
         )}
@@ -385,13 +435,8 @@ function WatchPage() {
         )}
       </div>
 
-      {/* ===== RIGHT: HUD ===== */}
-      <div style={{
-        width: 300, minWidth: 300, height: '100%', display: 'flex', flexDirection: 'column', gap: 6,
-        padding: '52px 10px 10px', overflowY: 'auto',
-        background: 'linear-gradient(180deg, #0F1F40 0%, #0A1830 100%)',
-        borderLeft: '1px solid rgba(212,168,75,0.15)',
-      }}>
+      {/* ===== RIGHT: HUD (below board on mobile) ===== */}
+      <div className="watch-hud">
         {/* Game status */}
         {snapshot && (
           <div style={{ borderRadius: 10, padding: '8px 12px', background: 'rgba(212,168,75,0.06)', border: '1px solid rgba(212,168,75,0.12)' }}>

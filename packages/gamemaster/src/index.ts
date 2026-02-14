@@ -70,6 +70,21 @@ app.get("/games/open", async (_req, res) => {
   }
 });
 
+// Slot/lobby details for spectate UI (local: waiting X/4 or active; on-chain: open IDs as open).
+app.get("/games/slots", async (_req, res) => {
+  try {
+    if (LOCAL_MODE) {
+      const slots = orchestrator.getSlotDetails();
+      return res.json({ slots });
+    }
+    const open = await settlement!.getOpenGameIds();
+    const slots = open.map((id: number) => ({ id, status: "open" as const }));
+    res.json({ slots });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || "Failed to get slots" });
+  }
+});
+
 // Create a local game (deprecated in local mode: use slots 0..9 instead; kept for backward compatibility)
 app.post("/games/create", (req, res) => {
   try {
