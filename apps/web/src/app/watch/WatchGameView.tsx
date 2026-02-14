@@ -19,7 +19,7 @@ const MonopolyScene = dynamic(() => import('@/components/MonopolyScene'), {
 });
 
 interface PlayerInfo { index: number; address: string; cash: number; position: number; tileName: string; inJail: boolean; jailTurns: number; alive: boolean; }
-interface PropertyInfo { index: number; tileName: string; ownerIndex: number; mortgaged: boolean; }
+interface PropertyInfo { index: number; tileName: string; ownerIndex: number; mortgaged: boolean; houses: number; }
 interface Snapshot {
   status: string; phase: string; turn: number; round: number;
   currentPlayerIndex: number; aliveCount: number;
@@ -28,6 +28,14 @@ interface Snapshot {
   auction: any; winner: number;
 }
 interface GameEvent { type: string; [key: string]: any; }
+
+function normalizeSnapshot(s: Snapshot | null): Snapshot | null {
+  if (!s?.properties) return s;
+  return {
+    ...s,
+    properties: s.properties.map(p => ({ ...p, houses: (p as { houses?: number }).houses ?? 0 })),
+  };
+}
 
 const TILE_BY_POS: Record<number, typeof TILE_DATA[0]> = {};
 TILE_DATA.forEach(t => { TILE_BY_POS[t.position] = t; });
@@ -175,7 +183,7 @@ export default function WatchGameView({ gameId }: { gameId: string }) {
     ws.onerror = () => setConnected(false);
     ws.onmessage = (ev) => {
       const msg = JSON.parse(ev.data);
-      if (msg.type === 'snapshot') setSnapshot(msg.snapshot);
+      if (msg.type === 'snapshot') setSnapshot(normalizeSnapshot(msg.snapshot));
       else if (msg.type === 'events') {
         setEvents(prev => [...prev.slice(-300), ...msg.events]);
         setLatestEvents(msg.events);
@@ -197,7 +205,7 @@ export default function WatchGameView({ gameId }: { gameId: string }) {
           }
         }
       } else if (msg.type === 'gameEnded') {
-        setSnapshot(msg.snapshot);
+        setSnapshot(normalizeSnapshot(msg.snapshot));
         setNotification({ text: `\uD83C\uDFC6 GAME OVER \u2014 ${PLAYER_NAMES[msg.winner] || 'P' + msg.winner} wins!`, color: '#FFD54F' });
       }
     };
