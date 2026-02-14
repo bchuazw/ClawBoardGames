@@ -852,7 +852,7 @@ export class MonopolyEngine {
         const tile = PROPERTY_TILES[prop.index];
         prop.houses--;
         player.cash += Math.floor((tile.houseCost ?? 0) / 2);
-        this.emit({ type: "houseSold", player: player.index, propertyIndex: prop.index, newCount: prop.houses });
+        this.emit({ type: "houseSold", player: player.index, propertyIndex: prop.index, newCount: prop.houses, tileName: tile.name });
       }
     }
 
