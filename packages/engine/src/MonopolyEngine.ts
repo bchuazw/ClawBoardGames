@@ -651,7 +651,7 @@ export class MonopolyEngine {
     const tile = PROPERTY_TILES[propertyIndex];
     player.cash -= tile.houseCost!;
     prop.houses++;
-    this.emit({ type: "houseBuilt", player: player.index, propertyIndex, newCount: prop.houses });
+    this.emit({ type: "houseBuilt", player: player.index, propertyIndex, newCount: prop.houses, tileName: tile.name });
   }
 
   private handleSellHouse(player: PlayerState, propertyIndex: number): void {
@@ -669,7 +669,7 @@ export class MonopolyEngine {
     const tile = PROPERTY_TILES[propertyIndex];
     prop.houses--;
     player.cash += Math.floor(tile.houseCost! / 2);
-    this.emit({ type: "houseSold", player: player.index, propertyIndex, newCount: prop.houses });
+    this.emit({ type: "houseSold", player: player.index, propertyIndex, newCount: prop.houses, tileName: tile.name });
   }
 
   // ========== PRIVATE: GAME LOGIC ==========
@@ -1045,7 +1045,8 @@ export class MonopolyEngine {
     const prop = this.state.properties[auction.propertyIndex];
     winner.cash -= auction.highBid;
     prop.owner = winner.index;
-    this.emit({ type: "auctionEnded", winner: winner.index, propertyIndex: auction.propertyIndex, amount: auction.highBid, tileName: PROPERTY_TILES[auction.propertyIndex].name });
+    const amt = auction.highBid;
+    this.emit({ type: "auctionEnded", winner: winner.index, propertyIndex: auction.propertyIndex, amount: amt, highBid: amt, tileName: PROPERTY_TILES[auction.propertyIndex].name });
 
     auction.active = false;
     this.state.phase = Phase.POST_TURN;

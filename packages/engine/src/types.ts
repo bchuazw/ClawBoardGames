@@ -145,14 +145,14 @@ export type GameEvent =
   | { type: "freedFromJail"; player: number; method: "doubles" | "fee" | "maxTurns" }
   | { type: "auctionStarted"; propertyIndex: number; tileName: string }
   | { type: "bidPlaced"; player: number; propertyIndex: number; amount: number }
-  | { type: "auctionEnded"; winner: number; propertyIndex: number; amount: number; tileName: string }
+  | { type: "auctionEnded"; winner: number; propertyIndex: number; amount: number; tileName: string; highBid?: number }
   | { type: "auctionEndedNoBids"; propertyIndex: number; tileName: string }
   | { type: "propertyMortgaged"; player: number; propertyIndex: number; value: number }
   | { type: "propertyUnmortgaged"; player: number; propertyIndex: number; cost: number }
   | { type: "autoMortgage"; player: number; propertyIndex: number; value: number }
   | { type: "playerBankrupt"; player: number; creditor: number }
-  | { type: "houseBuilt"; player: number; propertyIndex: number; newCount: number }
-  | { type: "houseSold"; player: number; propertyIndex: number; newCount: number }
+  | { type: "houseBuilt"; player: number; propertyIndex: number; newCount: number; tileName: string }
+  | { type: "houseSold"; player: number; propertyIndex: number; newCount: number; tileName: string }
   | { type: "turnEnded"; player: number }
   | { type: "gameEnded"; winner: number };
 

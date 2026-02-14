@@ -395,12 +395,34 @@ function BoardTile({ tile, position, ownerIndex, houseCount }: { tile: typeof TI
   );
 }
 
-/* ---- GO corner: green flag on pole ---- */
+/* ---- GO corner: green flag on pole + finish line pattern ---- */
+const GO_TILE_SIZE = 1.2;
+const FINISH_CHECKERS = 8;
+const FINISH_CELL = GO_TILE_SIZE / FINISH_CHECKERS;
+
 function CornerGo({ rotation }: { rotation: [number, number, number] }) {
   const flagRef = useRef<THREE.Group>(null);
   useFrame(({ clock }) => { if (flagRef.current) flagRef.current.rotation.y = Math.sin(clock.elapsedTime * 2) * 0.12; });
   return (
     <group>
+      {/* Finish line checkered pattern on the Go space */}
+      <group position={[0, 0.04, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        {Array.from({ length: FINISH_CHECKERS }, (_, i) =>
+          Array.from({ length: FINISH_CHECKERS }, (_, j) => (
+            <mesh
+              key={`${i}-${j}`}
+              position={[(i - (FINISH_CHECKERS - 1) / 2) * FINISH_CELL, 0, (j - (FINISH_CHECKERS - 1) / 2) * FINISH_CELL]}
+            >
+              <planeGeometry args={[FINISH_CELL * 1.02, FINISH_CELL * 1.02]} />
+              <meshStandardMaterial
+                color={(i + j) % 2 === 0 ? '#ffffff' : '#1a1a1a'}
+                roughness={0.85}
+                metalness={0.05}
+              />
+            </mesh>
+          ))
+        )}
+      </group>
       {/* Flag pole */}
       <mesh position={[0.35, 0.35, 0]}><cylinderGeometry args={[0.02, 0.025, 0.6, 8]} /><meshStandardMaterial color="#FFD700" metalness={0.8} roughness={0.15} /></mesh>
       <mesh position={[0.35, 0.68, 0]}><sphereGeometry args={[0.04, 8, 8]} /><meshStandardMaterial color="#FFD700" metalness={0.9} /></mesh>
@@ -1132,7 +1154,12 @@ function Scene({ snapshot, latestEvents, activeCard }: { snapshot: Snapshot | nu
         <JailSiren playerPos={BOARD_POSITIONS[snapshot.players[jailTarget].position] || BOARD_POSITIONS[0]} />
       )}
 
-      {snapshot?.lastDice && <AnimatedDice d1={snapshot.lastDice.d1} d2={snapshot.lastDice.d2} isDoubles={snapshot.lastDice.isDoubles} />}
+      {(() => {
+        // Prefer dice from current batch of events so dice show before snapshot (and before rent/card)
+        const diceEv = latestEvents.find((e: GameEvent) => e.type === 'diceRolled') as { d1: number; d2: number; isDoubles?: boolean } | undefined;
+        const displayDice = diceEv ? { d1: diceEv.d1, d2: diceEv.d2, isDoubles: !!diceEv.isDoubles } : snapshot?.lastDice;
+        return displayDice ? <AnimatedDice d1={displayDice.d1} d2={displayDice.d2} isDoubles={displayDice.isDoubles} /> : null;
+      })()}
       {activeCard && <CardAnimation text={activeCard.text} type={activeCard.type} visible={!!activeCard} />}
       {effects.map(fx => <MoneyParticle key={fx.id} fx={fx} onDone={() => rmFx(fx.id)} />)}
 
