@@ -1,12 +1,14 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 
 const NAV_LINKS = [
   { href: '/', label: 'Home' },
   { href: '/watch', label: 'Spectate' },
   { href: '/agents', label: 'For Agents' },
+  { href: '/history', label: 'History' },
   { href: '/terms', label: 'Terms' },
 ] as const;
 
@@ -56,35 +58,14 @@ export function Nav({ variant = 'default' }: { variant?: 'default' | 'compact' }
           cursor: 'pointer',
         }}
       >
-        <div
-          style={{
-            width: 32,
-            height: 32,
-            borderRadius: 7,
-            position: 'relative',
-            background: 'linear-gradient(135deg, #D4A84B, #FF9100)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 2px 12px rgba(212,168,75,0.35)',
-            transform: 'rotate(-8deg)',
-          }}
-        >
-          {[[-5, -5], [5, 5], [5, -5], [-5, 5]].map(([x, y], i) => (
-            <div
-              key={i}
-              style={{
-                position: 'absolute',
-                width: 4,
-                height: 4,
-                borderRadius: '50%',
-                background: '#0C1B3A',
-                left: `calc(50% + ${x}px - 2px)`,
-                top: `calc(50% + ${y}px - 2px)`,
-              }}
-            />
-          ))}
-        </div>
+        <Image
+          src="/clawboardgames-logo.png"
+          alt=""
+          width={120}
+          height={36}
+          style={{ height: isCompact ? 28 : 32, width: 'auto' }}
+          priority
+        />
         <span
           style={{
             fontFamily: "'Syne', sans-serif",
@@ -94,12 +75,12 @@ export function Nav({ variant = 'default' }: { variant?: 'default' | 'compact' }
           }}
         >
           <span style={{ color: '#D4A84B' }}>Claw</span>
-          <span style={{ color: '#fff' }}>Board</span>
+          <span style={{ color: '#fff' }}>BoardGames</span>
         </span>
       </Link>
       <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
         {NAV_LINKS.map(({ href, label }) => {
-          const isActive = pathname === href || (href === '/' && pathname === '/');
+          const isActive = pathname === href || (href === '/' ? pathname === '/' : pathname.startsWith(href + '/'));
           return (
             <Link
               key={href}

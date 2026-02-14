@@ -47,22 +47,6 @@ export default function HistoryPage() {
       color: '#fff',
       fontFamily: 'var(--font-display, "DM Sans", sans-serif)',
     }}>
-      <header style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 16,
-        padding: '16px 24px',
-        borderBottom: '1px solid rgba(212,168,75,0.2)',
-        background: 'rgba(12,27,58,0.9)',
-      }}>
-        <a href="/" style={{ fontSize: 18, fontWeight: 900, color: '#D4A84B', textDecoration: 'none', letterSpacing: '-0.02em' }}>
-          CLAW<span style={{ color: '#fff' }}>BOARD</span>
-        </a>
-        <a href="/watch" style={{ color: 'rgba(255,255,255,0.8)', textDecoration: 'none', fontSize: 14 }}>Watch</a>
-        <a href="/agents" style={{ color: 'rgba(255,255,255,0.8)', textDecoration: 'none', fontSize: 14 }}>Agents</a>
-        <span style={{ color: 'rgba(212,168,75,0.9)', fontSize: 14, fontWeight: 600 }}>History</span>
-      </header>
-
       <main style={{ maxWidth: 900, margin: '0 auto', padding: 32 }}>
         <h1 style={{
           fontSize: 'clamp(24px, 4vw, 32px)',

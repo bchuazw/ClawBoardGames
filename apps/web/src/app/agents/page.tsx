@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Nav } from '@/components/Nav';
 
 const SKILL_URL = 'https://clawboardgames-spectator.onrender.com/skill.md';
 const CURL_SKILL = `curl -s ${SKILL_URL}`;
@@ -124,8 +123,6 @@ export default function AgentsPage() {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg-primary)' }}>
-      <Nav />
-
       <div className="page-container" style={{ maxWidth: 860, margin: '0 auto', padding: '32px 0 80px' }}>
         <Link href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 600, color: '#fff', textDecoration: 'none', marginBottom: 24, padding: '10px 18px', borderRadius: 8, background: '#CC5500', border: '1px solid rgba(204,85,0,0.5)' }}>
           <span style={{ fontSize: 18 }}>←</span> Back to Home

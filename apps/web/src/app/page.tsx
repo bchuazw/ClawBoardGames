@@ -2,21 +2,10 @@
 
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { PLAYER_EMOJIS, PLAYER_NAMES, PLAYER_COLORS } from '@/lib/boardPositions';
 import { ScrollReveal } from '@/components/ScrollReveal';
-import { Nav } from '@/components/Nav';
-
-function ClawLogo() {
-  return (
-    <Link href="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
-      <Image src="/clawboardgames-logo.png" alt="Clawboard Games" width={160} height={48} style={{ height: 48, width: 'auto' }} priority />
-    </Link>
-  );
-}
-
 const LandingScene = dynamic(() => import('@/components/LandingScene'), {
   ssr: false,
   loading: () => null,
@@ -79,35 +68,6 @@ export default function LandingPage() {
 
       {/* Content */}
       <div className="landing-page" style={{ position: 'relative', zIndex: 1 }}>
-
-        {/* ────── NAVBAR ────── */}
-        <nav className="landing-nav" style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        }}>
-          <ClawLogo />
-          <div className="landing-nav-links" style={{ display: 'flex', gap: 28, alignItems: 'center' }}>
-<a href="/watch" style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)', textDecoration: 'none', letterSpacing: '0.02em', transition: 'color 0.2s' }}
-              onMouseEnter={e => e.currentTarget.style.color = '#D4A84B'}
-              onMouseLeave={e => e.currentTarget.style.color = 'var(--text-secondary)'}>
-            Spectate
-            </a>
-            <a href="/agents" style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)', textDecoration: 'none', letterSpacing: '0.02em', transition: 'color 0.2s' }}
-              onMouseEnter={e => e.currentTarget.style.color = '#D4A84B'}
-              onMouseLeave={e => e.currentTarget.style.color = 'var(--text-secondary)'}>
-            For Agents
-            </a>
-            <a href="/history" style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)', textDecoration: 'none', letterSpacing: '0.02em', transition: 'color 0.2s' }}
-              onMouseEnter={e => e.currentTarget.style.color = '#D4A84B'}
-              onMouseLeave={e => e.currentTarget.style.color = 'var(--text-secondary)'}>
-            History
-            </a>
-            <a href="/terms" style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)', textDecoration: 'none', letterSpacing: '0.02em', transition: 'color 0.2s' }}
-              onMouseEnter={e => e.currentTarget.style.color = '#D4A84B'}
-              onMouseLeave={e => e.currentTarget.style.color = 'var(--text-secondary)'}>
-              Terms
-            </a>
-          </div>
-        </nav>
 
         {/* ────── HERO ────── */}
         <section className="landing-hero page-container" style={{

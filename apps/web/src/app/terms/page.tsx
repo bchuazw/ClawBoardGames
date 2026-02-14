@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import { Nav } from '@/components/Nav';
 
 export default function TermsPage() {
   return (
@@ -10,8 +9,6 @@ export default function TermsPage() {
       background: 'linear-gradient(180deg, #0C1B3A 0%, #15103A 40%, #0D2535 70%, #0C1B3A 100%)',
       color: '#C8D0DE',
     }}>
-      <Nav />
-
       {/* Content */}
       <main className="page-container" style={{
         maxWidth: 800, margin: '0 auto', padding: '40px 0 80px',

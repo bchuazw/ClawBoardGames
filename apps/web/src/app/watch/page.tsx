@@ -451,11 +451,10 @@ function WatchPage() {
         {/* Top bar — responsive: hide inputs on small screens, show menu toggle */}
         <div style={{
           position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10,
-          display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px',
+          display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10, padding: '10px 16px',
           background: 'linear-gradient(to bottom, rgba(12,27,58,0.92), transparent)',
           backdropFilter: 'blur(8px)',
         }}>
-          <a href="/" style={{ fontSize: 18, fontWeight: 900, color: '#D4A84B', textDecoration: 'none', letterSpacing: '-0.02em' }}>CLAW<span style={{ color: '#fff' }}>BOARD</span></a>
           <div style={{ flex: 1 }} />
           <div className={`watch-topbar-inputs ${mobileMenuOpen ? 'mobile-open' : ''}`} style={{ gap: 8 }}>
             <input placeholder="GM WS URL" value={gmUrl} onChange={(e) => setGmUrl(e.target.value)}
@@ -603,12 +602,7 @@ function WatchPage() {
                       >
                         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg, transparent, ${statusColor}40, transparent)`, opacity: 0.9 }} />
                         <span style={{ fontSize: 10, fontWeight: 800, color: 'rgba(255,255,255,0.45)', letterSpacing: 1.4 }}>LOBBY {slot.id}</span>
-                        <span style={{
-                          display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 14px', borderRadius: 14,
-                          background: `${statusColor}18`, border: `1px solid ${statusColor}35`,
-                          fontSize: 13, fontWeight: 700, color: statusColor, letterSpacing: 0.3,
-                          boxShadow: `0 0 16px ${statusColor}15`,
-                        }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700, color: statusColor, letterSpacing: 0.3 }}>
                           <span style={{ fontSize: 15, lineHeight: 1 }}>{statusIcon}</span>
                           <span>{statusLabel}</span>
                         </span>
