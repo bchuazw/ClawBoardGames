@@ -334,6 +334,22 @@ export default function WatchGameView({ gameId }: { gameId: string }) {
             notifTimer.current = setTimeout(() => setNotification(null), 2600);
           }, landDelayMs);
         }
+        // Auction progress: show auctionStarted, each bidPlaced, then auctionEnded/auctionEndedNoBids in sequence
+        const auctionTypes = ['auctionStarted', 'bidPlaced', 'auctionEnded', 'auctionEndedNoBids'];
+        const auctionEvts = msg.events.filter((e: GameEvent) => auctionTypes.includes(e.type));
+        if (auctionEvts.length > 0 && !firstNotif) {
+          clearTimeout(notifTimer.current);
+          const TOAST_MS = 2600;
+          auctionEvts.forEach((e: GameEvent, i: number) => {
+            setTimeout(() => {
+              const h = humanEvent(e);
+              if (h.text) {
+                setNotification(h);
+                notifTimer.current = setTimeout(() => setNotification(null), TOAST_MS);
+              }
+            }, i * TOAST_MS);
+          });
+        }
       } else if (msg.type === 'gameEnded') {
         setSnapshot(normalizeSnapshot(msg.snapshot));
         setNotification({ text: `\uD83C\uDFC6 GAME OVER \u2014 ${PLAYER_NAMES[msg.winner] || 'P' + msg.winner} wins!`, color: '#FFD54F' });
