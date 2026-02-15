@@ -220,7 +220,7 @@ export class GameProcess {
     }
   }
 
-  /** Handle game end: settle on-chain first, then broadcast so agents can withdraw. */
+  /** Handle game end: settle on-chain first (with retries), then broadcast so agents can withdraw. */
   private async handleGameEnd(): Promise<void> {
     this.clearTurnTimer();
     this.running = false;
@@ -243,25 +243,43 @@ export class GameProcess {
       });
       this.broadcastAll({ type: "settled", txHash: "local-mode" });
     } else {
-      try {
-        const txHash = await this.config.settlement.settleGame(this.config.gameId, winnerAddr, logHash);
-        console.log(`[Game ${this.config.gameId}] Settled on-chain: ${txHash}`);
-        this.broadcastAll({
-          type: "gameEnded",
-          winner: winnerIndex,
-          winnerAddress: winnerAddr,
-          snapshot: this.engine.getSnapshot(),
-        });
+      const maxAttempts = 3;
+      const delayMs = (attempt: number) => (attempt <= 0 ? 0 : 2000 * Math.pow(2, attempt - 1));
+      let lastError: unknown = null;
+      let txHash: string | null = null;
+
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        if (attempt > 0) {
+          const wait = delayMs(attempt);
+          console.log(`[Game ${this.config.gameId}] Settlement retry ${attempt + 1}/${maxAttempts} in ${wait}ms`);
+          await new Promise((r) => setTimeout(r, wait));
+        }
+        try {
+          txHash = await this.config.settlement!.settleGame(this.config.gameId, winnerAddr, logHash);
+          console.log(`[Game ${this.config.gameId}] Settled on-chain: ${txHash}`);
+          break;
+        } catch (err) {
+          lastError = err;
+          const msg = err instanceof Error ? err.message : String(err);
+          const reason = (err as { reason?: string })?.reason ?? msg;
+          console.error(`[Game ${this.config.gameId}] Settlement attempt ${attempt + 1} failed:`, reason, err);
+        }
+      }
+
+      this.broadcastAll({
+        type: "gameEnded",
+        winner: winnerIndex,
+        winnerAddress: winnerAddr,
+        snapshot: this.engine.getSnapshot(),
+      });
+      if (txHash) {
         this.broadcastAll({ type: "settled", txHash });
-      } catch (err) {
-        console.error(`[Game ${this.config.gameId}] Settlement failed:`, err);
+      } else {
+        const reason = lastError instanceof Error ? lastError.message : (lastError as { reason?: string })?.reason ?? String(lastError);
         this.broadcastAll({
-          type: "gameEnded",
-          winner: winnerIndex,
-          winnerAddress: winnerAddr,
-          snapshot: this.engine.getSnapshot(),
+          type: "error",
+          message: `Settlement failed after ${maxAttempts} attempts; winner cannot withdraw yet. Reason: ${reason}`,
         });
-        this.broadcastAll({ type: "error", message: "Settlement failed; winner cannot withdraw yet." });
       }
     }
     if (this.config.onEnd) this.config.onEnd();

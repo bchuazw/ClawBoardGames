@@ -130,6 +130,30 @@ app.get("/games/history", async (_req, res) => {
   }
 });
 
+// Single game status by ID (on-chain only). Use to check any game including completed. Must be after /games/history.
+app.get("/games/:gameId", async (req, res) => {
+  try {
+    const gameId = parseInt(req.params.gameId, 10);
+    if (isNaN(gameId) || gameId < 0) {
+      return res.status(400).json({ error: "Invalid gameId" });
+    }
+    if (LOCAL_MODE || !settlement) {
+      return res.status(400).json({ error: "Single game lookup only in on-chain mode" });
+    }
+    const g = await settlement.getGame(gameId);
+    res.json({
+      gameId,
+      status: g.status,
+      statusLabel: ["PENDING", "OPEN", "DEPOSITING", "REVEALING", "STARTED", "SETTLED", "VOIDED"][g.status] ?? "UNKNOWN",
+      players: g.players,
+      depositCount: g.depositCount,
+      winner: g.winner || null,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || "Failed to get game" });
+  }
+});
+
 // Create a local game (deprecated in local mode: use slots 0..9 instead; kept for backward compatibility)
 app.post("/games/create", (req, res) => {
   try {

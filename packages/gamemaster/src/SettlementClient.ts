@@ -30,9 +30,10 @@ export class SettlementClient {
     return receipt.hash;
   }
 
-  /** Settle the game on-chain. */
+  /** Settle the game on-chain. Winner address is normalized to checksum form for contract. */
   async settleGame(gameId: number, winnerAddress: string, gameLogHash: string): Promise<string> {
-    const tx = await this.contract.settleGame(gameId, winnerAddress, gameLogHash);
+    const winner = ethers.getAddress(winnerAddress);
+    const tx = await this.contract.settleGame(gameId, winner, gameLogHash);
     const receipt = await tx.wait();
     return receipt.hash;
   }
