@@ -867,7 +867,7 @@ const ANIMALS = [DogToken, CatToken, BearToken, FoxToken];
 /* ---------------------------------------------------------------- */
 /*  Animated token — jail aware                                      */
 /* ---------------------------------------------------------------- */
-function AnimatedToken({ pi, pos, color, active, alive, inJail }: { pi: number; pos: number; color: string; active: boolean; alive: boolean; inJail: boolean }) {
+function AnimatedToken({ pi, pos, color, active, alive, inJail, onMoveComplete }: { pi: number; pos: number; color: string; active: boolean; alive: boolean; inJail: boolean; onMoveComplete?: () => void }) {
   const gRef = useRef<THREE.Group>(null);
   const prevP = useRef(pos);
   const lastP = useRef(pos);
@@ -924,7 +924,7 @@ function AnimatedToken({ pi, pos, color, active, alive, inJail }: { pi: number; 
       const hopScale = remaining <= 0 ? 0 : Math.min(remaining / 2, 1);
       const hop = Math.sin(((elapsed % HOP_MS) / HOP_MS) * Math.PI) * 0.5 * hopScale;
       gRef.current.position.y = TOKEN_Y + hop;
-      if (idx >= path.length - 1 && elapsed > path.length * HOP_MS + 400) pathQ.current = [];
+      if (idx >= path.length - 1 && elapsed > path.length * HOP_MS + 400) { pathQ.current = []; onMoveComplete?.(); }
     } else if (inJail && pos === 10) {
       // Sit inside jail cell
       gRef.current.position.x += (jailPos[0] - gRef.current.position.x) * 0.06;
@@ -964,12 +964,23 @@ function ActiveRing({ color }: { color: string }) {
 /* ================================================================ */
 /*  MONEY FX                                                         */
 /* ================================================================ */
-interface FxDef { id: number; from: [number, number, number]; to: [number, number, number]; start: number; }
-function MoneyParticle({ fx, onDone }: { fx: FxDef; onDone: () => void }) {
+interface FxDef { id: number; from: [number, number, number]; to: [number, number, number]; start: number; delayAfterLand?: number; }
+function MoneyParticle({ fx, onDone, tokenMoveCompleteRef }: { fx: FxDef; onDone: () => void; tokenMoveCompleteRef: React.RefObject<number> }) {
   const ref = useRef<THREE.Mesh>(null);
+  const resolvedStart = useRef<number>(fx.delayAfterLand !== undefined ? 0 : fx.start);
   useFrame(() => {
     if (!ref.current) return;
-    const elapsed = Date.now() - fx.start;
+    // If this FX is waiting for token landing, resolve the start time from the ref
+    if (fx.delayAfterLand !== undefined && resolvedStart.current === 0) {
+      const landTime = tokenMoveCompleteRef.current ?? 0;
+      if (landTime > 0) {
+        resolvedStart.current = landTime + (fx.delayAfterLand ?? 100);
+      } else {
+        ref.current.visible = false;
+        return;
+      }
+    }
+    const elapsed = Date.now() - resolvedStart.current;
     if (elapsed < 0) {
       ref.current.visible = false;
       return;
@@ -1018,6 +1029,7 @@ function Scene({ snapshot, latestEvents, activeCard }: { snapshot: Snapshot | nu
   const [orbitTarget, setOrbitTarget] = useState<[number, number, number]>([0, 0, 0]);
   const fxId = useRef(0);
   const lastEventsRef = useRef<GameEvent[] | null>(null);
+  const tokenMoveCompleteRef = useRef<number>(0);
   const { gl, camera } = useThree();
   const plane = useMemo(() => new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), []);
   const intersect = useMemo(() => new THREE.Vector3(), []);
@@ -1070,23 +1082,10 @@ function Scene({ snapshot, latestEvents, activeCard }: { snapshot: Snapshot | nu
     if (lastEventsRef.current === latestEvents) return;
     lastEventsRef.current = latestEvents;
 
-    // Delay for rent/tax FX until after dice animation + piece lands (match AnimatedToken timing).
+    // Determine if there's a player move in this event batch — money FX should wait for token landing.
     const playerMoved = latestEvents.find((e: GameEvent) => e.type === 'playerMoved');
-    const hasMoneyFx = latestEvents.some((e: GameEvent) =>
-      e.type === 'rentPaid' || e.type === 'taxPaid' || e.type === 'passedGo' || e.type === 'cardDrawn');
-    const spacesFromMove = playerMoved ? (() => {
-      const dest = playerMoved.to ?? playerMoved.newPosition;
-      return playerMoved.from !== undefined && dest !== undefined
-        ? Math.min((dest - playerMoved.from + 40) % 40, 12)
-        : 0;
-    })() : null;
-    // Money FX must run after token lands. If no playerMoved in this batch (e.g. separate message), use lastDice.sum for delay.
-    const landDelayMs = (() => {
-      if (!hasMoneyFx && !playerMoved) return 0;
-      const spaces = spacesFromMove ?? (snapshot?.lastDice ? Math.min(snapshot.lastDice.sum, 12) : 6);
-      const moveFinishMs = MOVE_DELAY + spaces * HOP_MS + 400;
-      return DICE_ANIM_MS + moveFinishMs + 200; // +200ms buffer so piece is clearly landed before money flies
-    })();
+    // Reset tokenMoveCompleteRef when a new move starts so money FX waits for the NEW landing
+    if (playerMoved) tokenMoveCompleteRef.current = 0;
 
     const nf: FxDef[] = [];
     for (const ev of latestEvents) {
@@ -1096,13 +1095,13 @@ function Scene({ snapshot, latestEvents, activeCard }: { snapshot: Snapshot | nu
         const fp = snapshot.players[payerIdx], tp = recvIdx !== undefined ? snapshot.players[recvIdx] : null;
         if (fp) {
           const fb = BOARD_POSITIONS[fp.position] || BOARD_POSITIONS[0], tb = tp ? (BOARD_POSITIONS[tp.position] || BOARD_POSITIONS[0]) : [0, 0, 0] as [number, number, number];
-          for (let c = 0; c < 4; c++) nf.push({ id: fxId.current++, from: [fb[0], 0, fb[2]], to: [tb[0], 0, tb[2]], start: Date.now() + landDelayMs + c * 100 });
+          for (let c = 0; c < 4; c++) nf.push({ id: fxId.current++, from: [fb[0], 0, fb[2]], to: [tb[0], 0, tb[2]], start: Date.now(), ...(playerMoved ? { delayAfterLand: 100 + c * 100 } : { start: Date.now() + c * 100 }) });
         }
       } else if (ev.type === 'taxPaid' && ev.player !== undefined) {
         const fp = snapshot.players[ev.player];
         if (fp) {
           const fb = BOARD_POSITIONS[fp.position] || BOARD_POSITIONS[0];
-          for (let c = 0; c < 3; c++) nf.push({ id: fxId.current++, from: [fb[0], 0, fb[2]], to: [0, 0, 0], start: Date.now() + landDelayMs + c * 100 });
+          for (let c = 0; c < 3; c++) nf.push({ id: fxId.current++, from: [fb[0], 0, fb[2]], to: [0, 0, 0], start: Date.now(), ...(playerMoved ? { delayAfterLand: 100 + c * 100 } : { start: Date.now() + c * 100 }) });
         }
       } else if (ev.type === 'passedGo' && ev.player !== undefined) {
         // Gold from board center (same place tax goes) to the player who passed Go
@@ -1110,7 +1109,7 @@ function Scene({ snapshot, latestEvents, activeCard }: { snapshot: Snapshot | nu
         if (fp) {
           const toPos = BOARD_POSITIONS[fp.position] || BOARD_POSITIONS[0];
           const bankCenter: [number, number, number] = [0, 0, 0];
-          for (let c = 0; c < 4; c++) nf.push({ id: fxId.current++, from: bankCenter, to: [toPos[0], 0, toPos[2]], start: Date.now() + landDelayMs + c * 100 });
+          for (let c = 0; c < 4; c++) nf.push({ id: fxId.current++, from: bankCenter, to: [toPos[0], 0, toPos[2]], start: Date.now(), ...(playerMoved ? { delayAfterLand: 100 + c * 100 } : { start: Date.now() + c * 100 }) });
         }
       } else if (ev.type === 'cardDrawn' && ev.player !== undefined && typeof ev.description === 'string') {
         const desc = ev.description;
@@ -1121,7 +1120,7 @@ function Scene({ snapshot, latestEvents, activeCard }: { snapshot: Snapshot | nu
           if (fp) {
             const toPos = BOARD_POSITIONS[fp.position] ?? BOARD_POSITIONS[0];
             const bankCenter: [number, number, number] = [0, 0, 0];
-            for (let c = 0; c < 4; c++) nf.push({ id: fxId.current++, from: bankCenter, to: [toPos[0], 0, toPos[2]], start: Date.now() + landDelayMs + c * 100 });
+            for (let c = 0; c < 4; c++) nf.push({ id: fxId.current++, from: bankCenter, to: [toPos[0], 0, toPos[2]], start: Date.now(), ...(playerMoved ? { delayAfterLand: 100 + c * 100 } : { start: Date.now() + c * 100 }) });
           }
         } else if (/pay each player/i.test(desc)) {
           // "Pay each player $50" — money from this player to every other alive player
@@ -1135,7 +1134,7 @@ function Scene({ snapshot, latestEvents, activeCard }: { snapshot: Snapshot | nu
               if (!recv?.alive) continue;
               const toPos = BOARD_POSITIONS[recv.position] ?? BOARD_POSITIONS[0];
               for (let c = 0; c < 2; c++) {
-                nf.push({ id: fxId.current++, from: [fromPos[0], 0, fromPos[2]], to: [toPos[0], 0, toPos[2]], start: Date.now() + landDelayMs + stagger * 80 });
+                nf.push({ id: fxId.current++, from: [fromPos[0], 0, fromPos[2]], to: [toPos[0], 0, toPos[2]], start: Date.now(), ...(playerMoved ? { delayAfterLand: 100 + stagger * 80 } : { start: Date.now() + stagger * 80 }) });
                 stagger++;
               }
             }
@@ -1167,7 +1166,7 @@ function Scene({ snapshot, latestEvents, activeCard }: { snapshot: Snapshot | nu
       <GameBoard propertyOwners={owners} propertyHouses={propertyHouses} />
 
       {snapshot?.players.map((p, i) => (
-        <AnimatedToken key={i} pi={i} pos={p.position} color={PLAYER_COLORS[i]} active={i === snapshot.currentPlayerIndex} alive={p.alive} inJail={p.inJail} />
+        <AnimatedToken key={i} pi={i} pos={p.position} color={PLAYER_COLORS[i]} active={i === snapshot.currentPlayerIndex} alive={p.alive} inJail={p.inJail} onMoveComplete={() => { tokenMoveCompleteRef.current = Date.now(); }} />
       ))}
 
       {jailTarget !== null && snapshot?.players[jailTarget] && (
@@ -1181,7 +1180,7 @@ function Scene({ snapshot, latestEvents, activeCard }: { snapshot: Snapshot | nu
         return displayDice ? <AnimatedDice d1={displayDice.d1} d2={displayDice.d2} isDoubles={displayDice.isDoubles} /> : null;
       })()}
       {activeCard && <CardAnimation text={activeCard.text} type={activeCard.type} visible={!!activeCard} />}
-      {effects.map(fx => <MoneyParticle key={fx.id} fx={fx} onDone={() => rmFx(fx.id)} />)}
+      {effects.map(fx => <MoneyParticle key={fx.id} fx={fx} onDone={() => rmFx(fx.id)} tokenMoveCompleteRef={tokenMoveCompleteRef} />)}
 
       <OrbitControls target={orbitTarget} maxPolarAngle={Math.PI / 2.1} minPolarAngle={0.15} minDistance={7} maxDistance={30} enableDamping dampingFactor={0.05} autoRotate={!snapshot} autoRotateSpeed={0.4} />
     </>
