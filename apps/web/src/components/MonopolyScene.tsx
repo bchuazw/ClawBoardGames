@@ -1087,6 +1087,16 @@ function Scene({ snapshot, latestEvents, activeCard }: { snapshot: Snapshot | nu
     // Reset tokenMoveCompleteRef when a new move starts so money FX waits for the NEW landing
     if (playerMoved) tokenMoveCompleteRef.current = 0;
 
+    // Build a map of player index → landing position from playerMoved events in this batch.
+    // This ensures money FX uses the tile where the player LANDED, not whatever snapshot says.
+    const landingPositionMap = new Map<number, number>();
+    for (const e of latestEvents) {
+      if (e.type === 'playerMoved' && e.player !== undefined) {
+        const dest = e.to ?? e.newPosition ?? e.position;
+        if (dest !== undefined) landingPositionMap.set(e.player, dest);
+      }
+    }
+
     const nf: FxDef[] = [];
     for (const ev of latestEvents) {
       if (ev.type === 'rentPaid' && (ev.from !== undefined || ev.player !== undefined)) {
@@ -1094,20 +1104,23 @@ function Scene({ snapshot, latestEvents, activeCard }: { snapshot: Snapshot | nu
         const recvIdx = ev.to ?? ev.toPlayer;
         const fp = snapshot.players[payerIdx], tp = recvIdx !== undefined ? snapshot.players[recvIdx] : null;
         if (fp) {
-          const fb = BOARD_POSITIONS[fp.position] || BOARD_POSITIONS[0], tb = tp ? (BOARD_POSITIONS[tp.position] || BOARD_POSITIONS[0]) : [0, 0, 0] as [number, number, number];
+          const payerPos = landingPositionMap.get(payerIdx) ?? fp.position;
+          const fb = BOARD_POSITIONS[payerPos] || BOARD_POSITIONS[0], tb = tp ? (BOARD_POSITIONS[tp.position] || BOARD_POSITIONS[0]) : [0, 0, 0] as [number, number, number];
           for (let c = 0; c < 4; c++) nf.push({ id: fxId.current++, from: [fb[0], 0, fb[2]], to: [tb[0], 0, tb[2]], start: Date.now(), ...(playerMoved ? { delayAfterLand: 100 + c * 100 } : { start: Date.now() + c * 100 }) });
         }
       } else if (ev.type === 'taxPaid' && ev.player !== undefined) {
         const fp = snapshot.players[ev.player];
         if (fp) {
-          const fb = BOARD_POSITIONS[fp.position] || BOARD_POSITIONS[0];
+          const taxPayerPos = landingPositionMap.get(ev.player) ?? fp.position;
+          const fb = BOARD_POSITIONS[taxPayerPos] || BOARD_POSITIONS[0];
           for (let c = 0; c < 3; c++) nf.push({ id: fxId.current++, from: [fb[0], 0, fb[2]], to: [0, 0, 0], start: Date.now(), ...(playerMoved ? { delayAfterLand: 100 + c * 100 } : { start: Date.now() + c * 100 }) });
         }
       } else if (ev.type === 'passedGo' && ev.player !== undefined) {
         // Gold from board center (same place tax goes) to the player who passed Go
         const fp = snapshot.players[ev.player];
         if (fp) {
-          const toPos = BOARD_POSITIONS[fp.position] || BOARD_POSITIONS[0];
+          const goPlayerPos = landingPositionMap.get(ev.player) ?? fp.position;
+          const toPos = BOARD_POSITIONS[goPlayerPos] || BOARD_POSITIONS[0];
           const bankCenter: [number, number, number] = [0, 0, 0];
           for (let c = 0; c < 4; c++) nf.push({ id: fxId.current++, from: bankCenter, to: [toPos[0], 0, toPos[2]], start: Date.now(), ...(playerMoved ? { delayAfterLand: 100 + c * 100 } : { start: Date.now() + c * 100 }) });
         }
@@ -1118,7 +1131,8 @@ function Scene({ snapshot, latestEvents, activeCard }: { snapshot: Snapshot | nu
         if (receivesFromBank) {
           const fp = snapshot.players[ev.player];
           if (fp) {
-            const toPos = BOARD_POSITIONS[fp.position] ?? BOARD_POSITIONS[0];
+            const cardPlayerPos = landingPositionMap.get(ev.player) ?? fp.position;
+            const toPos = BOARD_POSITIONS[cardPlayerPos] ?? BOARD_POSITIONS[0];
             const bankCenter: [number, number, number] = [0, 0, 0];
             for (let c = 0; c < 4; c++) nf.push({ id: fxId.current++, from: bankCenter, to: [toPos[0], 0, toPos[2]], start: Date.now(), ...(playerMoved ? { delayAfterLand: 100 + c * 100 } : { start: Date.now() + c * 100 }) });
           }
@@ -1126,7 +1140,8 @@ function Scene({ snapshot, latestEvents, activeCard }: { snapshot: Snapshot | nu
           // "Pay each player $50" — money from this player to every other alive player
           const payer = snapshot.players[ev.player];
           if (payer?.alive) {
-            const fromPos = BOARD_POSITIONS[payer.position] ?? BOARD_POSITIONS[0];
+            const payerLandPos = landingPositionMap.get(ev.player) ?? payer.position;
+            const fromPos = BOARD_POSITIONS[payerLandPos] ?? BOARD_POSITIONS[0];
             let stagger = 0;
             for (let i = 0; i < snapshot.players.length; i++) {
               if (i === ev.player) continue;
