@@ -130,7 +130,8 @@ app.get("/games/history", async (_req, res) => {
   }
 });
 
-// Single game status by ID (on-chain only). Use to check any game including completed. Must be after /games/history.
+// Single game status by ID (on-chain only). Use to check any game and whether settlement has concluded.
+// Must be after /games/history so "history" is not treated as a gameId.
 app.get("/games/:gameId", async (req, res) => {
   try {
     const gameId = parseInt(req.params.gameId, 10);
@@ -141,10 +142,13 @@ app.get("/games/:gameId", async (req, res) => {
       return res.status(400).json({ error: "Single game lookup only in on-chain mode" });
     }
     const g = await settlement.getGame(gameId);
+    const settled = g.status === STATUS_SETTLED;
     res.json({
       gameId,
       status: g.status,
       statusLabel: ["PENDING", "OPEN", "DEPOSITING", "REVEALING", "STARTED", "SETTLED", "VOIDED"][g.status] ?? "UNKNOWN",
+      settlementConcluded: settled,
+      winnerCanWithdraw: settled && !!g.winner,
       players: g.players,
       depositCount: g.depositCount,
       winner: g.winner || null,
