@@ -270,6 +270,16 @@ export class Orchestrator {
     return out;
   }
 
+  /** Get the running game process for a gameId, if any (on-chain: from games Map; local: from slots when it's a GameProcess). */
+  getGameProcess(gameId: number): GameProcess | null {
+    if (this.settlement) {
+      const p = this.games.get(gameId);
+      return p && p.isRunning ? p : null;
+    }
+    const slot = this.slots.get(gameId);
+    return slot instanceof GameProcess && slot.isRunning ? slot : null;
+  }
+
   /** Clean up finished games (on-chain only; local slots are reset via onEnd). */
   cleanup(): void {
     for (const [id, process] of this.games) {

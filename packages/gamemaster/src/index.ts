@@ -130,6 +130,24 @@ app.get("/games/history", async (_req, res) => {
   }
 });
 
+// In-progress game state (round, turn, snapshot). Only available while the GM has the game running. Use to see if a game is progressing.
+app.get("/games/:gameId/state", (req, res) => {
+  try {
+    const gameId = parseInt(req.params.gameId, 10);
+    if (isNaN(gameId) || gameId < 0) {
+      return res.status(400).json({ error: "Invalid gameId" });
+    }
+    const process = orchestrator.getGameProcess(gameId);
+    if (!process || !process.isRunning) {
+      return res.status(404).json({ running: false, message: "No active game process for this gameId" });
+    }
+    const snapshot = process.getSnapshot();
+    res.json({ running: true, gameId, round: snapshot.round, turn: snapshot.turn, currentPlayerIndex: snapshot.currentPlayerIndex, status: snapshot.status, phase: snapshot.phase, aliveCount: snapshot.aliveCount, winner: snapshot.winner, lastDice: snapshot.lastDice, snapshot });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || "Failed to get game state" });
+  }
+});
+
 // Single game status by ID (on-chain only). Use to check any game and whether settlement has concluded.
 // Must be after /games/history so "history" is not treated as a gameId.
 app.get("/games/:gameId", async (req, res) => {

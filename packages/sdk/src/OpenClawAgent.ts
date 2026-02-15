@@ -33,6 +33,21 @@ export interface GameStatusFromGM {
   winner: string | null;
 }
 
+/** Response from GM GET /games/:gameId/state (in-progress game: round, turn, snapshot). */
+export interface GameStateFromGM {
+  running: boolean;
+  gameId: number;
+  round: number;
+  turn: number;
+  currentPlayerIndex: number;
+  status: string;
+  phase: string;
+  aliveCount: number;
+  winner: number;
+  lastDice: { d1: number; d2: number; sum: number; isDoubles: boolean } | null;
+  snapshot: GameSnapshot;
+}
+
 /**
  * OpenClawAgent: the main agent class for playing ClawBoardGames v2.
  *
@@ -89,6 +104,20 @@ export class OpenClawAgent {
     const res = await fetch(`${this.gmRestBase()}/games/${gameId}`);
     if (!res.ok) throw new Error(`GET /games/${gameId} failed: ${res.status}`);
     return res.json() as Promise<GameStatusFromGM>;
+  }
+
+  /**
+   * Get in-progress game state from the GM (GET /games/:gameId/state).
+   * Returns round, turn, currentPlayerIndex, snapshot while the game is running.
+   * Use this to check if a game is progressing (e.g. poll and see turn/round increase).
+   * Resolves with null if the GM has no active process for this game (404).
+   */
+  async getGameState(gameId: number): Promise<GameStateFromGM | null> {
+    const res = await fetch(`${this.gmRestBase()}/games/${gameId}/state`);
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error(`GET /games/${gameId}/state failed: ${res.status}`);
+    const body = (await res.json()) as GameStateFromGM & { running?: boolean };
+    return body.running === true ? body : null;
   }
 
   // ========== PRE-GAME ON-CHAIN STEPS ==========

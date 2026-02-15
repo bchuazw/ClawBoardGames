@@ -324,4 +324,9 @@ export class GameProcess {
   get isRunning(): boolean {
     return this.running;
   }
+
+  /** Current game snapshot (for GET /games/:gameId/state). */
+  getSnapshot(): GameSnapshot {
+    return this.engine.getSnapshot();
+  }
 }
