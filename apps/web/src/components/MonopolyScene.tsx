@@ -165,7 +165,7 @@ function PLine({ pts, color, opacity }: { pts: THREE.Vector3[]; color: string; o
 /* ---- 3D HOUSE MODEL: small house (box body + pyramid roof) ---- */
 function House3D({ position, color }: { position: [number, number, number]; color: string }) {
   return (
-    <group position={position} scale={[0.8, 0.8, 0.8]}>
+    <group position={position} scale={[1.35, 1.35, 1.35]}>
       {/* Body */}
       <mesh position={[0, 0.045, 0]}>
         <boxGeometry args={[0.07, 0.09, 0.07]} />
@@ -183,8 +183,8 @@ function House3D({ position, color }: { position: [number, number, number]; colo
 /** Place 1–4 3D houses on a tile. Positions are offset from tile center toward the inner edge (color strip side). */
 function TileHouses({ count, edge, color, tileW, tileD }: { count: number; edge: string; color: string; tileW: number; tileD: number }) {
   if (count <= 0) return null;
-  // Compute the offset direction (toward the color strip, which is the outer edge of the board)
-  const spacing = 0.12;
+  // Compute the offset direction (toward the color strip, which is the outer edge of the board). Slightly wider spacing for bigger houses.
+  const spacing = 0.14;
   const positions: [number, number, number][] = [];
   for (let i = 0; i < count; i++) {
     const off = (i - (count - 1) / 2) * spacing;
@@ -1017,6 +1017,7 @@ function Scene({ snapshot, latestEvents, activeCard }: { snapshot: Snapshot | nu
   const [jailTarget, setJailTarget] = useState<number | null>(null);
   const [orbitTarget, setOrbitTarget] = useState<[number, number, number]>([0, 0, 0]);
   const fxId = useRef(0);
+  const lastEventsRef = useRef<GameEvent[] | null>(null);
   const { gl, camera } = useThree();
   const plane = useMemo(() => new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), []);
   const intersect = useMemo(() => new THREE.Vector3(), []);
@@ -1064,6 +1065,11 @@ function Scene({ snapshot, latestEvents, activeCard }: { snapshot: Snapshot | nu
 
   useEffect(() => {
     if (!snapshot || !latestEvents.length) return;
+    // Only add money FX when we receive a new batch of events. When only snapshot updates (same batch),
+    // skip so we don't run the animation twice (before move and after).
+    if (lastEventsRef.current === latestEvents) return;
+    lastEventsRef.current = latestEvents;
+
     // Delay for rent/tax FX until after dice animation + piece lands (match AnimatedToken timing).
     const playerMoved = latestEvents.find((e: GameEvent) => e.type === 'playerMoved');
     const hasMoneyFx = latestEvents.some((e: GameEvent) =>

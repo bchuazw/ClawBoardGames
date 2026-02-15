@@ -337,18 +337,30 @@ export default function WatchGameView({ gameId }: { gameId: string }) {
         // Auction progress: show auctionStarted, each bidPlaced, then auctionEnded/auctionEndedNoBids in sequence
         const auctionTypes = ['auctionStarted', 'bidPlaced', 'auctionEnded', 'auctionEndedNoBids'];
         const auctionEvts = msg.events.filter((e: GameEvent) => auctionTypes.includes(e.type));
-        if (auctionEvts.length > 0 && !firstNotif) {
-          clearTimeout(notifTimer.current);
-          const TOAST_MS = 2600;
-          auctionEvts.forEach((e: GameEvent, i: number) => {
+        const TOAST_MS = 2600;
+        const scheduleToasts = (evts: GameEvent[], startDelayMs: number) => {
+          evts.forEach((e: GameEvent, i: number) => {
             setTimeout(() => {
               const h = humanEvent(e);
               if (h.text) {
                 setNotification(h);
                 notifTimer.current = setTimeout(() => setNotification(null), TOAST_MS);
               }
-            }, i * TOAST_MS);
+            }, startDelayMs + i * TOAST_MS);
           });
+        };
+        if (auctionEvts.length > 0) {
+          clearTimeout(notifTimer.current);
+          scheduleToasts(auctionEvts, firstNotif ? TOAST_MS : 0); // if something else is showing first, show auction after
+        }
+        // House built/sold: show toasts when no dice/move/landing (e.g. post-turn build/sell)
+        const houseEvts = msg.events.filter((e: GameEvent) => e.type === 'houseBuilt' || e.type === 'houseSold');
+        if (houseEvts.length > 0 && !firstNotif && auctionEvts.length === 0) {
+          clearTimeout(notifTimer.current);
+          scheduleToasts(houseEvts, 0);
+        } else if (houseEvts.length > 0 && !firstNotif && auctionEvts.length > 0) {
+          // auction and house in same batch (unusual): show auction first, then house
+          scheduleToasts(houseEvts, auctionEvts.length * TOAST_MS);
         }
       } else if (msg.type === 'gameEnded') {
         setSnapshot(normalizeSnapshot(msg.snapshot));
@@ -361,7 +373,8 @@ export default function WatchGameView({ gameId }: { gameId: string }) {
 
   useEffect(() => { eventsEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [events]);
 
-  const playerProps: Record<number, { name: string; color: string }[]> = {};
+  /* Build per-player property list (name, color, houses 0–4) */
+  const playerProps: Record<number, { name: string; color: string; houses: number }[]> = {};
   if (snapshot) {
     for (const prop of snapshot.properties) {
       if (prop.ownerIndex < 0) continue;
@@ -369,7 +382,8 @@ export default function WatchGameView({ gameId }: { gameId: string }) {
       const tile = TILE_DATA.find(t => t.name === prop.tileName);
       const gc = tile ? GROUP_COLORS[tile.group] || '#888' : '#888';
       const short = prop.tileName?.replace(' Avenue', '').replace(' Place', ' Pl').replace(' Gardens', ' Gdn').split(' ').slice(0, 2).join(' ') || '?';
-      playerProps[prop.ownerIndex].push({ name: short, color: gc });
+      const houses = (prop as { houses?: number }).houses ?? 0;
+      playerProps[prop.ownerIndex].push({ name: short, color: gc, houses });
     }
   }
 
@@ -494,7 +508,14 @@ export default function WatchGameView({ gameId }: { gameId: string }) {
             {playerProps[p.index]?.length > 0 && (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, paddingLeft: 46, marginTop: 4 }}>
                 {playerProps[p.index].map((pr, j) => (
-                  <span key={j} style={{ fontSize: 8, padding: '1px 5px', borderRadius: 3, lineHeight: 1.3, background: `${pr.color}20`, border: `1px solid ${pr.color}40`, color: pr.color }}>{pr.name}</span>
+                  <span key={j} style={{ fontSize: 8, padding: '1px 5px', borderRadius: 3, lineHeight: 1.3, background: `${pr.color}20`, border: `1px solid ${pr.color}40`, color: pr.color, display: 'inline-flex', alignItems: 'center', gap: 2 }}>
+                    {pr.name}
+                    {pr.houses > 0 && (
+                      <span style={{ fontSize: 7, opacity: 0.95, fontWeight: 700 }} title={pr.houses === 4 ? '4 houses (hotel)' : `${pr.houses} house${pr.houses === 1 ? '' : 's'}`}>
+                        {pr.houses === 4 ? 'H' : pr.houses}
+                      </span>
+                    )}
+                  </span>
                 ))}
               </div>
             )}
