@@ -55,9 +55,14 @@ app.get("/health", (_req, res) => {
   res.json(payload);
 });
 
-// List active games
+// List active games (and which are running with all agents disconnected)
 app.get("/games", (_req, res) => {
-  res.json({ games: orchestrator.getActiveGames() });
+  const games = orchestrator.getActiveGames();
+  const disconnected = games.filter((id) => {
+    const p = orchestrator.getGameProcess(id);
+    return p?.allAgentsDisconnected === true;
+  });
+  res.json({ games, disconnected });
 });
 
 // List open game IDs (any agent can join). On-chain: from contract; local: from orchestrator slots.

@@ -213,7 +213,7 @@ function WatchPage() {
   const [gmUrl, setGmUrl] = useState(process.env.NEXT_PUBLIC_GM_WS_URL || 'wss://clawboardgames-gm.onrender.com/ws');
   const [gameId, setGameId] = useState(searchParams.get('gameId') || '');
   const [openLobbies, setOpenLobbies] = useState<number[]>([]);
-  const [slotDetails, setSlotDetails] = useState<{ id: number; status: string; playerCount?: number }[]>([]);
+  const [slotDetails, setSlotDetails] = useState<{ id: number; status: string; playerCount?: number; disconnected?: boolean }[]>([]);
   const [settlementAddress, setSettlementAddress] = useState<string | null>(null);
   const [activeGameIds, setActiveGameIds] = useState<number[]>([]);
   const [lobbiesLoading, setLobbiesLoading] = useState(false);
@@ -261,28 +261,33 @@ function WatchPage() {
         { settlementAddress?: string },
         { slots?: { id: number; status: string; playerCount?: number }[] } | null,
         { open?: number[] },
-        { games?: number[] },
+        { games?: number[]; disconnected?: number[] },
       ]) => {
         const openList = Array.isArray(openData?.open) ? openData.open : (openData as { games?: number[] })?.games ?? [];
         const activeList = Array.isArray(gamesData?.games) ? gamesData.games : [];
+        const disconnectedSet = new Set(Array.isArray(gamesData?.disconnected) ? gamesData.disconnected : []);
         setSettlementAddress(healthData?.settlementAddress ?? null);
         setOpenLobbies(openList);
         setActiveGameIds(activeList);
         const slots = slotsData?.slots && Array.isArray(slotsData.slots) ? slotsData.slots : null;
-        let filled: { id: number; status: string; playerCount?: number }[];
+        let filled: { id: number; status: string; playerCount?: number; disconnected?: boolean }[];
         if (slots && slots.length > 0) {
           const slotIds = new Set(slots.map((s: { id: number }) => s.id));
           const activeOnly = activeList.filter((id: number) => !slotIds.has(id));
-          const activeSlots = activeOnly.map((id: number) => ({ id, status: 'active' as const }));
+          const activeSlots = activeOnly.map((id: number) => ({ id, status: 'active' as const, disconnected: disconnectedSet.has(id) }));
           filled = [...slots, ...activeSlots].sort((a, b) => a.id - b.id);
         } else {
           const openSlots = openList.map((id: number) => ({ id, status: 'open' as const }));
           const activeOnly = activeList.filter((id: number) => !openList.includes(id));
-          const activeSlots = activeOnly.map((id: number) => ({ id, status: 'active' as const }));
+          const activeSlots = activeOnly.map((id: number) => ({ id, status: 'active' as const, disconnected: disconnectedSet.has(id) }));
           filled = [...openSlots, ...activeSlots].sort((a, b) => a.id - b.id);
         }
-        const byId = new Map(filled.map((s) => [s.id, s]));
-        const tenSlots = Array.from({ length: SLOT_COUNT }, (_, i) => byId.get(i) ?? { id: i, status: 'empty' as const });
+        // Show actual open/active slots (up to SLOT_COUNT), not a fixed 0..9 grid.
+        // This avoids "No game" for indices 5,7 when open IDs are e.g. [0,1,2,3,4,6,8,9,10,11].
+        const tenSlots =
+          filled.length >= SLOT_COUNT
+            ? filled.slice(0, SLOT_COUNT)
+            : [...filled, ...Array.from({ length: SLOT_COUNT - filled.length }, (_, i) => ({ id: 1000 + i, status: 'empty' as const }))];
         setSlotDetails(tenSlots);
       })
       .catch(() => {
@@ -485,6 +490,11 @@ function WatchPage() {
           backdropFilter: 'blur(8px)',
         }}>
           <div style={{ flex: 1 }} />
+          {connected && (
+            <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap' }} title="Click on the board while holding Ctrl to move the camera orbit center there">
+              Tip: Ctrl+click to move board center
+            </span>
+          )}
           <div className={`watch-topbar-inputs ${mobileMenuOpen ? 'mobile-open' : ''}`} style={{ gap: 8 }}>
             <input placeholder="GM WS URL" value={gmUrl} onChange={(e) => setGmUrl(e.target.value)}
               style={{ width: 200, padding: '6px 10px', borderRadius: 8, fontSize: 11, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(212,168,75,0.2)', color: '#aaa', fontFamily: 'var(--font-mono)' }} />
@@ -570,6 +580,7 @@ function WatchPage() {
                   {slotsToShow.map((slot) => {
                     const isEmpty = slot.status === 'empty';
                     if (isEmpty) {
+                      const isPlaceholder = slot.id >= 1000;
                       return (
                         <div
                           key={slot.id}
@@ -582,24 +593,29 @@ function WatchPage() {
                             minHeight: 120, cursor: 'default', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.02)',
                           }}
                         >
-                          <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: 1.4, color: 'rgba(255,255,255,0.35)' }}>LOBBY {slot.id}</span>
+                          <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: 1.4, color: 'rgba(255,255,255,0.35)' }}>
+                            {isPlaceholder ? '—' : `LOBBY ${slot.id}`}
+                          </span>
                           <span style={{ width: 24, height: 1, background: 'rgba(255,255,255,0.06)', borderRadius: 1 }} />
-                          <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', fontWeight: 500 }}>No game</span>
+                          <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', fontWeight: 500 }}>
+                            {isPlaceholder ? 'Empty' : 'No game'}
+                          </span>
                         </div>
                       );
                     }
                     const isWaiting = slot.status === 'waiting';
                     const isActive = slot.status === 'active';
+                    const isDisconnected = isActive && slot.disconnected === true;
                     const count = 'playerCount' in slot ? (slot.playerCount ?? 0) : undefined;
-                    const statusColor = isActive ? '#22c55e' : isWaiting ? '#f59e0b' : '#06b6d4';
+                    const statusColor = isDisconnected ? '#94a3b8' : isActive ? '#22c55e' : isWaiting ? '#f59e0b' : '#06b6d4';
                     const statusLabel = isActive
-                      ? 'Live now'
+                      ? (isDisconnected ? 'Disconnected' : 'Live now')
                       : isWaiting && count !== undefined
                         ? `${count}/4 players${count >= 4 ? ' — full' : ''}`
                         : count !== undefined
                           ? `${count}/4 players`
                           : 'Open to join';
-                    const statusIcon = isActive ? '🔴' : isWaiting || count !== undefined ? '👥' : '✨';
+                    const statusIcon = isDisconnected ? '⚪' : isActive ? '🔴' : isWaiting || count !== undefined ? '👥' : '✨';
                     return (
                       <button
                         key={slot.id}
@@ -636,7 +652,7 @@ function WatchPage() {
                           <span>{statusLabel}</span>
                         </span>
                         <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', fontWeight: 500, letterSpacing: 0.5 }}>
-                          Click to spectate
+                          {isDisconnected ? 'Disconnected' : 'Click to spectate'}
                         </span>
                       </button>
                     );

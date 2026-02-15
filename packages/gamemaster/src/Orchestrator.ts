@@ -254,10 +254,10 @@ export class Orchestrator {
     return [];
   }
 
-  /** Get slot details for UI (local mode only): id, status (waiting|active), playerCount for waiting lobbies. */
-  getSlotDetails(): { id: number; status: "waiting" | "active"; playerCount?: number }[] {
+  /** Get slot details for UI (local mode only): id, status (waiting|active), playerCount for waiting lobbies, disconnected for active. */
+  getSlotDetails(): { id: number; status: "waiting" | "active"; playerCount?: number; disconnected?: boolean }[] {
     if (this.settlement) return [];
-    const out: { id: number; status: "waiting" | "active"; playerCount?: number }[] = [];
+    const out: { id: number; status: "waiting" | "active"; playerCount?: number; disconnected?: boolean }[] = [];
     for (let i = 0; i < NUM_LOCAL_SLOTS; i++) {
       const slot = this.slots.get(i);
       if (!slot) {
@@ -267,7 +267,7 @@ export class Orchestrator {
       if (slot instanceof Lobby) {
         out.push({ id: i, status: "waiting", playerCount: slot.size });
       } else {
-        out.push({ id: i, status: "active" });
+        out.push({ id: i, status: "active", disconnected: slot.allAgentsDisconnected });
       }
     }
     return out;

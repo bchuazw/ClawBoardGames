@@ -325,6 +325,11 @@ export class GameProcess {
     return this.running;
   }
 
+  /** True when the game is running but no agents are connected (all disconnected). */
+  get allAgentsDisconnected(): boolean {
+    return this.running && this.agentSockets.size === 0;
+  }
+
   /** Current game snapshot (for GET /games/:gameId/state). */
   getSnapshot(): GameSnapshot {
     return this.engine.getSnapshot();
