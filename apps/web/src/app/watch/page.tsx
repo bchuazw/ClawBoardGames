@@ -231,12 +231,12 @@ function WatchPage() {
   const notifTimer = useRef<ReturnType<typeof setTimeout>>();
   const moodTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
 
-  // Redirect /watch?gameId=5 → /watch/5 so the slug always reflects the game
+  // Redirect /watch?gameId=5 → /watch/lobby/5 so the slug is /watch/lobby/{gameId}
   useEffect(() => {
     const gid = searchParams.get('gameId');
     const gm = searchParams.get('gm');
     if (gid) {
-      router.replace(`/watch/${gid}`);
+      router.replace(`/watch/lobby/${gid}`);
       return;
     }
     if (gm) setGmUrl(gm);
@@ -492,7 +492,7 @@ function WatchPage() {
               onKeyDown={(e) => e.key === 'Enter' && connect()}
               style={{ width: 56, padding: '6px 8px', borderRadius: 8, fontSize: 13, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(212,168,75,0.2)', color: '#fff', textAlign: 'center', fontFamily: 'var(--font-mono)' }} />
           </div>
-          <button onClick={connected ? () => disconnect() : () => connect()}
+          <button onClick={connected ? () => disconnect() : () => { if (gameId) router.push(`/watch/lobby/${gameId}`); else connect(); }}
             style={{ padding: '6px 18px', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 13, color: '#fff', background: connected ? '#C62828' : '#1565C0', boxShadow: connected ? 'none' : '0 2px 12px rgba(21,101,192,0.4)' }}>
             {connected ? 'Disconnect' : 'Watch'}
           </button>
@@ -603,7 +603,7 @@ function WatchPage() {
                     return (
                       <button
                         key={slot.id}
-                        onClick={() => router.push(`/watch/${slot.id}`)}
+                        onClick={() => router.push(`/watch/lobby/${slot.id}`)}
                         className="watch-lobby-card"
                         type="button"
                         style={{
@@ -644,7 +644,7 @@ function WatchPage() {
                 </div>
               )}
               <p style={{ marginTop: 28, fontSize: 13, color: 'var(--text-muted-soft)', textAlign: 'center' }}>
-                Or open <code style={{ background: 'rgba(255,255,255,0.06)', padding: '4px 10px', borderRadius: 6, fontFamily: 'var(--font-mono)', fontSize: 12 }}>/watch/5</code> to jump to game 5
+                Or open <code style={{ background: 'rgba(255,255,255,0.06)', padding: '4px 10px', borderRadius: 6, fontFamily: 'var(--font-mono)', fontSize: 12 }}>/watch/lobby/5</code> to jump to game 5
               </p>
             </div>
           </div>

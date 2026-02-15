@@ -1,20 +1,8 @@
-import { Suspense } from 'react';
-import WatchGameView from '../WatchGameView';
+import { redirect } from 'next/navigation';
 
+/** Redirect legacy /watch/5 to /watch/lobby/5 */
 export default async function WatchGamePage({ params }: { params: Promise<{ gameId: string }> }) {
   const { gameId } = await params;
-  if (!gameId) {
-    return (
-      <div style={{ width: '100vw', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0C1B3A', color: '#D4A84B' }}>
-        <div>Invalid game. <a href="/watch" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 600, color: '#fff', textDecoration: 'none', padding: '10px 18px', borderRadius: 8, background: '#CC5500', border: '1px solid rgba(204,85,0,0.5)', marginLeft: 8 }}>← Back to lobbies</a></div>
-      </div>
-    );
-  }
-  return (
-    <Suspense fallback={
-      <div style={{ width: '100vw', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0C1B3A', color: '#D4A84B' }}>Loading...</div>
-    }>
-      <WatchGameView gameId={gameId} />
-    </Suspense>
-  );
+  if (!gameId) redirect('/watch');
+  redirect(`/watch/lobby/${gameId}`);
 }

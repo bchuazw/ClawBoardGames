@@ -47,6 +47,7 @@ export class SettlementClient {
     diceSeed: string;
     winner: string;
     revealDeadline: bigint;
+    winnerPaid: boolean;
   }> {
     const result = await this.contract.getGame(gameId);
     return {
@@ -57,6 +58,7 @@ export class SettlementClient {
       diceSeed: result.diceSeed,
       winner: result.winner,
       revealDeadline: result.revealDeadline,
+      winnerPaid: result.winnerPaid === true,
     };
   }
 
@@ -112,7 +114,7 @@ const SETTLEMENT_ABI = [
   "function checkpoint(uint256 gameId, uint256 round, uint256 playersPacked, uint256 propertiesPacked, uint256 metaPacked) external",
   "function settleGame(uint256 gameId, address winner, bytes32 gameLogHash) external",
   "function createOpenGame() external returns (uint256 gameId)",
-  "function getGame(uint256 gameId) external view returns (address[4] players, uint8 status, uint8 depositCount, uint8 revealCount, bytes32 diceSeed, address winner, uint256 revealDeadline)",
+  "function getGame(uint256 gameId) external view returns (address[4] players, uint8 status, uint8 depositCount, uint8 revealCount, bytes32 diceSeed, address winner, uint256 revealDeadline, bool winnerPaid)",
   "function getCheckpoint(uint256 gameId) external view returns (uint256 round, uint256 playersPacked, uint256 propertiesPacked, uint256 metaPacked)",
   "function gameCount() external view returns (uint256)",
   "function getOpenGameIds() external view returns (uint256[])",

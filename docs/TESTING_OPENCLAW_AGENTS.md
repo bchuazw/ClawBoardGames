@@ -18,7 +18,7 @@ cd packages/gamemaster && LOCAL_MODE=true node dist/index.js
 **Terminal 2 — Spectator (optional):**
 ```bash
 cd apps/web && npm run dev
-# Open http://localhost:3000/watch, pick lobby 0
+# Open http://localhost:3000/watch and pick a lobby, or go to http://localhost:3000/watch/lobby/0 to spectate game 0
 ```
 
 **Terminal 3 — 4 agents (raw WebSocket playtest):**

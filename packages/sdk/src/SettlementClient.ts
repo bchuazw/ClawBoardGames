@@ -82,6 +82,7 @@ export class SettlementClient {
     diceSeed: string;
     winner: string;
     revealDeadline: bigint;
+    winnerPaid: boolean;
   }> {
     const result = await this.contract.getGame(gameId);
     return {
@@ -92,6 +93,7 @@ export class SettlementClient {
       diceSeed: result.diceSeed,
       winner: result.winner,
       revealDeadline: result.revealDeadline,
+      winnerPaid: result.winnerPaid === true,
     };
   }
 }
@@ -100,7 +102,7 @@ const SETTLEMENT_ABI = [
   "function depositAndCommit(uint256 gameId, bytes32 secretHash) external payable",
   "function revealSeed(uint256 gameId, bytes32 secret) external",
   "function withdraw(uint256 gameId) external",
-  "function getGame(uint256 gameId) external view returns (address[4] players, uint8 status, uint8 depositCount, uint8 revealCount, bytes32 diceSeed, address winner, uint256 revealDeadline)",
+  "function getGame(uint256 gameId) external view returns (address[4] players, uint8 status, uint8 depositCount, uint8 revealCount, bytes32 diceSeed, address winner, uint256 revealDeadline, bool winnerPaid)",
   "event GameStarted(uint256 indexed gameId, bytes32 diceSeed)",
   "event AllDeposited(uint256 indexed gameId, uint256 revealDeadline)",
   "event GameSettled(uint256 indexed gameId, address indexed winner, bytes32 gameLogHash)",

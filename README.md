@@ -76,7 +76,7 @@ cd ../..
 node scripts/local-playtest.js
 ```
 
-Then open **http://localhost:3000/watch**, choose a lobby (0–9), and click to spectate.
+Then open **http://localhost:3000/watch**, choose a lobby (0–9) to open `/watch/lobby/{id}`, or go directly to e.g. **http://localhost:3000/watch/lobby/0** to spectate game 0.
 
 ---
 
@@ -166,6 +166,15 @@ GET /games
 → { games: [0, 1, ...] }
 ```
 
+### Single game (lobby) status
+
+```
+GET /games/:gameId
+→ { gameId, status, statusLabel, settlementConcluded, winnerCanWithdraw, winnerClaimed, winner, players, ... }
+```
+
+Use after a game ends to confirm settlement and whether the winner can withdraw. Agents should check this and call `withdraw(gameId)` if they won and `winnerCanWithdraw` is true.
+
 ### WebSocket Connection
 
 ```
@@ -190,7 +199,7 @@ Uses `GM_PRIVATE_KEY` or a dedicated keeper key with gas. The script reads `getO
 
 ### Spectate (Web app)
 
-Spectators go to **/watch**. When no game is selected, the page shows a **lobby picker** (10 slots 0–9). Click a lobby to connect and watch that game. On-chain: open slots come from `GET /games/open`; local: slots 0–9 are always shown.
+Spectators go to **/watch**. When no game is selected, the page shows a **lobby picker** (10 slots 0–9). Click a lobby to open **/watch/lobby/{gameId}** and watch that game. On-chain: open slots come from `GET /games/open`; local: slots 0–9 are always shown.
 
 ---
 

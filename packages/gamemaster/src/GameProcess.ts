@@ -73,9 +73,10 @@ export class GameProcess {
       this.agentSockets.delete(normalizedAddr);
     });
 
-    // Send current state to the agent
+    // Send current state to the agent (include gameId so agent always knows which lobby it is in)
     this.sendToAgent(normalizedAddr, {
       type: "snapshot",
+      gameId: this.config.gameId,
       snapshot: this.engine.getSnapshot(),
       legalActions: this.engine.getLegalActions(),
     });
@@ -94,6 +95,7 @@ export class GameProcess {
     socket.on("close", () => this.spectatorSockets.delete(socket));
     socket.send(JSON.stringify({
       type: "snapshot",
+      gameId: this.config.gameId,
       snapshot: this.engine.getSnapshot(),
     }));
   }
@@ -113,15 +115,16 @@ export class GameProcess {
     const snapshot = this.engine.getSnapshot();
     const legalActions = this.engine.getLegalActions();
 
-    // Send to current player
+    // Send to current player (include gameId so agent always knows which lobby it is in)
     this.sendToAgent(currentAddr, {
       type: "yourTurn",
+      gameId: this.config.gameId,
       snapshot,
       legalActions,
     });
 
     // Broadcast snapshot to all
-    this.broadcastAll({ type: "snapshot", snapshot });
+    this.broadcastAll({ type: "snapshot", gameId: this.config.gameId, snapshot });
 
     // Start turn timeout
     this.clearTurnTimer();
@@ -153,8 +156,8 @@ export class GameProcess {
       const events = this.engine.executeAction(action);
       this.events.push(...events);
 
-      // Broadcast events
-      this.broadcastAll({ type: "events", events });
+      // Broadcast events (include gameId for consistency)
+      this.broadcastAll({ type: "events", gameId: this.config.gameId, events });
 
       this.afterAction();
     } catch (err: any) {
@@ -237,11 +240,12 @@ export class GameProcess {
       console.log(`[Game ${this.config.gameId}] Game settled (local mode, skipped on-chain)`);
       this.broadcastAll({
         type: "gameEnded",
+        gameId: this.config.gameId,
         winner: winnerIndex,
         winnerAddress: winnerAddr,
         snapshot: this.engine.getSnapshot(),
       });
-      this.broadcastAll({ type: "settled", txHash: "local-mode" });
+      this.broadcastAll({ type: "settled", gameId: this.config.gameId, txHash: "local-mode" });
     } else {
       const maxAttempts = 3;
       const delayMs = (attempt: number) => (attempt <= 0 ? 0 : 2000 * Math.pow(2, attempt - 1));
@@ -268,16 +272,18 @@ export class GameProcess {
 
       this.broadcastAll({
         type: "gameEnded",
+        gameId: this.config.gameId,
         winner: winnerIndex,
         winnerAddress: winnerAddr,
         snapshot: this.engine.getSnapshot(),
       });
       if (txHash) {
-        this.broadcastAll({ type: "settled", txHash });
+        this.broadcastAll({ type: "settled", gameId: this.config.gameId, txHash });
       } else {
         const reason = lastError instanceof Error ? lastError.message : (lastError as { reason?: string })?.reason ?? String(lastError);
         this.broadcastAll({
           type: "error",
+          gameId: this.config.gameId,
           message: `Settlement failed after ${maxAttempts} attempts; winner cannot withdraw yet. Reason: ${reason}`,
         });
       }

@@ -96,7 +96,7 @@ npm run dev:web
 
 ## What “Ready for OpenClaw Agent” Means
 
-- **Skill:** Frontend and `/skill.md` describe the lifecycle (get open games → deposit 0.001 BNB → reveal → play → withdraw if winner). For local testing, point the agent to `http://localhost:3000/skill.md` and `ws://127.0.0.1:3001/ws` (and same base for REST).
+- **Skill:** Frontend and `/skill.md` describe the lifecycle (get open games → deposit 0.001 BNB → reveal → play → check `GET /games/:gameId` when game ends → withdraw if winner). For local testing, point the agent to `http://localhost:3000/skill.md` and `ws://127.0.0.1:3001/ws` (and same base for REST). Spectate at `http://localhost:3000/watch/lobby/{gameId}`.
 - **Strategy:** Agent picks a policy (e.g. `SmartPolicy`); SDK uses it in `yourTurn` → `decide(snapshot, legalActions)`.
 - **Entry fee:** 0.001 native per player (0.001 BNB on BNB Chain; minimal for local).
 - **Join:** All 4 agents join the **same** open `gameId`; first 4 to deposit get the slots.
@@ -113,6 +113,6 @@ npm run dev:web
 | "Wrong amount" | Contract expects exactly 0.001 BNB per `depositAndCommit`. |
 | "Game not found" | All 4 must reveal before the game moves to STARTED and GM spawns the process. |
 | "Not a player" | WebSocket must connect with the same address that deposited. |
-| Winner can’t withdraw | Ensure GM has called `settleGame(gameId, winner, logHash)` after game end. |
+| Winner can’t withdraw | Ensure GM has called `settleGame(gameId, winner, logHash)` after game end. Check `GET /games/:gameId` for `settlementConcluded` and `winnerCanWithdraw`; use that API as source of truth. |
 
 Running `npm run e2e:full` successfully is the main signal that everything is ready for your OpenClaw agent to test the full flow locally.

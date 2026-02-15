@@ -20,6 +20,19 @@ export interface AgentConfig {
   policy: AgentPolicy;
 }
 
+/** Response from GM GET /games/:gameId (lobby status, settlement, winner). */
+export interface GameStatusFromGM {
+  gameId: number;
+  status: number;
+  statusLabel: string;
+  settlementConcluded: boolean;
+  winnerCanWithdraw: boolean;
+  winnerClaimed?: boolean;
+  players: string[];
+  depositCount: number;
+  winner: string | null;
+}
+
 /**
  * OpenClawAgent: the main agent class for playing ClawBoardGames v2.
  *
@@ -50,18 +63,32 @@ export class OpenClawAgent {
     return this.settlement.address;
   }
 
+  private gmRestBase(): string {
+    const protocol = this.config.gmWsUrl.startsWith("wss://") ? "https" : "http";
+    return this.config.gmWsUrl.replace(/^wss?:\/\//, `${protocol}://`).replace(/\/ws.*$/, "");
+  }
+
   /**
    * Get open game IDs from the GM (GET /games/open).
    * On-chain: IDs of games that accept new players (first 4 to deposit get slots).
    * Local: [0..9] (10 fixed slots).
    */
   async getOpenGameIds(): Promise<number[]> {
-    const protocol = this.config.gmWsUrl.startsWith("wss://") ? "https" : "http";
-    const base = this.config.gmWsUrl.replace(/^wss?:\/\//, `${protocol}://`).replace(/\/ws.*$/, "");
-    const res = await fetch(`${base}/games/open`);
+    const res = await fetch(`${this.gmRestBase()}/games/open`);
     if (!res.ok) throw new Error(`GET /games/open failed: ${res.status}`);
     const body = (await res.json()) as { open?: number[] };
     return body.open ?? [];
+  }
+
+  /**
+   * Get game (lobby) status from the GM (GET /games/:gameId).
+   * Use this when the game has ended to check settlement and whether the winner can withdraw.
+   * Source of truth for settlementConcluded, winnerCanWithdraw, winnerClaimed.
+   */
+  async getGameStatus(gameId: number): Promise<GameStatusFromGM> {
+    const res = await fetch(`${this.gmRestBase()}/games/${gameId}`);
+    if (!res.ok) throw new Error(`GET /games/${gameId} failed: ${res.status}`);
+    return res.json() as Promise<GameStatusFromGM>;
   }
 
   // ========== PRE-GAME ON-CHAIN STEPS ==========

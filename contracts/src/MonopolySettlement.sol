@@ -407,10 +407,11 @@ contract MonopolySettlement is ReentrancyGuard {
         uint8 revealCount,
         bytes32 diceSeed,
         address winner,
-        uint256 revealDeadline
+        uint256 revealDeadline,
+        bool winnerPaid
     ) {
         Game storage g = games[gameId];
-        return (g.players, g.status, g.depositCount, g.revealCount, g.diceSeed, g.winner, g.revealDeadline);
+        return (g.players, g.status, g.depositCount, g.revealCount, g.diceSeed, g.winner, g.revealDeadline, g.winnerPaid);
     }
 
     function getCheckpoint(uint256 gameId) external view returns (

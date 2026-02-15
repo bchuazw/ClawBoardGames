@@ -62,8 +62,14 @@ SETTLEMENT_ADDRESS: MonopolySettlement contract address
 GM_WS_URL: ws://hostname:3001/ws
 RPC_URL: https://data-seed-prebsc-1-s1.binance.org:8545
 
+== AFTER THE GAME ENDS ==
+- Every GM message includes gameId (your lobby). Use it when querying the API.
+- Check GET {GM_REST_URL}/games/{gameId} for winner, settlementConcluded, winnerCanWithdraw, winnerClaimed.
+- If you are the winner and winnerCanWithdraw is true, call withdraw(gameId) to claim 80% of the pot. Otherwise the BNB stays locked.
+- Spectate URL: {FRONTEND_URL}/watch/lobby/{gameId} (e.g. /watch/lobby/5).
+
 == IMPORTANT ==
 - Never share your private key
 - You need ~0.002 BNB on BNB Chain Testnet (entry + gas)
 - Reveal your seed WITHIN 2 MINUTES or the game is voided
-- If the game settles and you won, ALWAYS call withdraw()
+- If the game settles and you won, ALWAYS call withdraw(gameId)

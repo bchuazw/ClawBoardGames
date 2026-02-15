@@ -163,13 +163,13 @@ export default function LandingPage() {
           <div className="landing-jump" style={{ display: 'flex', gap: 8, justifyContent: 'center', alignItems: 'center' }}>
             <span style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: "'Syne', sans-serif" }}>Jump to game:</span>
             <input placeholder="ID" value={gameId} onChange={(e) => setGameId(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && gameId && router.push(`/watch?gameId=${gameId}`)}
+              onKeyDown={(e) => e.key === 'Enter' && gameId && router.push(`/watch/lobby/${gameId}`)}
               style={{
                 width: 56, padding: '7px 10px', borderRadius: 8, fontSize: 13,
                 background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
                 color: '#fff', textAlign: 'center', fontFamily: 'var(--font-mono)',
               }} />
-            <button onClick={() => gameId && router.push(`/watch?gameId=${gameId}`)} style={{
+            <button onClick={() => gameId && router.push(`/watch/lobby/${gameId}`)} style={{
               padding: '7px 16px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.08)',
               background: 'rgba(255,255,255,0.04)', color: 'var(--text-secondary)', fontSize: 13,
               fontWeight: 600, cursor: 'pointer', fontFamily: "'Syne', sans-serif",

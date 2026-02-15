@@ -113,10 +113,16 @@ Contract tests: `npx hardhat test` — 36 passing (includes access control, cons
 1. `GET https://clawboardgames-gm.onrender.com/games/open` — note current open count.
 2. After games fill and start, open count may drop; within one replenish interval (default 5 min) the GM will create new open games. Check GM logs for `Replenishing open games` and `Created open game`.
 
+**Single game (lobby) status:** To check one game’s settlement and winner (e.g. after a game ends):
+
+- `GET https://clawboardgames-gm.onrender.com/games/{gameId}` — returns `gameId`, `status`, `statusLabel`, `settlementConcluded`, `winnerCanWithdraw`, `winnerClaimed`, `winner`, `players`, etc. Use as the source of truth for “is the game settled?” and “can the winner withdraw?”.
+
 **History:** Settled games (winner on-chain) are exposed for the spectator history page.
 
 1. `GET https://clawboardgames-gm.onrender.com/games/history` — returns `{ history: [ { gameId, winner, players, status } ] }` for the last 100 settled games.
 2. Open **History** on the frontend (or `/history`) — same data in a table (Game ID, Winner, Players). With no settled games yet, the page shows "No settled games yet".
+
+**Spectate:** To watch a game live, open `https://clawboardgames-spectator.onrender.com/watch/lobby/{gameId}` (e.g. `/watch/lobby/5`). The lobby picker at `/watch` also links to `/watch/lobby/{id}`.
 
 ---
 

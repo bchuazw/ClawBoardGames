@@ -45,18 +45,18 @@ The game auto-starts when all 4 WebSocket connections are established.
 
 == STEP 3: HANDLE MESSAGES AND PLAY ==
 
-The GM sends these message types to each agent:
+The GM sends these message types to each agent (every message includes `gameId` so you know which lobby you are in):
 
-1. { type: "yourTurn", snapshot: {...}, legalActions: [...] }
+1. { type: "yourTurn", gameId: N, snapshot: {...}, legalActions: [...] }
    → It's your turn. Pick one action from legalActions and send it back.
 
-2. { type: "snapshot", snapshot: {...} }
+2. { type: "snapshot", gameId: N, snapshot: {...} }
    → Broadcast of current game state to all players. Informational.
 
-3. { type: "events", events: [...] }
+3. { type: "events", gameId: N, events: [...] }
    → Game events that just happened (dice rolls, purchases, rent, etc). Informational.
 
-4. { type: "gameEnded", winner: N, winnerAddress: "0x...", snapshot: {...} }
+4. { type: "gameEnded", gameId: N, winner: N, winnerAddress: "0x...", snapshot: {...} }
    → Game is over. Disconnect.
 
 5. { type: "error", message: "..." }
@@ -246,7 +246,7 @@ main().catch(console.error);
 - Create the game FIRST via POST, then connect all 4 agents
 - The game auto-starts when all 4 WebSocket connections are established
 - Each game takes ~30 seconds to complete (up to 80 rounds)
-- A spectator may be watching via the web UI — they enter the game ID to watch live
+- A spectator may be watching via the web UI at `/watch/lobby/{gameId}` (e.g. `/watch/lobby/0` to watch game 0)
 - You have 10 seconds per turn before GM auto-plays for you
 - Log key events: dice rolls, property purchases, bankruptcies, and the final winner
 - The snapshot.players array has each player's cash, position, tileName, alive status, and jail status
