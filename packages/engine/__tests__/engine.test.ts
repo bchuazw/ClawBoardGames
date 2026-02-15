@@ -355,7 +355,7 @@ describe("MonopolyEngine", () => {
       // Give player 0 both brown properties
       engine.state.properties[0].owner = 0; // Mediterranean Ave
       engine.state.properties[1].owner = 0; // Baltic Ave
-      engine.state.players[0].cash = 1500;
+      engine.state.players[0].cash = STARTING_CASH;
       engine.state.phase = Phase.POST_TURN;
       engine.state.currentPlayerIndex = 0;
       return engine;
@@ -371,7 +371,7 @@ describe("MonopolyEngine", () => {
       const events = engine.executeAction({ type: "buildHouse", propertyIndex: 0 });
       expect(events.some(e => e.type === "houseBuilt" && e.propertyIndex === 0 && e.newCount === 1)).toBe(true);
       expect(engine.state.properties[0].houses).toBe(1);
-      expect(engine.state.players[0].cash).toBe(1500 - 50);
+      expect(engine.state.players[0].cash).toBe(STARTING_CASH - 50);
 
       // Rent should now be rentWithHouses[0] = $10 (was $2 base, $4 monopoly)
       const tile = PROPERTY_TILES[0]; // Mediterranean
@@ -388,7 +388,7 @@ describe("MonopolyEngine", () => {
       engine.executeAction({ type: "sellHouse", propertyIndex: 0 });
       expect(engine.state.properties[0].houses).toBe(0);
       // Sell refund = floor(50 / 2) = 25
-      expect(engine.state.players[0].cash).toBe(1500 - 50 + 25);
+      expect(engine.state.players[0].cash).toBe(STARTING_CASH - 50 + 25);
 
       // Rent back to monopoly double: 2 * 2 = 4
       const tile = PROPERTY_TILES[0];

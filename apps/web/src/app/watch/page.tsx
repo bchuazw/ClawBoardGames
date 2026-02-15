@@ -96,7 +96,7 @@ function humanEvent(e: GameEvent): { text: string; color: string } {
       return { text: `${emoji} ${n} ${sp}landed on ${tileName}`, color: pc };
     }
     case 'passedGo':
-      return { text: `\u2728 ${emoji} ${n} passed GO and collected $${e.amount || 200}!`, color: '#66BB6A' };
+      return { text: `\u2728 ${emoji} ${n} passed GO and collected $${e.amount || 100}!`, color: '#66BB6A' };
     case 'propertyBought': {
       const name = e.tileName ?? (e.propertyIndex != null ? getPropertyNameByIndex(e.propertyIndex) : '');
       return { text: `\uD83C\uDFE0 ${emoji} ${n} bought ${name} for $${e.price ?? 0}!`, color: pc };
@@ -181,7 +181,7 @@ function humanEvent(e: GameEvent): { text: string; color: string } {
       return { text: `\uD83C\uDFE0 House sold at ${soldName} by ${n} (${e.newCount ?? 0} left)`, color: '#FF9100' };
     }
     case 'landedOnGo':
-      return { text: `\u2728 ${emoji} ${n} landed on GO and collected $${e.amount ?? 200}!`, color: '#66BB6A' };
+      return { text: `\u2728 ${emoji} ${n} landed on GO and collected $${e.amount ?? 100}!`, color: '#66BB6A' };
     default:
       return { text: `${e.type}${n ? ` (${n})` : ''}`, color: '#888' };
   }

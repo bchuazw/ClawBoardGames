@@ -33,7 +33,7 @@ CLAWToken.sol                         GameProcess (1 per game)        Spectator 
 | File                     | Role                                                                                                                                |
 | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
 | `MonopolySettlement.sol` | createGame, depositAndCommit, revealSeed, checkpoint (GM only), settleGame (GM only), withdraw, voidGame, cancelGame, emergencyVoid |
-| `CLAWToken.sol`          | ERC-20; minter role for settlement (mints 1500 CLAW per player after 4 reveals)                                                     |
+| `CLAWToken.sol`          | ERC-20; minter role for settlement (mints 1000 CLAW per player after 4 reveals)                                                     |
 
 **Verified:** `npx hardhat test` — 26 tests (create, deposit, reveal, settle, withdraw, checkpoint, void, cancel, emergencyVoid, full lifecycle, checkpoint recovery, multi-game). **All passing.**
 

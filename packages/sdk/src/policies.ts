@@ -115,9 +115,9 @@ export class SmartPolicy implements AgentPolicy {
     const passBid = legalActions.find(a => a.type === "passBid");
     if (passBid) return passBid;
 
-    // Pay jail fee if we have > 200 cash
+    // Pay jail fee if we have > 100 cash (1 Go in new economy)
     const payJail = legalActions.find(a => a.type === "payJailFee");
-    if (payJail && myCash > 200) return payJail;
+    if (payJail && myCash > 100) return payJail;
 
     // Roll dice
     const roll = legalActions.find(a => a.type === "rollDice");

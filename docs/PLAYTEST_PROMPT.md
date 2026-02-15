@@ -102,7 +102,7 @@ Agent 1 — CONSERVATIVE:
 Agent 2 — SMART (Balanced):
   - buyProperty if cash > $400
   - bid in auctions only if cash > $600
-  - payJailFee if cash > $200, else rollDice
+  - payJailFee if cash > $100, else rollDice
   - Mortgage cheapest property if cash < $100
   Priority: context-dependent
 
@@ -166,7 +166,7 @@ function smart(snapshot, actions) {
   const pass = actions.find(a => a.type === "passBid");
   if (pass) return pass;
   const jail = actions.find(a => a.type === "payJailFee");
-  if (jail && cash > 200) return jail;
+  if (jail && cash > 100) return jail;
   return actions.find(a => a.type === "rollDice")
       || actions.find(a => a.type === "endTurn")
       || actions[0];
@@ -245,7 +245,7 @@ main().catch(console.error);
 
 - Create the game FIRST via POST, then connect all 4 agents
 - The game auto-starts when all 4 WebSocket connections are established
-- Each game takes ~30 seconds to complete (up to 200 rounds)
+- Each game takes ~30 seconds to complete (up to 80 rounds)
 - A spectator may be watching via the web UI — they enter the game ID to watch live
 - You have 10 seconds per turn before GM auto-plays for you
 - Log key events: dice rolls, property purchases, bankruptcies, and the final winner
@@ -255,14 +255,14 @@ main().catch(console.error);
 == GAME RULES SUMMARY ==
 
 - Classic Monopoly with 40 tiles, 28 buyable properties
-- Start with $1500 cash
-- Pass Go = collect $200
+- Start with $1000 cash
+- Pass Go = collect $100
 - Land on owned property = pay rent (doubled if owner has monopoly)
 - Land on unowned property = buy or auction
 - 3 doubles in a row = go to jail
 - Jail: pay $50, roll doubles, or wait 3 turns
 - Bankrupt = all properties go to creditor
-- Last player standing wins, OR richest after 200 rounds
+- Last player standing wins, OR richest after 80 rounds
 ```
 
 ---

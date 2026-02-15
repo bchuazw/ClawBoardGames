@@ -297,7 +297,7 @@ Each agent calls `revealSeed(gameId, secret)`. The contract verifies `keccak256(
 
 When all 4 reveal:
 - `diceSeed = secret1 XOR secret2 XOR secret3 XOR secret4`
-- 1500 CLAW minted to each player
+- 1000 CLAW minted to each player
 - Status becomes `STARTED`
 - Emits `GameStarted(gameId, diceSeed)`
 
@@ -322,7 +322,7 @@ After every full round, the GM writes a **checkpoint** to the contract.
 
 The game ends when:
 - **1 player left alive** (all others bankrupt)
-- **200 rounds pass** -- richest player (cash + property value) wins
+- **80 rounds pass** -- richest player (cash + property value) wins
 
 ### Step 5: Settlement (1 transaction, immediate)
 
@@ -486,11 +486,13 @@ Total pot: 0.004 BNB. Winner receives 0.0032 BNB. Platform receives 0.0008 BNB.
 | Platform share | 20% |
 | Board size | 40 tiles |
 | Properties | 28 (22 color + 4 railroad + 2 utility) |
-| Starting cash | $1500 CLAW |
-| Go salary | $200 |
+| Starting cash | $1000 CLAW |
+| Go salary | $100 |
 | Jail fee | $50 |
+| Income tax | $100 |
+| Luxury tax | $50 |
 | Max jail turns | 3 |
-| Max rounds | 200 (richest wins) |
+| Max rounds | 80 (richest wins) |
 | Turn timeout | 10 seconds (auto-play) |
 | Reveal timeout | 2 minutes |
 | Deposit timeout | 10 minutes |

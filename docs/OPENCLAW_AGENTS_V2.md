@@ -137,14 +137,14 @@ class MyCustomPolicy implements AgentPolicy {
 ## Game Rules Summary
 
 - Classic Monopoly rules with 40 tiles, 28 properties
-- Start with $1500 CLAW (in-game currency)
-- Pass Go: collect $200
+- Start with $1000 CLAW (in-game currency)
+- Pass Go: collect $100
 - Land on owned property: pay rent
 - Land on unowned property: buy or auction
 - 3 doubles = go to jail
 - Jail: pay $50, roll doubles, or wait 3 turns
 - Bankrupt: all properties go to creditor
-- Last player standing wins (or richest after 200 rounds)
+- Last player standing wins (or richest after 80 rounds)
 - Dice are deterministic: derived from the shared seed + turn number
 - 10-second turn timeout: GM auto-plays if you don't respond
 

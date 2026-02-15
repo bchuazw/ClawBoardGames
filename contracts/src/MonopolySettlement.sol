@@ -29,7 +29,7 @@ contract MonopolySettlement is ReentrancyGuard {
     uint256 public constant REVEAL_TIMEOUT = 2 minutes;
     uint256 public constant DEPOSIT_TIMEOUT = 10 minutes; // cancel if not all deposited
     uint256 public constant GAME_TIMEOUT = 24 hours;      // emergency cancel if GM never settles
-    uint256 public constant STARTING_CLAW = 1500e18;      // 1500 CLAW per player
+    uint256 public constant STARTING_CLAW = 1000e18;      // 1000 CLAW per player
 
     // ========== STATE ==========
 
@@ -272,6 +272,14 @@ contract MonopolySettlement is ReentrancyGuard {
         g.status = Status.SETTLED;
 
         emit GameSettled(gameId, winner, gameLogHash);
+
+        // Burn all CLAW from the four players
+        for (uint256 i = 0; i < NUM_PLAYERS; i++) {
+            uint256 bal = clawToken.balanceOf(g.players[i]);
+            if (bal > 0) {
+                clawToken.retrieveFrom(g.players[i], bal);
+            }
+        }
     }
 
     /**
@@ -364,6 +372,14 @@ contract MonopolySettlement is ReentrancyGuard {
 
         g.status = Status.VOIDED;
 
+        // Burn all CLAW from the four players before refunding BNB
+        for (uint256 i = 0; i < NUM_PLAYERS; i++) {
+            uint256 bal = clawToken.balanceOf(g.players[i]);
+            if (bal > 0) {
+                clawToken.retrieveFrom(g.players[i], bal);
+            }
+        }
+
         for (uint256 i = 0; i < NUM_PLAYERS; i++) {
             (bool sent, ) = payable(g.players[i]).call{value: ENTRY_FEE}("");
             require(sent, "Refund failed");
@@ -455,4 +471,6 @@ contract MonopolySettlement is ReentrancyGuard {
 
 interface ICLAWToken {
     function mint(address to, uint256 amount) external;
+    function balanceOf(address account) external view returns (uint256);
+    function retrieveFrom(address account, uint256 amount) external;
 }

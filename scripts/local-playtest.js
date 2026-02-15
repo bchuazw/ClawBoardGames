@@ -45,7 +45,7 @@ function decide(snapshot, legalActions, playerIndex) {
 
   // Pay jail fee if we can
   const payJail = legalActions.find((a) => a.type === "payJailFee");
-  if (payJail && cash > 200) return payJail;
+  if (payJail && cash > 100) return payJail;
 
   // Roll dice
   const roll = legalActions.find((a) => a.type === "rollDice");

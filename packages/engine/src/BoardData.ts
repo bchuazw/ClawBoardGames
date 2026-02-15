@@ -1,4 +1,4 @@
-import { TileType, CardEffect, CardData, NUM_PROPERTIES } from "./types";
+import { TileType, CardEffect, CardData, NUM_PROPERTIES, INCOME_TAX, LUXURY_TAX } from "./types";
 
 // ========== TILE DEFINITIONS ==========
 
@@ -94,15 +94,15 @@ export function getUtilityRent(numOwned: number, diceSum: number): number {
 }
 
 export function getTaxAmount(position: number): number {
-  if (position === 4) return 200;  // Income Tax
-  if (position === 38) return 100; // Luxury Tax
+  if (position === 4) return INCOME_TAX;  // Income Tax
+  if (position === 38) return LUXURY_TAX; // Luxury Tax
   return 0;
 }
 
 // ========== CARDS ==========
 
 export const CHANCE_CARDS: CardData[] = [
-  { effect: CardEffect.ADVANCE_TO_GO,    amount: 0,    moveTo: 0,  description: "Advance to Go. Collect $200." },
+  { effect: CardEffect.ADVANCE_TO_GO,    amount: 0,    moveTo: 0,  description: "Advance to Go. Collect $100." },
   { effect: CardEffect.GAIN_MONEY,        amount: 150,  moveTo: 0,  description: "Bank pays you dividend of $150." },
   { effect: CardEffect.PAY_MONEY,         amount: -50,  moveTo: 0,  description: "Speeding fine: $50." },
   { effect: CardEffect.MOVE_TO,           amount: 0,    moveTo: 24, description: "Advance to Illinois Ave." },
@@ -113,8 +113,8 @@ export const CHANCE_CARDS: CardData[] = [
 ];
 
 export const COMMUNITY_CARDS: CardData[] = [
-  { effect: CardEffect.ADVANCE_TO_GO,     amount: 0,    moveTo: 0,  description: "Advance to Go. Collect $200." },
-  { effect: CardEffect.GAIN_MONEY,         amount: 200,  moveTo: 0,  description: "Bank error in your favor. Collect $200." },
+  { effect: CardEffect.ADVANCE_TO_GO,     amount: 0,    moveTo: 0,  description: "Advance to Go. Collect $100." },
+  { effect: CardEffect.GAIN_MONEY,         amount: 100,  moveTo: 0,  description: "Bank error in your favor. Collect $100." },
   { effect: CardEffect.PAY_MONEY,          amount: -50,  moveTo: 0,  description: "Doctor's fee. Pay $50." },
   { effect: CardEffect.GAIN_MONEY,         amount: 100,  moveTo: 0,  description: "Life insurance matures. Collect $100." },
   { effect: CardEffect.PAY_MONEY,          amount: -100, moveTo: 0,  description: "Hospital fees. Pay $100." },

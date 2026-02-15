@@ -8,9 +8,9 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 /**
  * @title CLAWToken
  * @notice ERC-20 in-game currency for ClawBoardGames.
- *         Minted by the settlement contract at game start (1500 per player),
+ *         Minted by the settlement contract at game start (1000 per player),
  *         tracked off-chain by the GameMaster during play,
- *         burned or zeroed at game end.
+ *         retrieved (burned) by the settlement contract at game end.
  */
 contract CLAWToken is ERC20, ERC20Burnable, Ownable {
 
@@ -28,6 +28,13 @@ contract CLAWToken is ERC20, ERC20Burnable, Ownable {
     function mint(address to, uint256 amount) external {
         require(isMinter[msg.sender], "CLAWToken: not a minter");
         _mint(to, amount);
+    }
+
+    /// @notice Retrieve (burn) CLAW from a player's wallet. Only callable by authorized minters.
+    ///         Used by the settlement contract to burn all in-game CLAW at game end.
+    function retrieveFrom(address account, uint256 amount) external {
+        require(isMinter[msg.sender], "CLAWToken: not a minter");
+        _burn(account, amount);
     }
 
     /// @notice Set or revoke minter authorization. Only callable by owner.

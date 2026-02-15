@@ -183,10 +183,10 @@ describe("MonopolySettlement", function () {
       expect(game.status).to.equal(4); // STARTED
       expect(game.diceSeed).to.not.equal(ethers.ZeroHash);
 
-      // Each player should have 1500 CLAW
+      // Each player should have 1000 CLAW
       for (let i = 0; i < 4; i++) {
         const bal = await clawToken.balanceOf(playerAddrs[i]);
-        expect(bal).to.equal(ethers.parseEther("1500"));
+        expect(bal).to.equal(ethers.parseEther("1000"));
       }
     });
   });
@@ -211,6 +211,12 @@ describe("MonopolySettlement", function () {
       const game = await settlement.getGame(0);
       expect(game.status).to.equal(5); // SETTLED
       expect(game.winner).to.equal(playerAddrs[0]);
+
+      // All CLAW should be burned after settle
+      for (let i = 0; i < 4; i++) {
+        const bal = await clawToken.balanceOf(playerAddrs[i]);
+        expect(bal).to.equal(0n);
+      }
     });
 
     it("non-GM should not settle", async function () {
@@ -380,7 +386,7 @@ describe("MonopolySettlement", function () {
       await expect(settlement.emergencyVoid(0)).to.be.revertedWith("Cannot emergency void");
     });
 
-    it("should emergency void after 24h and refund all", async function () {
+    it("should emergency void after 24h and refund all + burn CLAW", async function () {
       // Fast forward 25 hours
       await ethers.provider.send("evm_increaseTime", [90000]);
       await ethers.provider.send("evm_mine", []);
@@ -393,6 +399,12 @@ describe("MonopolySettlement", function () {
 
       const bal0After = await ethers.provider.getBalance(playerAddrs[0]);
       expect(bal0After - bal0Before).to.equal(ENTRY_FEE);
+
+      // All CLAW should be burned after emergency void
+      for (let i = 0; i < 4; i++) {
+        const bal = await clawToken.balanceOf(playerAddrs[i]);
+        expect(bal).to.equal(0n);
+      }
     });
   });
 

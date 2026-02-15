@@ -434,7 +434,7 @@ function CornerGo({ rotation }: { rotation: [number, number, number] }) {
       {/* Arrow on floor */}
       <mesh position={[-0.15, 0.06, 0]} rotation={[0, 0, -Math.PI / 2]}><coneGeometry args={[0.14, 0.3, 3]} /><meshStandardMaterial color="#4CAF50" emissive="#4CAF50" emissiveIntensity={0.25} /></mesh>
       <Text position={[-0.15, 0.08, -0.2]} rotation={rotation} fontSize={0.22} color="#2E7D32" anchorX="center" fontWeight={800}>GO</Text>
-      <Text position={[0, 0.08, 0.42]} rotation={rotation} fontSize={0.075} color="#4CAF50" anchorX="center">COLLECT $200</Text>
+      <Text position={[0, 0.08, 0.42]} rotation={rotation} fontSize={0.075} color="#4CAF50" anchorX="center">COLLECT $100</Text>
     </group>
   );
 }
@@ -969,14 +969,20 @@ function MoneyParticle({ fx, onDone }: { fx: FxDef; onDone: () => void }) {
   const ref = useRef<THREE.Mesh>(null);
   useFrame(() => {
     if (!ref.current) return;
-    const t = Math.min((Date.now() - fx.start) / 1000, 1);
+    const elapsed = Date.now() - fx.start;
+    if (elapsed < 0) {
+      ref.current.visible = false;
+      return;
+    }
+    ref.current.visible = true;
+    const t = Math.min(elapsed / 1000, 1);
     if (t >= 1) { onDone(); return; }
     ref.current.position.x = fx.from[0] + (fx.to[0] - fx.from[0]) * t;
     ref.current.position.z = fx.from[2] + (fx.to[2] - fx.from[2]) * t;
     ref.current.position.y = 0.8 + Math.sin(t * Math.PI) * 2;
     ref.current.rotation.y = t * 14;
   });
-  return <mesh ref={ref} position={[fx.from[0], 0.8, fx.from[2]]}><cylinderGeometry args={[0.09, 0.09, 0.035, 12]} /><meshStandardMaterial color="#FFD700" emissive="#FFA000" emissiveIntensity={1.5} metalness={0.9} roughness={0.1} /></mesh>;
+  return <mesh ref={ref} position={[fx.from[0], 0.8, fx.from[2]]} visible={false}><cylinderGeometry args={[0.09, 0.09, 0.035, 12]} /><meshStandardMaterial color="#FFD700" emissive="#FFA000" emissiveIntensity={1.5} metalness={0.9} roughness={0.1} /></mesh>;
 }
 
 /* ================================================================ */
@@ -1060,12 +1066,20 @@ function Scene({ snapshot, latestEvents, activeCard }: { snapshot: Snapshot | nu
     if (!snapshot || !latestEvents.length) return;
     // Delay for rent/tax FX until after dice animation + piece lands (match AnimatedToken timing).
     const playerMoved = latestEvents.find((e: GameEvent) => e.type === 'playerMoved');
-    const landDelayMs = !playerMoved ? 0 : (() => {
+    const hasMoneyFx = latestEvents.some((e: GameEvent) =>
+      e.type === 'rentPaid' || e.type === 'taxPaid' || e.type === 'passedGo' || e.type === 'cardDrawn');
+    const spacesFromMove = playerMoved ? (() => {
       const dest = playerMoved.to ?? playerMoved.newPosition;
-      const spaces = playerMoved.from !== undefined && dest !== undefined
+      return playerMoved.from !== undefined && dest !== undefined
         ? Math.min((dest - playerMoved.from + 40) % 40, 12)
         : 0;
-      return DICE_ANIM_MS + MOVE_DELAY + spaces * HOP_MS + 400;
+    })() : null;
+    // Money FX must run after token lands. If no playerMoved in this batch (e.g. separate message), use lastDice.sum for delay.
+    const landDelayMs = (() => {
+      if (!hasMoneyFx && !playerMoved) return 0;
+      const spaces = spacesFromMove ?? (snapshot?.lastDice ? Math.min(snapshot.lastDice.sum, 12) : 6);
+      const moveFinishMs = MOVE_DELAY + spaces * HOP_MS + 400;
+      return DICE_ANIM_MS + moveFinishMs + 200; // +200ms buffer so piece is clearly landed before money flies
     })();
 
     const nf: FxDef[] = [];

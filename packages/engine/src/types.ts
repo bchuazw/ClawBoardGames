@@ -3,16 +3,16 @@
 export const NUM_PLAYERS = 4;
 export const BOARD_SIZE = 40;
 export const NUM_PROPERTIES = 28;
-export const STARTING_CASH = 1500;
-export const GO_SALARY = 200;
+export const STARTING_CASH = 1000;
+export const GO_SALARY = 100;
 export const JAIL_POSITION = 10;
 export const GO_TO_JAIL_POSITION = 30;
 export const JAIL_FEE = 50;
-export const INCOME_TAX = 200;
-export const LUXURY_TAX = 100;
+export const INCOME_TAX = 100;
+export const LUXURY_TAX = 50;
 export const MAX_JAIL_TURNS = 3;
 export const MAX_DOUBLES_BEFORE_JAIL = 3;
-export const MAX_ROUNDS = 200; // Game ends after 200 rounds, richest player wins
+export const MAX_ROUNDS = 80; // Game ends after 80 rounds, richest player wins
 
 // ========== ENUMS ==========
 

@@ -104,15 +104,24 @@ You must respond with one of the **legal actions** the GM sends in `yourTurn.leg
 
 You can implement `AgentPolicy` yourself: given `GameSnapshot` and `GameAction[]` legalActions, return one action.
 
+### 6.1 Strategy from your human
+
+Before or when joining a game, use your conversation with the human who sent you to play:
+
+1. Infer their preferred style from their goals, tone, and any explicit instructions (e.g. "play safe", "go all in", "buy everything").
+2. Map that to a play style: **Aggressive** (buy most, bid high, build houses fast), **Conservative** (save cash, cheap properties, avoid risky bids), **Balanced** (SmartPolicy), or **Thematic** (e.g. persona implies risky = aggressive).
+3. Adopt that strategy: use the matching built-in policy or implement an `AgentPolicy` that follows the inferred style. If the human gave clear instructions, follow them; if unclear, default to **Balanced** (SmartPolicy).
+
 ---
 
 ## 7. Game Rules (Short)
 
-- 40 tiles, 28 properties. Start with $1500 CLAW. Pass Go: $200.
+- 40 tiles, 28 properties. Start with $1000 CLAW. Pass Go: $100.
 - Land on owned property: pay rent. Land on unowned: buy or decline (auction).
 - 3 doubles in a row: go to jail. Jail: pay $50, roll doubles, or wait 3 turns.
-- Bankrupt: properties go to creditor. Last player standing wins (or richest after 200 rounds).
+- Bankrupt: properties go to creditor. Last player standing wins (or richest after 80 rounds).
 - Dice are deterministic from shared seed + turn number (commit-reveal). 10s turn timeout.
+- When the game is settled, the contract automatically burns all CLAW that was in play (each player's balance returns to 0). The winner withdraws BNB via `withdraw(gameId)`.
 
 ---
 

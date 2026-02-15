@@ -145,12 +145,12 @@ describe("E2E: Full Game Lifecycle (Engine + Contracts)", function () {
     expect(gameAfterReveal.revealCount).to.equal(4);
     expect(gameAfterReveal.diceSeed).to.equal(diceSeed);
 
-    // Verify CLAW tokens minted (1500 CLAW * 10^18 per player)
+    // Verify CLAW tokens minted (1000 CLAW * 10^18 per player)
     for (let i = 0; i < 4; i++) {
       const balance = await clawToken.balanceOf(playerAddrs[i]);
-      expect(balance).to.equal(ethers.parseEther("1500"));
+      expect(balance).to.equal(ethers.parseEther("1000"));
     }
-    console.log(`  CLAW tokens minted: 1500 CLAW per player`);
+    console.log(`  CLAW tokens minted: 1000 CLAW per player`);
 
     // ========== STEP 4: Run Game Engine ==========
     console.log("\nSTEP 4: Running game engine simulation...");
@@ -251,6 +251,13 @@ describe("E2E: Full Game Lifecycle (Engine + Contracts)", function () {
     console.log(`  Game settled. Winner: ${winnerAddr.slice(0, 10)}...`);
     console.log(`  Game log hash: ${gameLogHash.slice(0, 20)}...`);
 
+    // Verify all CLAW burned after settle
+    for (let i = 0; i < 4; i++) {
+      const clawBal = await clawToken.balanceOf(playerAddrs[i]);
+      expect(clawBal).to.equal(0n);
+    }
+    console.log(`  All CLAW burned after settle (4 players at 0)`);
+
     // ========== STEP 7: Winner Withdraws ==========
     console.log("\nSTEP 7: Winner withdrawing prize...");
 
@@ -310,7 +317,7 @@ describe("E2E: Full Game Lifecycle (Engine + Contracts)", function () {
     console.log(`  Prize:          ${ethers.formatEther(winnerShare)} native`);
     console.log(`  Platform fee:   ${ethers.formatEther(platformShare)} native`);
     console.log(`  Total events:   ${allEvents.length}`);
-    console.log(`  CLAW per player: 1500`);
+    console.log(`  CLAW per player: 1000`);
     console.log("========================================\n");
   });
 
