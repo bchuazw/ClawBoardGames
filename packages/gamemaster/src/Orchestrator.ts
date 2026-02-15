@@ -60,6 +60,8 @@ export class Orchestrator {
   private slots: Map<number, LocalSlot> = new Map();
   private settlement: SettlementClient | null;
   private nextLocalGameId: number;
+  /** Called when an on-chain game ends (so caller can replenish open games). */
+  onGameEnd?: () => void;
 
   constructor(settlement: SettlementClient | null) {
     this.settlement = settlement;
@@ -105,6 +107,7 @@ export class Orchestrator {
       players,
       diceSeed: seed,
       settlement: this.settlement,
+      onEnd: () => this.onGameEnd?.(),
     };
 
     // Check if there's a checkpoint to recover from

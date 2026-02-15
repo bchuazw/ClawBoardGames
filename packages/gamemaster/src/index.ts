@@ -218,6 +218,41 @@ app.post("/games/:gameId/spawn", async (req, res) => {
   }
 });
 
+// Replenish open games (on-chain only): create until count >= OPEN_GAME_TARGET
+async function replenishOpenGames(): Promise<{ created: number; openCount: number }> {
+  const result = { created: 0, openCount: 0 };
+  if (LOCAL_MODE || !settlement) return result;
+  try {
+    const open = await settlement.getOpenGameIds();
+    result.openCount = open.length;
+    if (open.length >= OPEN_GAME_TARGET) return result;
+    const toCreate = OPEN_GAME_TARGET - open.length;
+    console.log(`[GM Server] Replenishing open games: ${open.length} -> ${OPEN_GAME_TARGET} (creating ${toCreate})`);
+    for (let i = 0; i < toCreate; i++) {
+      await settlement.createOpenGame();
+      result.created++;
+      console.log(`[GM Server] Created open game ${i + 1}/${toCreate}`);
+    }
+    result.openCount = open.length + result.created;
+  } catch (err: any) {
+    console.error("[GM Server] replenishOpenGames error:", err?.message || err);
+  }
+  return result;
+}
+
+// Trigger replenish on demand (fill empty lobbies)
+app.post("/games/replenish", async (_req, res) => {
+  if (LOCAL_MODE || !settlement) {
+    return res.status(400).json({ error: "Replenish only in on-chain mode" });
+  }
+  try {
+    const result = await replenishOpenGames();
+    res.json({ ok: true, created: result.created, openCount: result.openCount });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || "Replenish failed" });
+  }
+});
+
 // ========== WebSocket Server ==========
 
 const server = createServer(app);
@@ -259,26 +294,10 @@ server.listen(PORT, () => {
 // Cleanup every 5 minutes
 setInterval(() => orchestrator.cleanup(), 5 * 60 * 1000);
 
-// Auto-replenish open games (on-chain only): keep at least OPEN_GAME_TARGET open slots
-async function replenishOpenGames(): Promise<void> {
-  if (LOCAL_MODE || !settlement) return;
-  try {
-    const open = await settlement.getOpenGameIds();
-    if (open.length >= OPEN_GAME_TARGET) return;
-    const toCreate = OPEN_GAME_TARGET - open.length;
-    console.log(`[GM Server] Replenishing open games: ${open.length} -> ${OPEN_GAME_TARGET} (creating ${toCreate})`);
-    for (let i = 0; i < toCreate; i++) {
-      await settlement.createOpenGame();
-      console.log(`[GM Server] Created open game ${i + 1}/${toCreate}`);
-    }
-  } catch (err: any) {
-    console.error("[GM Server] replenishOpenGames error:", err?.message || err);
-  }
-}
-
 if (!LOCAL_MODE && settlement) {
   replenishOpenGames(); // run once on startup
   setInterval(replenishOpenGames, OPEN_GAME_REPLENISH_INTERVAL_MS);
+  orchestrator.onGameEnd = replenishOpenGames; // when a game ends, top up open lobbies
 }
 
 export { app, server, orchestrator };

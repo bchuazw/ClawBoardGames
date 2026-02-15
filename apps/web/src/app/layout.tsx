@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Nav } from "@/components/Nav";
+import { BackgroundMusic } from "@/components/BackgroundMusic";
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -34,6 +35,7 @@ export default function RootLayout({
         minHeight: "100vh",
         padding: 0,
       }}>
+        <BackgroundMusic />
         <Nav />
         {children}
       </body>
