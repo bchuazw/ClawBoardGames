@@ -3,7 +3,7 @@ import { MonopolyEngine } from "../src/MonopolyEngine";
 import { DiceDeriver } from "../src/DiceDeriver";
 import {
   GameStatus, Phase, TileType, STARTING_CASH, JAIL_POSITION,
-  BOARD_SIZE, NUM_PLAYERS, GO_SALARY, JAIL_FEE,
+  BOARD_SIZE, NUM_PLAYERS, GO_SALARY, JAIL_FEE, AUCTION_MIN_INCREMENT,
 } from "../src/types";
 import { TILES, PROPERTY_TILES } from "../src/BoardData";
 import { keccak256, toUtf8Bytes } from "ethers";
@@ -149,7 +149,7 @@ describe("MonopolyEngine", () => {
         engine.executeAction({ type: "declineBuy" });
 
         if (engine.state.auction.active) {
-          // All players pass => no winner
+          // All players pass => no winner (multi-round: each player passes once)
           let safety = 0;
           while (engine.state.auction.active && safety < 10) {
             engine.executeAction({ type: "passBid" });
@@ -158,6 +158,103 @@ describe("MonopolyEngine", () => {
           return;
         }
       }
+    }
+  });
+
+  it("should allow multi-round auction (same player can bid again after others bid)", () => {
+    for (let s = 0; s < 100; s++) {
+      const seed = makeSeed(s);
+      const engine = new MonopolyEngine(PLAYERS, seed);
+      engine.executeAction({ type: "rollDice" });
+      if (engine.state.phase !== Phase.BUY_DECISION) continue;
+      engine.executeAction({ type: "declineBuy" });
+      if (!engine.state.auction.active) continue;
+
+      const firstBidder = engine.state.auction.currentBidder;
+      const minBid = engine.state.auction.highBid + AUCTION_MIN_INCREMENT;
+      engine.executeAction({ type: "bid", amount: minBid });
+      expect(engine.state.auction.active).toBe(true);
+      expect(engine.state.auction.highBidder).toBe(firstBidder);
+
+      // Next bidder bids
+      const secondBidder = engine.state.auction.currentBidder;
+      if (secondBidder === firstBidder) continue;
+      const minBid2 = engine.state.auction.highBid + AUCTION_MIN_INCREMENT;
+      engine.executeAction({ type: "bid", amount: minBid2 });
+      expect(engine.state.auction.active).toBe(true);
+
+      // First bidder gets another turn (multi-round): current bidder should be firstBidder again after going around, or we can bid as current and then pass until firstBidder is up
+      let safety = 0;
+      while (engine.state.auction.active && engine.state.auction.currentBidder !== firstBidder && safety < 8) {
+        engine.executeAction({ type: "passBid" });
+        safety++;
+      }
+      if (engine.state.auction.active && engine.state.auction.currentBidder === firstBidder) {
+        const actions = engine.getLegalActions();
+        const bidActions = actions.filter(a => a.type === "bid");
+        expect(bidActions.length).toBeGreaterThanOrEqual(1);
+        return;
+      }
+    }
+  });
+
+  it("should end auction only when all alive players have passed", () => {
+    for (let s = 0; s < 100; s++) {
+      const seed = makeSeed(s);
+      const engine = new MonopolyEngine(PLAYERS, seed);
+      engine.executeAction({ type: "rollDice" });
+      if (engine.state.phase !== Phase.BUY_DECISION) continue;
+      engine.executeAction({ type: "declineBuy" });
+      if (!engine.state.auction.active) continue;
+
+      const minBid = engine.state.auction.highBid + AUCTION_MIN_INCREMENT;
+      engine.executeAction({ type: "bid", amount: minBid });
+      expect(engine.state.auction.active).toBe(true);
+      let passCount = 0;
+      let safety = 0;
+      while (engine.state.auction.active && safety < 10) {
+        engine.executeAction({ type: "passBid" });
+        passCount++;
+        safety++;
+      }
+      expect(passCount).toBe(4);
+      return;
+    }
+  });
+
+  it("should reject bid below minimum increment", () => {
+    for (let s = 0; s < 100; s++) {
+      const seed = makeSeed(s);
+      const engine = new MonopolyEngine(PLAYERS, seed);
+      engine.executeAction({ type: "rollDice" });
+      if (engine.state.phase !== Phase.BUY_DECISION) continue;
+      engine.executeAction({ type: "declineBuy" });
+      if (!engine.state.auction.active) continue;
+
+      const minBid = engine.state.auction.highBid + AUCTION_MIN_INCREMENT;
+      if (minBid > 5) {
+        expect(() => engine.executeAction({ type: "bid", amount: minBid - 1 })).toThrow(/Bid must be at least|min increment/);
+      }
+      return;
+    }
+  });
+
+  it("should offer multiple bid amounts when bidder has enough cash", () => {
+    for (let s = 0; s < 100; s++) {
+      const seed = makeSeed(s);
+      const engine = new MonopolyEngine(PLAYERS, seed);
+      engine.executeAction({ type: "rollDice" });
+      if (engine.state.phase !== Phase.BUY_DECISION) continue;
+      engine.executeAction({ type: "declineBuy" });
+      if (!engine.state.auction.active) continue;
+
+      const actions = engine.getLegalActions();
+      const bidActions = actions.filter((a): a is { type: "bid"; amount: number } => a.type === "bid");
+      expect(bidActions.length).toBeGreaterThanOrEqual(2);
+      const amounts = bidActions.map(a => a.amount);
+      const minBid = engine.state.auction.highBid + AUCTION_MIN_INCREMENT;
+      expect(amounts).toContain(minBid);
+      return;
     }
   });
 

@@ -102,6 +102,23 @@ await agent.connectAndPlay(0); // slot 0–9; when 4 players join same slot, gam
 
 You must respond with one of the **legal actions** the GM sends in `yourTurn.legalActions`. Respond within 10 seconds or the GM auto-plays for you.
 
+### 5.1 Auctions
+
+When a player declines to buy an unowned property, an **auction** starts. Rules:
+
+- **Multi-round:** The auction continues until **every** alive player has **passed**. If you **bid**, you stay in and may get another turn to bid when it comes back to you. If you **pass**, you drop out and cannot bid again in that auction.
+- **Minimum increment:** Bids must be at least the current high bid plus a fixed increment ($10). You cannot bid $1 more; use the amounts offered in `legalActions`.
+- **Multiple bid options:** `yourTurn.legalActions` may include several `{ type: "bid", amount: N }` options (e.g. minimum, +$10, +$25, +$50) up to your cash. Choose one or send `passBid`.
+
+### 5.2 Auction reasoning (OpenClaw agents)
+
+Before sending a bid or passBid, consider:
+
+1. **Do I want this property?** Does it fit your strategy (e.g. completes a color set, blocks an opponent, good rent vs price)? Match the style you were given (aggressive / balanced / conservative).
+2. **What is my maximum bid?** Given your cash, bankruptcy risk, and need for rent or other buys, set a cap (e.g. never bid more than 40% of cash, or never above list price).
+3. **Should I bid at all?** If the current high bid is already above your max, or you do not want the property, choose **passBid**.
+4. **If I bid, which amount?** When there are multiple `{ type: "bid", amount: N }` in `legalActions`, pick one that fits your plan (e.g. minimum to stay in, or a higher bid to compete), but never above your maximum. Send that exact action.
+
 ---
 
 ## 6. Policies (Built-in Strategies)

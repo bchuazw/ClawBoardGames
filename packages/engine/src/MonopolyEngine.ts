@@ -1,7 +1,7 @@
 import {
   NUM_PLAYERS, BOARD_SIZE, STARTING_CASH, GO_SALARY, JAIL_POSITION,
   GO_TO_JAIL_POSITION, JAIL_FEE, MAX_JAIL_TURNS, MAX_DOUBLES_BEFORE_JAIL,
-  MAX_ROUNDS, GameStatus, Phase, TileType, CardEffect,
+  MAX_ROUNDS, AUCTION_MIN_INCREMENT, GameStatus, Phase, TileType, CardEffect,
   PlayerState, PropertyState, AuctionState, DiceRoll,
   GameState, GameAction, GameEvent, GameSnapshot,
 } from "./types";
@@ -56,7 +56,7 @@ export class MonopolyEngine {
       highBidder: -1,
       highBid: 0,
       currentBidder: -1,
-      playersActed: new Set(),
+      playersPassed: new Set(),
     };
 
     this.state = {
@@ -95,13 +95,23 @@ export class MonopolyEngine {
 
     const actions: GameAction[] = [];
 
-    // If auction is active, only auction actions for the current bidder
+    // If auction is active, only auction actions for the current bidder (who has not passed)
     if (this.state.auction.active) {
-      const bidder = this.state.players[this.state.auction.currentBidder];
-      if (bidder && bidder.alive && !this.state.auction.playersActed.has(bidder.index)) {
-        const minBid = this.state.auction.highBid + 1;
+      const auction = this.state.auction;
+      const bidder = this.state.players[auction.currentBidder];
+      if (bidder && bidder.alive && !auction.playersPassed.has(bidder.index)) {
+        const minBid = auction.highBid + AUCTION_MIN_INCREMENT;
         if (bidder.cash >= minBid) {
-          actions.push({ type: "bid", amount: minBid });
+          // Offer multiple bid amounts: min, +10, +25, +50, +100 (capped by cash), deduped
+          const steps = [0, 10, 25, 50, 100];
+          const amounts = new Set<number>();
+          for (const step of steps) {
+            const amt = minBid + step;
+            if (amt <= bidder.cash) amounts.add(amt);
+          }
+          for (const amt of Array.from(amounts).sort((a, b) => a - b)) {
+            actions.push({ type: "bid", amount: amt });
+          }
         }
         actions.push({ type: "passBid" });
       }
@@ -505,12 +515,14 @@ export class MonopolyEngine {
 
     const auction = this.state.auction;
     const bidder = this.state.players[auction.currentBidder];
+    const minBid = auction.highBid + AUCTION_MIN_INCREMENT;
+    if (amount < minBid) throw new Error("Bid must be at least " + minBid + " (min increment " + AUCTION_MIN_INCREMENT + ")");
     if (amount <= auction.highBid) throw new Error("Bid too low");
     if (amount > bidder.cash) throw new Error("Not enough cash for bid");
 
     auction.highBid = amount;
     auction.highBidder = bidder.index;
-    auction.playersActed.add(bidder.index);
+    // Do not add bidder to playersPassed; they stay in and can bid again when turn comes back
     this.emit({ type: "bidPlaced", player: bidder.index, propertyIndex: auction.propertyIndex, amount });
 
     this.advanceAuctionBidder();
@@ -520,7 +532,7 @@ export class MonopolyEngine {
     if (!this.state.auction.active) throw new Error("No active auction");
 
     const auction = this.state.auction;
-    auction.playersActed.add(auction.currentBidder);
+    auction.playersPassed.add(auction.currentBidder);
     this.advanceAuctionBidder();
   }
 
@@ -1001,7 +1013,7 @@ export class MonopolyEngine {
       highBidder: -1,
       highBid: 0,
       currentBidder: firstBidder,
-      playersActed: new Set(),
+      playersPassed: new Set(),
     };
     this.emit({ type: "auctionStarted", propertyIndex, tileName: PROPERTY_TILES[propertyIndex].name });
   }
@@ -1009,18 +1021,18 @@ export class MonopolyEngine {
   private advanceAuctionBidder(): void {
     const auction = this.state.auction;
     const alivePlayers = this.state.players.filter(p => p.alive);
-    const allActed = alivePlayers.every(p => auction.playersActed.has(p.index));
+    const allPassed = alivePlayers.every(p => auction.playersPassed.has(p.index));
 
-    if (allActed) {
+    if (allPassed) {
       this.resolveAuction();
       return;
     }
 
-    // Move to next alive player who hasn't acted
+    // Move to next alive player who hasn't passed
     let next = (auction.currentBidder + 1) % NUM_PLAYERS;
     let safety = 0;
     while (safety < NUM_PLAYERS) {
-      if (this.state.players[next].alive && !auction.playersActed.has(next)) {
+      if (this.state.players[next].alive && !auction.playersPassed.has(next)) {
         auction.currentBidder = next;
         return;
       }

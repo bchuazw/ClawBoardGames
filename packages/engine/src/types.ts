@@ -13,6 +13,7 @@ export const LUXURY_TAX = 50;
 export const MAX_JAIL_TURNS = 3;
 export const MAX_DOUBLES_BEFORE_JAIL = 3;
 export const MAX_ROUNDS = 80; // Game ends after 80 rounds, richest player wins
+export const AUCTION_MIN_INCREMENT = 10; // Minimum bid increment in auctions
 
 // ========== ENUMS ==========
 
@@ -79,7 +80,7 @@ export interface AuctionState {
   highBidder: number; // player index, or -1
   highBid: number;
   currentBidder: number; // whose turn it is to bid (-1 if not started)
-  playersActed: Set<number>; // players who have bid/passed
+  playersPassed: Set<number>; // players who have passed (dropped out) in this auction
 }
 
 export interface DiceRoll {
