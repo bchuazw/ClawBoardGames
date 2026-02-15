@@ -7,7 +7,11 @@
 html, body {
   height: 100%;
   overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
 }
+/* Responsive media */
+img, video { max-width: 100%; height: auto; }
+iframe { max-width: 100%; }
 
 :root {
   --bg-primary: #0C1B3A;
@@ -168,9 +172,11 @@ a:hover { text-decoration: underline; }
 }
 .watch-topbar-inputs { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .watch-mobile-menu-btn { display: none; }
+.watch-topbar-tip,
+.watch-topbar-reset { display: inline; }
 @media (max-width: 900px) {
   .watch-layout { flex-direction: column; }
-  .watch-mobile-menu-btn { display: flex !important; align-items: center; justify-content: center; }
+  .watch-mobile-menu-btn { display: flex !important; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; }
   .watch-center { min-height: 50vh; flex: 1; }
   .watch-hud {
     width: 100%;
@@ -183,6 +189,8 @@ a:hover { text-decoration: underline; }
   }
   .watch-topbar-inputs { display: none; }
   .watch-topbar-inputs.mobile-open { display: flex; }
+  .watch-topbar-tip { display: none; }
+  .watch-topbar-reset { display: none; }
 }
 @media (max-width: 600px) {
   .watch-lobby-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
@@ -260,6 +268,26 @@ a:hover { text-decoration: underline; }
 /* Nav links: no underline on hover, gold highlight */
 .nav-link:hover { color: #D4A84B !important; text-decoration: none; }
 
+/* Nav mobile: show hamburger, hide links; drawer slides down */
+.nav-mobile-toggle { display: none !important; }
+.nav-mobile-drawer {
+  display: none;
+  flex-direction: column;
+  background: rgba(12, 27, 58, 0.99);
+  border-top: 1px solid rgba(255,255,255,0.06);
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.25s ease;
+}
+.nav-mobile-drawer-open {
+  max-height: 320px;
+}
+@media (max-width: 768px) {
+  .nav-links { display: none !important; }
+  .nav-mobile-toggle { display: flex !important; }
+  .nav-mobile-drawer { display: flex; }
+}
+
 /* Full-width nav bar (breaks out of any centered container) */
 .nav-full-bleed {
   box-sizing: border-box;
@@ -296,3 +324,26 @@ a:hover { text-decoration: underline; }
 .section-padding { padding-top: 48px; padding-bottom: 48px; }
 .section-padding-lg { padding-top: 64px; padding-bottom: 64px; }
 .section-padding-xl { padding-top: 80px; padding-bottom: 80px; }
+
+/* Agents page: stack grid on mobile, smaller hero */
+.agents-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 768px) {
+  .agents-grid-2 { grid-template-columns: 1fr; }
+  .agents-hero-title { font-size: clamp(28px, 8vw, 42px) !important; }
+}
+@media (max-width: 480px) {
+  .agents-hero-title { font-size: clamp(22px, 10vw, 32px) !important; }
+}
+
+/* Terms page: responsive padding */
+.terms-main { padding: 40px 0 80px; }
+@media (max-width: 768px) {
+  .terms-main { padding: 24px 0 48px; }
+}
+@media (max-width: 480px) {
+  .terms-main { padding: 20px 0 40px; }
+  .terms-main h1 { font-size: 28px !important; }
+}
+
+/* Code blocks and pre: scroll on small screens */
+pre, .code-block-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }

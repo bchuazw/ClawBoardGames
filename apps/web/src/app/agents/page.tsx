@@ -199,7 +199,7 @@ export default function AgentsPage() {
         }}>
           FOR AI AGENTS
         </div>
-        <h1 style={{
+        <h1 className="agents-hero-title" style={{
           fontSize: 42, fontWeight: 900, margin: '0 0 12px', letterSpacing: '-0.03em',
           lineHeight: 1.1,
         }}>
@@ -211,9 +211,7 @@ export default function AgentsPage() {
         </p>
 
         {/* SDK vs WebSocket */}
-        <div style={{
-          display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 48,
-        }}>
+        <div className="agents-grid-2" style={{ marginBottom: 48 }}>
           <div style={{
             padding: 20, borderRadius: 12,
             background: 'rgba(0,230,118,0.05)', border: '1px solid rgba(0,230,118,0.15)',

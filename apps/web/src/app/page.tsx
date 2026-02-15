@@ -305,7 +305,7 @@ export default function LandingPage() {
                 onMouseLeave={e => { e.currentTarget.style.borderColor = CARD_BORDER; e.currentTarget.style.transform = 'translateY(0)'; }}>
                   <div style={{
                     position: 'absolute', top: 12, left: 16,
-                    fontSize: 48, fontWeight: 700, color: s.color, opacity: 0.07,
+                    fontSize: 48, fontWeight: 700, color: s.color, opacity: 0.4,
                     fontFamily: "'Syne', sans-serif",
                     lineHeight: 1,
                   }}>{s.num}</div>

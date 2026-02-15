@@ -181,6 +181,7 @@ export default function WatchGameView({ gameId }: { gameId: string }) {
   const moodTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
   const connectTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
   const hasOpenedRef = useRef(false);
+  const resetCenterRef = useRef<{ resetCenter: () => void } | null>(null);
 
   useEffect(() => { sfx.muted = muted; }, [muted]);
 
@@ -391,9 +392,9 @@ export default function WatchGameView({ gameId }: { gameId: string }) {
     <div style={{ width: '100vw', height: '100vh', display: 'flex', overflow: 'hidden', background: '#0C1B3A' }}>
       <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', inset: 0 }}>
-          <MonopolyScene snapshot={snapshot} latestEvents={latestEvents} activeCard={activeCard} />
+          <MonopolyScene snapshot={snapshot} latestEvents={latestEvents} activeCard={activeCard} resetCenterRef={resetCenterRef} />
         </div>
-        <div style={{
+        <div className="watch-topbar-inner" style={{
           position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10,
           display: 'flex', alignItems: 'center', gap: 12, padding: '14px 20px 14px 24px',
           background: 'linear-gradient(to bottom, rgba(12,27,58,0.97), transparent)',
@@ -405,9 +406,13 @@ export default function WatchGameView({ gameId }: { gameId: string }) {
           <Link href="/agents" style={{ fontSize: 13, color: 'var(--text-secondary)', textDecoration: 'none' }}>For Agents</Link>
           <Link href="/terms" style={{ fontSize: 13, color: 'var(--text-secondary)', textDecoration: 'none' }}>Terms</Link>
           <div style={{ flex: 1 }} />
-          <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap' }} title="Click on the board while holding Ctrl to move the camera orbit center there">
+          <span className="watch-topbar-tip" style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap' }} title="Click on the board while holding Ctrl to move the camera orbit center there">
             Tip: Ctrl+click to move board center
           </span>
+          <button type="button" className="watch-topbar-reset" onClick={() => resetCenterRef.current?.resetCenter()}
+            style={{ fontSize: 11, padding: '6px 10px', borderRadius: 6, border: '1px solid rgba(212,168,75,0.3)', background: 'rgba(212,168,75,0.08)', color: 'var(--text-secondary)', cursor: 'pointer', whiteSpace: 'nowrap', minHeight: 36 }} title="Reset camera center to board center">
+            Reset center
+          </button>
           <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Game {gameId}</span>
           <input placeholder="GM WS URL" value={gmUrl} onChange={(e) => setGmUrl(e.target.value)}
             style={{ width: 200, padding: '8px 12px', borderRadius: 8, fontSize: 11, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(212,168,75,0.15)', color: '#aaa', fontFamily: 'var(--font-mono)' }} />

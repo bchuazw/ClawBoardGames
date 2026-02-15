@@ -230,6 +230,7 @@ function WatchPage() {
   const eventsEndRef = useRef<HTMLDivElement>(null);
   const notifTimer = useRef<ReturnType<typeof setTimeout>>();
   const moodTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
+  const resetCenterRef = useRef<{ resetCenter: () => void } | null>(null);
 
   // Redirect /watch?gameId=5 → /watch/lobby/5 so the slug is /watch/lobby/{gameId}
   useEffect(() => {
@@ -479,22 +480,24 @@ function WatchPage() {
       {/* ===== CENTER: 3D BOARD (always visible) ===== */}
       <div className="watch-center">
         <div style={{ position: 'absolute', inset: 0 }}>
-          <MonopolyScene snapshot={snapshot} latestEvents={latestEvents} activeCard={activeCard} />
+          <MonopolyScene snapshot={snapshot} latestEvents={latestEvents} activeCard={activeCard} resetCenterRef={resetCenterRef} />
         </div>
 
         {/* Top bar — responsive: hide inputs on small screens, show menu toggle */}
-        <div style={{
+        <div className="watch-topbar-inner" style={{
           position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10,
           display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10, padding: '10px 16px',
           background: 'linear-gradient(to bottom, rgba(12,27,58,0.92), transparent)',
           backdropFilter: 'blur(8px)',
         }}>
           <div style={{ flex: 1 }} />
-          {connected && (
-            <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap' }} title="Click on the board while holding Ctrl to move the camera orbit center there">
-              Tip: Ctrl+click to move board center
-            </span>
-          )}
+          <span className="watch-topbar-tip" style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap' }} title="Click on the board while holding Ctrl to move the camera orbit center there">
+            Tip: Ctrl+click to move board center
+          </span>
+          <button type="button" className="watch-topbar-reset" onClick={() => resetCenterRef.current?.resetCenter()}
+            style={{ fontSize: 11, padding: '6px 10px', borderRadius: 6, border: '1px solid rgba(212,168,75,0.3)', background: 'rgba(212,168,75,0.08)', color: 'var(--text-secondary)', cursor: 'pointer', whiteSpace: 'nowrap', minHeight: 36 }} title="Reset camera center to board center">
+            Reset center
+          </button>
           <div className={`watch-topbar-inputs ${mobileMenuOpen ? 'mobile-open' : ''}`} style={{ gap: 8 }}>
             <input placeholder="GM WS URL" value={gmUrl} onChange={(e) => setGmUrl(e.target.value)}
               style={{ width: 200, padding: '6px 10px', borderRadius: 8, fontSize: 11, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(212,168,75,0.2)', color: '#aaa', fontFamily: 'var(--font-mono)' }} />

@@ -10,8 +10,8 @@ export default function TermsPage() {
       color: '#C8D0DE',
     }}>
       {/* Content */}
-      <main className="page-container" style={{
-        maxWidth: 800, margin: '0 auto', padding: '40px 0 80px',
+      <main className="page-container terms-main" style={{
+        maxWidth: 800, margin: '0 auto',
       }}>
         <Link href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 600, color: '#fff', textDecoration: 'none', marginBottom: 24, padding: '10px 18px', borderRadius: 8, background: '#CC5500', border: '1px solid rgba(204,85,0,0.5)' }}>
           <span style={{ fontSize: 18 }}>←</span> Back to Home

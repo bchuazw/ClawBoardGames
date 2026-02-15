@@ -47,7 +47,7 @@ export default function HistoryPage() {
       color: '#fff',
       fontFamily: 'var(--font-display, "DM Sans", sans-serif)',
     }}>
-      <main style={{ maxWidth: 900, margin: '0 auto', padding: 32 }}>
+      <main style={{ maxWidth: 900, margin: '0 auto', padding: 'clamp(16px, 4vw, 32px)', width: '100%', boxSizing: 'border-box' }}>
         <h1 style={{
           fontSize: 'clamp(24px, 4vw, 32px)',
           fontWeight: 800,
@@ -71,14 +71,16 @@ export default function HistoryPage() {
             onChange={(e) => setGmRestUrl(e.target.value)}
             placeholder={DEFAULT_GM_REST}
             style={{
-              width: 320,
-              padding: '8px 12px',
+              width: '100%',
+              maxWidth: 320,
+              padding: '10px 12px',
               borderRadius: 8,
               fontSize: 12,
               background: 'rgba(255,255,255,0.06)',
               border: '1px solid rgba(212,168,75,0.2)',
               color: '#fff',
               fontFamily: 'var(--font-mono, monospace)',
+              boxSizing: 'border-box',
             }}
           />
         </div>

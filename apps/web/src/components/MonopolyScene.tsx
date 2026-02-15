@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useMemo, useEffect, useState, useCallback } from 'react';
+import { useRef, useMemo, useEffect, useState, useCallback, type MutableRefObject } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Text, Sparkles, Image } from '@react-three/drei';
 import * as THREE from 'three';
@@ -786,6 +786,35 @@ function AnimatedDice({ d1, d2, isDoubles }: { d1: number; d2: number; isDoubles
 /* ================================================================ */
 /*  ANIMAL TOKENS                                                    */
 /* ================================================================ */
+function LobsterToken({ color }: { color: string }) {
+  const dk = useMemo(() => new THREE.Color(color).multiplyScalar(0.5).getStyle(), [color]);
+  const m = <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.2} metalness={0.35} roughness={0.35} />;
+  return (
+    <group scale={[0.85, 0.85, 0.85]}>
+      {/* tail segments */}
+      <mesh position={[0, 0.08, -0.08]} rotation={[0.3, 0, 0]}><sphereGeometry args={[0.07, 8, 8]} />{m}</mesh>
+      <mesh position={[0, 0.12, -0.02]}><sphereGeometry args={[0.08, 8, 8]} />{m}</mesh>
+      <mesh position={[0, 0.16, 0.04]}><sphereGeometry args={[0.075, 8, 8]} />{m}</mesh>
+      {/* head / thorax */}
+      <mesh position={[0, 0.22, 0.08]}><sphereGeometry args={[0.09, 10, 10]} />{m}</mesh>
+      {/* eyes */}
+      <mesh position={[-0.04, 0.24, 0.14]}><sphereGeometry args={[0.028, 8, 8]} /><meshStandardMaterial color="#fff" /></mesh>
+      <mesh position={[-0.04, 0.24, 0.155]}><sphereGeometry args={[0.014, 8, 8]} /><meshStandardMaterial color="#1a1a1a" /></mesh>
+      <mesh position={[0.04, 0.24, 0.14]}><sphereGeometry args={[0.028, 8, 8]} /><meshStandardMaterial color="#fff" /></mesh>
+      <mesh position={[0.04, 0.24, 0.155]}><sphereGeometry args={[0.014, 8, 8]} /><meshStandardMaterial color="#1a1a1a" /></mesh>
+      {/* big claw left */}
+      <mesh position={[-0.18, 0.2, 0.12]} rotation={[0, 0, 0.4]}><sphereGeometry args={[0.06, 8, 8]} />{m}</mesh>
+      <mesh position={[-0.24, 0.16, 0.14]} rotation={[0.2, 0, 0.5]}><boxGeometry args={[0.08, 0.06, 0.04]} /><meshStandardMaterial color={dk} /></mesh>
+      {/* big claw right */}
+      <mesh position={[0.18, 0.2, 0.12]} rotation={[0, 0, -0.4]}><sphereGeometry args={[0.06, 8, 8]} />{m}</mesh>
+      <mesh position={[0.24, 0.16, 0.14]} rotation={[0.2, 0, -0.5]}><boxGeometry args={[0.08, 0.06, 0.04]} /><meshStandardMaterial color={dk} /></mesh>
+      {/* antennae */}
+      <mesh position={[-0.06, 0.28, 0.16]} rotation={[0.3, 0, 0.3]}><cylinderGeometry args={[0.008, 0.006, 0.1, 6]} /><meshStandardMaterial color={dk} /></mesh>
+      <mesh position={[0.06, 0.28, 0.16]} rotation={[0.3, 0, -0.3]}><cylinderGeometry args={[0.008, 0.006, 0.1, 6]} /><meshStandardMaterial color={dk} /></mesh>
+    </group>
+  );
+}
+
 function DogToken({ color }: { color: string }) {
   const dk = useMemo(() => new THREE.Color(color).multiplyScalar(0.6).getStyle(), [color]);
   const m = <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.2} metalness={0.35} roughness={0.35} />;
@@ -862,7 +891,7 @@ function FoxToken({ color }: { color: string }) {
   );
 }
 
-const ANIMALS = [DogToken, CatToken, BearToken, FoxToken];
+const ANIMALS = [LobsterToken, CatToken, BearToken, FoxToken];
 
 /* ---------------------------------------------------------------- */
 /*  Animated token — jail aware                                      */
@@ -874,7 +903,7 @@ function AnimatedToken({ pi, pos, color, active, alive, inJail, onMoveComplete }
   const pathQ = useRef<[number, number, number][]>([]);
   const pathS = useRef(0);
   const positionInitialized = useRef(false);
-  const Animal = ANIMALS[pi] || DogToken;
+  const Animal = ANIMALS[pi] || LobsterToken;
 
   useEffect(() => {
     if (pos === prevP.current) return;
@@ -1023,16 +1052,36 @@ function JailSiren({ playerPos }: { playerPos: [number, number, number] }) {
 /** Board bounds for orbit target: keep center inside the board (inner play area ~±5, rim ~±7.25). */
 const ORBIT_TARGET_BOUND = 6.5;
 
-function Scene({ snapshot, latestEvents, activeCard }: { snapshot: Snapshot | null; latestEvents: GameEvent[]; activeCard: { text: string; type: string } | null }) {
+const ORBIT_LERP = 0.08; // smooth factor for ctrl+click target move
+
+function Scene({ snapshot, latestEvents, activeCard, resetCenterRef }: { snapshot: Snapshot | null; latestEvents: GameEvent[]; activeCard: { text: string; type: string } | null; resetCenterRef?: MutableRefObject<{ resetCenter: () => void } | null> }) {
   const [effects, setEffects] = useState<FxDef[]>([]);
   const [jailTarget, setJailTarget] = useState<number | null>(null);
   const [orbitTarget, setOrbitTarget] = useState<[number, number, number]>([0, 0, 0]);
+  const controlsRef = useRef<unknown>(null);
   const fxId = useRef(0);
   const lastEventsRef = useRef<GameEvent[] | null>(null);
   const tokenMoveCompleteRef = useRef<number>(0);
   const { gl, camera } = useThree();
   const plane = useMemo(() => new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), []);
   const intersect = useMemo(() => new THREE.Vector3(), []);
+
+  useEffect(() => {
+    if (!resetCenterRef) return;
+    resetCenterRef.current = { resetCenter: () => setOrbitTarget([0, 0, 0]) };
+    return () => { resetCenterRef.current = null; };
+  }, [resetCenterRef]);
+
+  // Smoothly lerp orbit target toward desired (so ctrl+click doesn't snap)
+  useFrame(() => {
+    const controls = controlsRef.current as { target: THREE.Vector3 } | null;
+    if (!controls?.target) return;
+    const t = controls.target;
+    const d = orbitTarget;
+    t.x += (d[0] - t.x) * ORBIT_LERP;
+    t.y += (d[1] - t.y) * ORBIT_LERP;
+    t.z += (d[2] - t.z) * ORBIT_LERP;
+  });
 
   const owners = useMemo(() => {
     const o: Record<number, number> = {};
@@ -1197,7 +1246,7 @@ function Scene({ snapshot, latestEvents, activeCard }: { snapshot: Snapshot | nu
       {activeCard && <CardAnimation text={activeCard.text} type={activeCard.type} visible={!!activeCard} />}
       {effects.map(fx => <MoneyParticle key={fx.id} fx={fx} onDone={() => rmFx(fx.id)} tokenMoveCompleteRef={tokenMoveCompleteRef} />)}
 
-      <OrbitControls target={orbitTarget} maxPolarAngle={Math.PI / 2.1} minPolarAngle={0.15} minDistance={7} maxDistance={30} enableDamping dampingFactor={0.05} autoRotate={!snapshot} autoRotateSpeed={0.4} />
+      <OrbitControls ref={controlsRef as never} maxPolarAngle={Math.PI / 2.1} minPolarAngle={0.15} minDistance={7} maxDistance={30} enableDamping dampingFactor={0.05} autoRotate={!snapshot} autoRotateSpeed={0.4} />
     </>
   );
 }
@@ -1205,10 +1254,10 @@ function Scene({ snapshot, latestEvents, activeCard }: { snapshot: Snapshot | nu
 /* ================================================================ */
 /*  EXPORT                                                           */
 /* ================================================================ */
-export default function MonopolyScene({ snapshot, latestEvents = [], activeCard = null }: { snapshot: Snapshot | null; latestEvents?: GameEvent[]; activeCard?: { text: string; type: string } | null }) {
+export default function MonopolyScene({ snapshot, latestEvents = [], activeCard = null, resetCenterRef }: { snapshot: Snapshot | null; latestEvents?: GameEvent[]; activeCard?: { text: string; type: string } | null; resetCenterRef?: MutableRefObject<{ resetCenter: () => void } | null> }) {
   return (
     <Canvas camera={{ position: [0, 18, 14], fov: 36 }} style={{ background: 'linear-gradient(180deg,#0C1B3A 0%,#15103A 40%,#0A2030 100%)' }} gl={{ antialias: true, alpha: false }} dpr={[1, 2]}>
-      <Scene snapshot={snapshot} latestEvents={latestEvents} activeCard={activeCard} />
+      <Scene snapshot={snapshot} latestEvents={latestEvents} activeCard={activeCard} resetCenterRef={resetCenterRef} />
     </Canvas>
   );
 }
