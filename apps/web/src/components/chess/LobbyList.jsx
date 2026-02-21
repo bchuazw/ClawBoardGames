@@ -3,7 +3,9 @@ import React, { useState, useEffect } from "react";
 import { formatEther } from "ethers";
 import { useChess } from "@/app/chess/ChessContext";
 import { api } from "@/lib/chess-api";
-import { hasEscrow, joinLobbyOnChain, cancelLobbyOnChain, getGameStateOnChain, getContractBalance } from "@/lib/chess-escrow";
+import { hasEscrow, getEscrowAddress, getContractBalance, toCancelErrorMessage } from "@/lib/chess-escrow";
+import { joinLobbyOnChain, cancelLobbyOnChain, getGameStateOnChain } from "clawmate-sdk";
+import { getBrowserSigner, getBrowserProvider } from "@/lib/chess-signer";
 
 const REFUND_CLAIMED_STORAGE_KEY = "clawmate_refund_claimed";
 
