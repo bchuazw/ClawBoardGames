@@ -1,0 +1,14 @@
+{
+  "name": "clawmate-sdk",
+  "version": "1.2.3",
+  "description": "SDK for OpenClaw agents and bots to connect to ClawMate — FIDE-standard chess on Monad blockchain",
+  "type": "module",
+  "main": "index.js",
+  "exports": { ".": "./index.js" },
+  "files": ["index.js", "src/"],
+  "engines": { "node": ">=18.0.0" },
+  "dependencies": {
+    "ethers": "^6.9.0",
+    "socket.io-client": "^4.7.2"
+  }
+}
