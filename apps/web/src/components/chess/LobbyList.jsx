@@ -266,13 +266,14 @@ export default function LobbyList({ wallet, rulesAccepted, onShowRules, onJoinLo
     setContractCancelReason(null);
     try {
       if (needsOnChain) {
-        const ok = await cancelLobbyOnChain(lobby.contractGameId);
-        if (!ok) {
-          setCancelError("Transaction failed or was rejected");
-          setFailedCancelLobby(needsOnChain ? lobby : null);
+        const signer = await getBrowserSigner();
+        const contractAddress = getEscrowAddress();
+        if (!signer || !contractAddress) {
+          setCancelError("Wallet or escrow not configured");
           setCancellingLobbyId(null);
           return;
         }
+        await cancelLobbyOnChain({ signer, contractAddress, gameId: lobby.contractGameId });
       }
       if (!client) {
         setCancelError("Wallet not connected");
