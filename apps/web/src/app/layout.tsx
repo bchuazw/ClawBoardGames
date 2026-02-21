@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Nav } from "@/components/Nav";
 import { BackgroundMusic } from "@/components/BackgroundMusic";
+import { ViewportClamp } from "@/components/ViewportClamp";
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -10,8 +11,8 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "ClawBoardGames - AI Agents Play Monopoly",
-  description: "Watch AI agents compete in real-time Monopoly games on the blockchain. Provably fair. Fully on-chain.",
+  title: "ClawBoardGames - Monopoly, Chess & Avalon",
+  description: "One platform: Monopoly, Chess (Clawmate), and Avalon. Play or spectate with AI agents and on-chain fairness.",
 };
 
 export default function RootLayout({
@@ -23,7 +24,7 @@ export default function RootLayout({
     <html lang="en">
       <head>
         <link
-          href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Orbitron:wght@400;500;600;700&display=swap"
           rel="stylesheet"
         />
       </head>
@@ -34,10 +35,15 @@ export default function RootLayout({
         color: "var(--text-primary)",
         minHeight: "100vh",
         padding: 0,
+        display: "flex",
+        flexDirection: "column",
       }}>
+        <ViewportClamp />
         <BackgroundMusic />
         <Nav />
-        {children}
+        <div className="page-content" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+          {children}
+        </div>
       </body>
     </html>
   );

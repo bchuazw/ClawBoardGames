@@ -7,9 +7,8 @@ import { useState, useEffect } from 'react';
 
 const NAV_LINKS = [
   { href: '/', label: 'Home' },
-  { href: '/watch', label: 'Spectate' },
-  { href: '/agents', label: 'For Agents' },
-  { href: '/history', label: 'History' },
+  { href: '/chess', label: 'Chess' },
+  { href: '/avalon', label: 'Avalon' },
   { href: '/terms', label: 'Terms' },
 ] as const;
 
@@ -27,6 +26,8 @@ export function Nav({ variant = 'default' }: { variant?: 'default' | 'compact' }
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const isCompact = variant === 'compact';
+
+  const isMonopolyPath = pathname === '/monopoly' || pathname?.startsWith('/monopoly/');
 
   useEffect(() => setMobileOpen(false), [pathname]);
 
@@ -83,8 +84,33 @@ export function Nav({ variant = 'default' }: { variant?: 'default' | 'compact' }
           </span>
         </Link>
         <div className="nav-links" style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-          {NAV_LINKS.map(({ href, label }) => {
-            const isActive = pathname === href || (href === '/' ? pathname === '/' : pathname.startsWith(href + '/'));
+          {/* Home */}
+          <Link
+            href="/"
+            style={{
+              ...linkStyle,
+              color: pathname === '/' ? '#D4A84B' : 'var(--text-secondary)',
+              fontWeight: pathname === '/' ? 600 : 500,
+            }}
+            className="nav-link"
+          >
+            Home
+          </Link>
+          {/* Monopoly — single link to /monopoly (sub-nav is in monopoly layout) */}
+          <Link
+            href="/monopoly"
+            style={{
+              ...linkStyle,
+              color: isMonopolyPath ? '#D4A84B' : 'var(--text-secondary)',
+              fontWeight: isMonopolyPath ? 600 : 500,
+            }}
+            className="nav-link"
+          >
+            Monopoly
+          </Link>
+          {/* Chess, Avalon, Terms */}
+          {NAV_LINKS.filter((l) => l.href !== '/').map(({ href, label }) => {
+            const isActive = pathname === href || pathname?.startsWith(href + '/');
             return (
               <Link
                 key={href}
@@ -97,9 +123,9 @@ export function Nav({ variant = 'default' }: { variant?: 'default' | 'compact' }
                 className="nav-link"
               >
                 {label}
-              </Link>
-            );
-          })}
+            </Link>
+          );
+        })}
         </div>
         <button
           type="button"
@@ -125,8 +151,38 @@ export function Nav({ variant = 'default' }: { variant?: 'default' | 'compact' }
         </button>
       </div>
       <div className={`nav-mobile-drawer ${mobileOpen ? 'nav-mobile-drawer-open' : ''}`}>
-        {NAV_LINKS.map(({ href, label }) => {
-          const isActive = pathname === href || (href === '/' ? pathname === '/' : pathname.startsWith(href + '/'));
+        <Link
+          href="/"
+          style={{
+            display: 'block',
+            padding: '14px 24px',
+            fontSize: 16,
+            fontWeight: pathname === '/' ? 600 : 500,
+            color: pathname === '/' ? '#D4A84B' : 'var(--text-secondary)',
+            textDecoration: 'none',
+            borderBottom: '1px solid rgba(255,255,255,0.06)',
+          }}
+          className="nav-link"
+        >
+          Home
+        </Link>
+        <Link
+          href="/monopoly"
+          style={{
+            display: 'block',
+            padding: '14px 24px',
+            fontSize: 16,
+            fontWeight: pathname === '/monopoly' || pathname?.startsWith('/monopoly/') ? 600 : 500,
+            color: pathname === '/monopoly' || pathname?.startsWith('/monopoly/') ? '#D4A84B' : 'var(--text-secondary)',
+            textDecoration: 'none',
+            borderBottom: '1px solid rgba(255,255,255,0.06)',
+          }}
+          className="nav-link"
+        >
+          Monopoly
+        </Link>
+        {NAV_LINKS.filter((l) => l.href !== '/').map(({ href, label }) => {
+          const isActive = pathname === href || pathname?.startsWith(href + '/');
           return (
             <Link
               key={href}

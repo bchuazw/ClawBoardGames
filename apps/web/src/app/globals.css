@@ -4,10 +4,46 @@
   padding: 0;
 }
 
-html, body {
-  height: 100%;
+html {
+  min-height: 100%;
+  overflow-x: hidden;
+}
+
+body {
+  min-height: 100vh;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
+}
+
+/* Only on /chess and /avalon: clamp viewport so those pages don't scroll */
+html.clamped-viewport {
+  overflow: hidden;
+  height: 100%;
+}
+
+body.clamped-viewport {
+  height: 100vh !important;
+  max-height: 100vh !important;
+  overflow: hidden !important;
+}
+
+/* Content below navbar: when NOT clamped (e.g. monopoly), takes natural height so page scrolls */
+.page-content {
+  flex: 0 0 auto;
+  min-height: 0;
+  overflow-x: hidden;
+}
+
+/* When clamped (chess/avalon only): content area fills remaining height and scrolls internally */
+body.clamped-viewport .page-content {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow: auto !important;
+}
+
+/* Navbar does not shrink so content area height is stable */
+.nav-full-bleed {
+  flex-shrink: 0;
 }
 /* Responsive media */
 img, video { max-width: 100%; height: auto; }
@@ -229,6 +265,32 @@ a:hover { text-decoration: underline; }
 .landing-steps-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
 .landing-agents-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
 .landing-stats { display: flex; justify-content: space-around; flex-wrap: wrap; gap: 20px; }
+
+/* Home page: always 3 columns when wide (avoids auto-fit layout shift after client nav from /chess) */
+.home-games-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  max-width: 960px;
+  width: 100%;
+  margin: 0 auto;
+  box-sizing: border-box;
+  flex-shrink: 0; /* keep fixed size inside centering wrapper (no shrink after Chess → Home) */
+}
+
+/* Fixed grid width on desktop so card sizes stay the same after Chess → Home */
+@media (min-width: 969px) {
+  .home-games-grid {
+    width: 960px;
+  }
+}
+
+@media (max-width: 768px) {
+  .home-games-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 640px) {
+  .home-games-grid { grid-template-columns: 1fr; }
+}
 
 @media (max-width: 1024px) {
   .landing-features-grid { grid-template-columns: repeat(2, 1fr); }

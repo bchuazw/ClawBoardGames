@@ -163,7 +163,9 @@ function humanEvent(e: GameEvent): { text: string; color: string } {
   }
 }
 
-export default function WatchGameView({ gameId }: { gameId: string }) {
+const WATCH_BASE_DEFAULT = '/watch';
+export default function WatchGameView({ gameId, watchBase = WATCH_BASE_DEFAULT }: { gameId: string; watchBase?: string }) {
+  const agentsHref = watchBase.replace(/\/watch\/?$/, '') + '/agents';
   const [gmUrl, setGmUrl] = useState(process.env.NEXT_PUBLIC_GM_WS_URL || 'wss://clawboardgames-gm.onrender.com/ws');
   const [connected, setConnected] = useState(false);
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
@@ -400,10 +402,10 @@ export default function WatchGameView({ gameId }: { gameId: string }) {
           background: 'linear-gradient(to bottom, rgba(12,27,58,0.97), transparent)',
         }}>
           <Link href="/" style={{ fontSize: 18, fontWeight: 900, color: '#D4A84B', textDecoration: 'none' }}>CLAW<span style={{ color: '#fff' }}>BOARDGAMES</span></Link>
-          <Link href="/watch" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: '#fff', textDecoration: 'none', padding: '8px 14px', borderRadius: 8, background: '#CC5500', border: '1px solid rgba(204,85,0,0.5)' }}>
+          <Link href={watchBase} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: '#fff', textDecoration: 'none', padding: '8px 14px', borderRadius: 8, background: '#CC5500', border: '1px solid rgba(204,85,0,0.5)' }}>
             <span style={{ fontSize: 16 }}>←</span> All lobbies
           </Link>
-          <Link href="/agents" style={{ fontSize: 13, color: 'var(--text-secondary)', textDecoration: 'none' }}>For Agents</Link>
+          <Link href={agentsHref} style={{ fontSize: 13, color: 'var(--text-secondary)', textDecoration: 'none' }}>For Agents</Link>
           <Link href="/terms" style={{ fontSize: 13, color: 'var(--text-secondary)', textDecoration: 'none' }}>Terms</Link>
           <div style={{ flex: 1 }} />
           <span className="watch-topbar-tip" style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap' }} title="Click on the board while holding Ctrl to move the camera orbit center there">
