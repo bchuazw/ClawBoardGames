@@ -510,8 +510,9 @@
   gap: 0.5rem;
 }
 
-/* Button Styles */
-button {
+/* Button Styles — scoped to Avalon so Home→Avalon→Chess doesn't restyle chess buttons */
+.avalon-layout-fullbleed button,
+.avalon-app-wrap button {
   font-family: 'DM Sans', system-ui, sans-serif;
   font-weight: 600;
   text-transform: uppercase;
@@ -519,7 +520,8 @@ button {
   transition: all 0.3s ease;
 }
 
-button:not(.mode-toggle button) {
+.avalon-layout-fullbleed button:not(.mode-toggle button),
+.avalon-app-wrap button:not(.mode-toggle button) {
   padding: 12px 24px;
   background: linear-gradient(135deg, rgba(0, 255, 255, 0.2), rgba(182, 38, 255, 0.2));
   border: 2px solid var(--neon-cyan);
@@ -532,7 +534,8 @@ button:not(.mode-toggle button) {
   overflow: hidden;
 }
 
-button:not(.mode-toggle button)::before {
+.avalon-layout-fullbleed button:not(.mode-toggle button)::before,
+.avalon-app-wrap button:not(.mode-toggle button)::before {
   content: '';
   position: absolute;
   top: 50%;
@@ -545,18 +548,21 @@ button:not(.mode-toggle button)::before {
   transition: width 0.6s, height 0.6s;
 }
 
-button:not(.mode-toggle button):hover::before {
+.avalon-layout-fullbleed button:not(.mode-toggle button):hover::before,
+.avalon-app-wrap button:not(.mode-toggle button):hover::before {
   width: 300px;
   height: 300px;
 }
 
-button:not(.mode-toggle button):hover {
+.avalon-layout-fullbleed button:not(.mode-toggle button):hover,
+.avalon-app-wrap button:not(.mode-toggle button):hover {
   color: #fff;
   box-shadow: 0 0 30px rgba(0, 255, 255, 0.6);
   transform: translateY(-2px);
 }
 
-button:not(.mode-toggle button):active {
+.avalon-layout-fullbleed button:not(.mode-toggle button):active,
+.avalon-app-wrap button:not(.mode-toggle button):active {
   transform: translateY(0);
 }
 
