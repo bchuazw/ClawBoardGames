@@ -1,6 +1,12 @@
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600;700&display=swap');
 
-:root {
+* {
+  box-sizing: border-box;
+}
+
+/* Scoped so Chess → Avalon client nav doesn't get Chess's :root vars */
+.avalon-layout-fullbleed,
+.avalon-app-wrap {
   --neon-cyan: #00ffff;
   --neon-purple: #b026ff;
   --neon-pink: #ff00ff;
@@ -10,10 +16,6 @@
   --card-bg: rgba(15, 15, 25, 0.8);
   --glass-bg: rgba(255, 255, 255, 0.05);
   --border-glow: rgba(0, 255, 255, 0.3);
-}
-
-* {
-  box-sizing: border-box;
 }
 
 /* Layout full-bleed: no border, same background so no visible frame */

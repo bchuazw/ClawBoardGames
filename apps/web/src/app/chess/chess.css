@@ -36,6 +36,24 @@
 }
 
 .chess-app-wrap {
+  --bg-deep: #050510;
+  --bg-mid: #0a0a2a;
+  --bg-card: #0f0f2e;
+  --accent-cyan: #00ffff;
+  --accent-magenta: #ff00ff;
+  --accent-dim: rgba(255, 255, 255, 0.6);
+  --text: #ffffff;
+  --text-dim: rgba(255, 255, 255, 0.88);
+  --bg-page: #08081a;
+  --bg-surface: rgba(15, 15, 35, 0.6);
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --accent-primary: #22d3ee;
+  --accent-primary-dim: rgba(34, 211, 238, 0.15);
+  --accent-pink: #ff1493;
+  --accent-pink-dim: rgba(255, 20, 147, 0.2);
+  --neon-pink-glow: rgba(255, 20, 147, 0.5);
+  --neon-blue: #00d4ff;
+  --neon-blue-glow: rgba(0, 212, 255, 0.5);
   margin: 0;
   font-family: "DM Sans", system-ui, sans-serif;
   background: linear-gradient(180deg, #0C1B3A 0%, #15103A 40%, #0D2535 70%, #0C1B3A 100%);
