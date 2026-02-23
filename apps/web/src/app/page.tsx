@@ -6,7 +6,18 @@ import { useRouter } from 'next/navigation';
 const CARD_BG = 'rgba(179, 159, 132, 0.55)';
 const CARD_BORDER = 'rgba(179, 159, 132, 0.65)';
 
-const GAMES = [
+type GameCard = {
+  id: string;
+  name: string;
+  desc: string;
+  icon: string;
+  href: string;
+  accent: string;
+  cta: string;
+  wip?: boolean;
+};
+
+const GAMES: GameCard[] = [
   {
     id: 'monopoly',
     name: 'Monopoly',
@@ -33,6 +44,7 @@ const GAMES = [
     href: '/avalon',
     accent: '#E040FB',
     cta: 'Play Avalon',
+    wip: true,
   },
 ];
 
@@ -81,26 +93,30 @@ export default function PlatformHome() {
 
           <div style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
             <div className="home-games-grid">
-            {GAMES.map((game) => (
+            {GAMES.map((game) => {
+              const isWip = game.wip;
+              return (
               <div
                 key={game.id}
                 style={{
                   padding: '32px 24px',
                   borderRadius: 20,
-                  background: CARD_BG,
-                  border: `1px solid ${CARD_BORDER}`,
+                  background: isWip ? 'rgba(120, 120, 120, 0.25)' : CARD_BG,
+                  border: `1px solid ${isWip ? 'rgba(140, 140, 140, 0.4)' : CARD_BORDER}`,
                   textAlign: 'center',
                   transition: 'all 0.3s ease',
-                  cursor: 'pointer',
+                  cursor: isWip ? 'not-allowed' : 'pointer',
+                  opacity: isWip ? 0.65 : 1,
                 }}
-                onClick={() => router.push(game.href)}
+                onClick={() => !isWip && router.push(game.href)}
                 onMouseEnter={(e) => {
+                  if (isWip) return;
                   e.currentTarget.style.borderColor = game.accent;
                   e.currentTarget.style.transform = 'translateY(-4px)';
                   e.currentTarget.style.boxShadow = `0 12px 40px ${game.accent}30`;
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = CARD_BORDER;
+                  e.currentTarget.style.borderColor = isWip ? 'rgba(140, 140, 140, 0.4)' : CARD_BORDER;
                   e.currentTarget.style.transform = 'translateY(0)';
                   e.currentTarget.style.boxShadow = 'none';
                 }}
@@ -110,30 +126,46 @@ export default function PlatformHome() {
                   fontFamily: "'Syne', sans-serif",
                   fontSize: 22,
                   fontWeight: 700,
-                  color: '#E8E8E8',
+                  color: isWip ? '#888' : '#E8E8E8',
                   margin: '0 0 10px',
                   letterSpacing: '-0.02em',
                 }}>
                   {game.name}
                 </h2>
-                <p style={{ fontSize: 14, color: '#fff', lineHeight: 1.6, margin: '0 0 20px' }}>
+                <p style={{ fontSize: 14, color: isWip ? '#999' : '#fff', lineHeight: 1.6, margin: '0 0 20px' }}>
                   {game.desc}
                 </p>
-                <span style={{
-                  display: 'inline-block',
-                  padding: '10px 20px',
-                  borderRadius: 10,
-                  background: `${game.accent}22`,
-                  border: `1px solid ${game.accent}55`,
-                  color: game.accent,
-                  fontSize: 14,
-                  fontWeight: 600,
-                  fontFamily: "'Syne', sans-serif",
-                }}>
-                  {game.cta} →
-                </span>
+                {isWip ? (
+                  <span style={{
+                    display: 'inline-block',
+                    padding: '10px 20px',
+                    borderRadius: 10,
+                    background: 'rgba(140, 140, 140, 0.2)',
+                    border: '1px solid rgba(140, 140, 140, 0.4)',
+                    color: '#888',
+                    fontSize: 14,
+                    fontWeight: 600,
+                    fontFamily: "'Syne', sans-serif",
+                  }}>
+                    Work in progress
+                  </span>
+                ) : (
+                  <span style={{
+                    display: 'inline-block',
+                    padding: '10px 20px',
+                    borderRadius: 10,
+                    background: `${game.accent}22`,
+                    border: `1px solid ${game.accent}55`,
+                    color: game.accent,
+                    fontSize: 14,
+                    fontWeight: 600,
+                    fontFamily: "'Syne', sans-serif",
+                  }}>
+                    {game.cta} →
+                  </span>
+                )}
               </div>
-            ))}
+            ); })}
             </div>
           </div>
         </section>
