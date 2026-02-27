@@ -6,6 +6,11 @@ import ThreeChessBoard from "./ThreeChessBoard";
 import GameOverModal from "./GameOverModal";
 
 const START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+
+function walletEq(a, b) {
+  if (!a || !b) return false;
+  return a.startsWith("0x") ? a.toLowerCase() === b.toLowerCase() : a === b;
+}
 const INITIAL_TIME_SEC = 10 * 60; // 10 minutes
 const TIMER_STORAGE_KEY = "clawmate_timer";
 
@@ -130,7 +135,7 @@ export default function GameView({ lobbyId, lobby: initialLobby, wallet, socket,
         setWinner(payload.winner);
         if (payload.concede) {
           const l = lobbyRef.current;
-          const isWhite = l?.player1Wallet === wallet;
+          const isWhite = walletEq(l?.player1Wallet, wallet);
           const weWon = (payload.winner === "white" && isWhite) || (payload.winner === "black" && !isWhite);
           setGameOverReason(weWon ? "opponent_concede" : "concede");
         } else if (payload.timeout) {
@@ -233,7 +238,7 @@ export default function GameView({ lobbyId, lobby: initialLobby, wallet, socket,
   };
 
   const handleBackClick = () => {
-    if (!isTestGame && status === "playing" && (lobby?.player1Wallet === wallet || lobby?.player2Wallet === wallet)) {
+    if (!isTestGame && status === "playing" && (walletEq(lobby?.player1Wallet, wallet) || walletEq(lobby?.player2Wallet, wallet))) {
       setShowLeaveConfirm(true);
     } else {
       onBack();
@@ -245,7 +250,7 @@ export default function GameView({ lobbyId, lobby: initialLobby, wallet, socket,
     setConcedeLoading(true);
     try {
       await client.concede(lobbyId);
-      setWinner(lobby?.player1Wallet === wallet ? "black" : "white");
+      setWinner(walletEq(lobby?.player1Wallet, wallet) ? "black" : "white");
       setStatus("finished");
       setGameOverReason("concede");
       setShowGameOverModal(true);
@@ -254,8 +259,8 @@ export default function GameView({ lobbyId, lobby: initialLobby, wallet, socket,
     setConcedeLoading(false);
   };
 
-  const isWhite = lobby?.player1Wallet === wallet;
-  const isBlack = lobby?.player2Wallet === wallet;
+  const isWhite = walletEq(lobby?.player1Wallet, wallet);
+  const isBlack = walletEq(lobby?.player2Wallet, wallet);
   const turn = typeof fen === "string" ? (fen.split(" ")[1] || "w") : "w";
   const myTurn = isTestGame ? true : (status === "playing" && ((turn === "b" && isBlack) || (turn === "w" && isWhite)));
   const whiteToMove = turn === "w";

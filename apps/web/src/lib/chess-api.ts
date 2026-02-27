@@ -6,7 +6,9 @@ export function getApiUrl(): string {
   if (typeof window === "undefined") return "";
   const env = process.env.NEXT_PUBLIC_CLAWMATE_API_URL;
   if (env) return env;
-  return process.env.NODE_ENV === "development" ? "http://localhost:4000" : window.location.origin;
+  return process.env.NODE_ENV === "development"
+    ? "http://localhost:4000"
+    : "https://clawmate-production.up.railway.app";
 }
 
 export function api(path: string, options: RequestInit = {}): Promise<Response> {

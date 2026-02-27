@@ -5,7 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { io, type Socket } from "socket.io-client";
 import { ClawmateClient } from "clawmate-sdk";
 import { getApiUrl } from "@/lib/chess-api";
-import { getBrowserSigner } from "@/lib/chess-signer";
+import { getBrowserSigner, getSolanaSigner } from "@/lib/chess-signer";
 
 const CURRENT_GAME_KEY = "clawmate_current_game";
 const RULES_ACCEPTED_KEY = "clawmate_rules_accepted";
@@ -28,6 +28,8 @@ function saveRulesAccepted() {
 type ChessContextValue = {
   wallet: string | null;
   setWallet: (w: string | null) => void;
+  chain: "evm" | "solana" | "bnb";
+  setChain: (c: "evm" | "solana" | "bnb") => void;
   /** ClawMate SDK client (platform logic). Null when wallet not connected. */
   client: ClawmateClient | null;
   /** Socket from client; same as client?.socket. Kept for components that expect socket. */
@@ -55,6 +57,8 @@ type ChessContextValue = {
 const initialContext: ChessContextValue = {
   wallet: null,
   setWallet: () => {},
+  chain: "evm",
+  setChain: () => {},
   client: null,
   socket: null,
   showRulesModal: false,
@@ -85,10 +89,22 @@ export function useChess() {
   return ctx;
 }
 
+function loadChain(): "evm" | "solana" | "bnb" {
+  if (typeof window === "undefined") return "evm";
+  try {
+    const s = localStorage.getItem("clawmate_chain");
+    if (s === "solana" || s === "bnb") return s;
+    return "evm";
+  } catch {
+    return "evm";
+  }
+}
+
 export function ChessProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [wallet, setWallet] = useState<string | null>(null);
+  const [chain, setChain] = useState<"evm" | "solana" | "bnb">(loadChain);
   const [client, setClient] = useState<ClawmateClient | null>(null);
   const [showRulesModal, setShowRulesModal] = useState(false);
   const [rulesAccepted, setRulesAccepted] = useState(loadRulesAccepted);
@@ -128,10 +144,11 @@ export function ChessProvider({ children }: { children: React.ReactNode }) {
       if (prev) prev.disconnect();
       return null;
     });
-    getBrowserSigner()
+    const getSigner = chain === "solana" ? getSolanaSigner : getBrowserSigner;
+    getSigner()
       .then((signer) => {
         if (!signer || cancelled) return;
-        const c = new ClawmateClient({ baseUrl, signer });
+        const c = new ClawmateClient({ baseUrl, signer, chain: chain === "solana" ? "solana" : "evm" }); // bnb uses evm auth
         c.connect()
           .then(() => {
             if (!cancelled) setClient(c);
@@ -142,7 +159,7 @@ export function ChessProvider({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [wallet]);
+  }, [wallet, chain]);
 
   // Forward lobby_joined_yours from SDK socket to toast
   useEffect(() => {
@@ -175,12 +192,14 @@ export function ChessProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     if (!stored?.lobbyId) return;
-    const pw = wallet.toLowerCase();
+    const pw = chain === "solana" ? wallet : wallet.toLowerCase(); // evm & bnb use lowercase
     client
       .getLobby(stored.lobbyId)
       .then((data: unknown) => {
         const d = data as { status?: string; player1Wallet?: string; player2Wallet?: string; lobbyId?: string };
-        if (d?.status === "playing" && (d.player1Wallet?.toLowerCase() === pw || d.player2Wallet?.toLowerCase() === pw)) {
+        const p1Match = chain === "solana" ? d.player1Wallet === pw : d.player1Wallet?.toLowerCase() === pw;
+        const p2Match = chain === "solana" ? d.player2Wallet === pw : d.player2Wallet?.toLowerCase() === pw;
+        if (d?.status === "playing" && (p1Match || p2Match)) {
           setRejoinBanner({ lobbyId: d.lobbyId ?? stored.lobbyId!, lobby: d });
         } else {
           setRejoinBanner(null);
@@ -190,7 +209,7 @@ export function ChessProvider({ children }: { children: React.ReactNode }) {
         }
       })
       .catch(() => setRejoinBanner(null));
-  }, [wallet, client, isInGame]);
+  }, [wallet, client, isInGame, chain]);
 
   const openGame = (id: string, lobbyData?: unknown, opts?: { testMode?: boolean }) => {
     const lobby = lobbyData as { status?: string } | undefined;
@@ -245,6 +264,8 @@ export function ChessProvider({ children }: { children: React.ReactNode }) {
   const value: ChessContextValue = {
     wallet,
     setWallet,
+    chain,
+    setChain,
     client,
     socket,
     showRulesModal,

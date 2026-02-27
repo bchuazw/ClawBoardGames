@@ -1,11 +1,13 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { formatEther } from "ethers";
+import { Connection, PublicKey } from "@solana/web3.js";
 import { useChess } from "@/app/chess/ChessContext";
 import { api } from "@/lib/chess-api";
-import { hasEscrow, getEscrowAddress, getContractBalance, toCancelErrorMessage } from "@/lib/chess-escrow";
-import { joinLobbyOnChain, cancelLobbyOnChain, getGameStateOnChain } from "clawmate-sdk";
-import { getBrowserSigner, getBrowserProvider } from "@/lib/chess-signer";
+import { hasEscrow, getEscrowAddress, getContractBalanceForChain, getEscrowAddressForChain, toCancelErrorMessage, hasBnbEscrow, getBnbEscrowAddress, hasSolanaEscrow, getSolanaProgramId, getSolanaRpcUrl, lamportsToSol } from "@/lib/chess-escrow";
+import { joinLobbyOnChain, cancelLobbyOnChain, getGameStateOnChain, joinLobbyOnChainSolana, cancelLobbyOnChainSolana } from "clawmate-sdk";
+import { getBrowserSigner, getBrowserProvider, getSolanaWallet } from "@/lib/chess-signer";
+import idl from "@/lib/chess_bet_escrow_idl.json";
 
 const REFUND_CLAIMED_STORAGE_KEY = "clawmate_refund_claimed";
 
@@ -35,6 +37,20 @@ function betWeiToMon(weiStr) {
   }
 }
 
+function formatBet(amountStr, chain) {
+  if (!amountStr || amountStr === "0") return "0";
+  return chain === "solana" ? lamportsToSol(amountStr) : betWeiToMon(amountStr);
+}
+
+function walletMatch(a, b, chain) {
+  if (!a || !b) return false;
+  return chain === "solana" ? a === b : a.toLowerCase() === b.toLowerCase();
+}
+
+function getBetLabel(chain) {
+  return chain === "solana" ? "SOL" : chain === "bnb" ? "tBNB" : "MON";
+}
+
 /** Get fullmove number from FEN (6th field). 1-based; 1 = after white's first move. */
 function getTurnCount(fen) {
   if (!fen || typeof fen !== "string") return 0;
@@ -49,7 +65,7 @@ const TAB_LIVE = "live";
 const TAB_HISTORY = "history";
 const TAB_LEADERBOARD = "leaderboard";
 
-export default function LobbyList({ wallet, rulesAccepted, onShowRules, onJoinLobby, onCreateClick, onSpectate, activeTab: activeTabProp, onTabChange }) {
+export default function LobbyList({ wallet, chain = "evm", rulesAccepted, onShowRules, onJoinLobby, onCreateClick, onSpectate, activeTab: activeTabProp, onTabChange }) {
   const { client } = useChess();
   const [internalTab, setInternalTab] = useState(TAB_OPEN);
   const activeTab = activeTabProp != null ? activeTabProp : internalTab;
@@ -152,11 +168,10 @@ export default function LobbyList({ wallet, rulesAccepted, onShowRules, onJoinLo
     return () => { cancelled = true; clearInterval(t); };
   }, [wallet, activeTab]);
 
-  // Your active games (playing, you are player1 or player2) — show in Open tab so you can rejoin without relying on banner/localStorage
+  const isSolana = chain === "solana";
+  const betLabel = getBetLabel(chain);
   const myActiveGames = (liveGames || []).filter(
-    (l) =>
-      wallet &&
-      (l.player1Wallet?.toLowerCase() === wallet.toLowerCase() || l.player2Wallet?.toLowerCase() === wallet.toLowerCase())
+    (l) => wallet && (walletMatch(l.player1Wallet, wallet, chain) || walletMatch(l.player2Wallet, wallet, chain))
   );
 
   const join = async (lobby) => {
@@ -178,22 +193,61 @@ export default function LobbyList({ wallet, rulesAccepted, onShowRules, onJoinLo
     setJoiningLobbyId(lobbyId);
     setJoinError(null);
     try {
-      const betWei = lobby.betAmount ? String(lobby.betAmount) : "0";
-      const needsOnChain = hasEscrow() && lobby.contractGameId != null && BigInt(betWei) > 0n;
+      const betAmount = lobby.betAmount ? String(lobby.betAmount) : "0";
+      const needsOnChain = lobby.contractGameId != null && BigInt(betAmount) > 0n;
       if (needsOnChain) {
-        const signer = await getBrowserSigner();
-        const contractAddress = getEscrowAddress();
-        if (!signer || !contractAddress) {
-          setJoinError("Wallet or escrow not configured");
-          setJoiningLobbyId(null);
-          return;
-        }
-        try {
-          await joinLobbyOnChain({ signer, contractAddress, gameId: lobby.contractGameId, betWei });
-        } catch (e) {
-          setJoinError(e?.reason ?? e?.message ?? "Transaction failed or was rejected");
-          setJoiningLobbyId(null);
-          return;
+        if (isSolana && hasSolanaEscrow()) {
+          const phantom = getSolanaWallet();
+          const programId = getSolanaProgramId();
+          if (!phantom || !programId) {
+            setJoinError("Phantom or Solana escrow not configured");
+            setJoiningLobbyId(null);
+            return;
+          }
+          try {
+            const connection = new Connection(getSolanaRpcUrl());
+            await joinLobbyOnChainSolana({
+              connection,
+              programId: new PublicKey(programId),
+              idl,
+              signer: phantom,
+              gameId: lobby.contractGameId,
+            });
+          } catch (e) {
+            setJoinError(e?.message ?? "Transaction failed or was rejected");
+            setJoiningLobbyId(null);
+            return;
+          }
+        } else if (chain === "bnb" && hasBnbEscrow()) {
+          const signer = await getBrowserSigner();
+          const contractAddress = getBnbEscrowAddress();
+          if (!signer || !contractAddress) {
+            setJoinError("Wallet or BNB escrow not configured");
+            setJoiningLobbyId(null);
+            return;
+          }
+          try {
+            await joinLobbyOnChain({ signer, contractAddress, gameId: lobby.contractGameId, betWei: betAmount });
+          } catch (e) {
+            setJoinError(e?.reason ?? e?.message ?? "Transaction failed or was rejected");
+            setJoiningLobbyId(null);
+            return;
+          }
+        } else if (chain === "evm" && hasEscrow()) {
+          const signer = await getBrowserSigner();
+          const contractAddress = getEscrowAddress();
+          if (!signer || !contractAddress) {
+            setJoinError("Wallet or escrow not configured");
+            setJoiningLobbyId(null);
+            return;
+          }
+          try {
+            await joinLobbyOnChain({ signer, contractAddress, gameId: lobby.contractGameId, betWei: betAmount });
+          } catch (e) {
+            setJoinError(e?.reason ?? e?.message ?? "Transaction failed or was rejected");
+            setJoiningLobbyId(null);
+            return;
+          }
         }
       }
       if (!client) {
@@ -210,14 +264,18 @@ export default function LobbyList({ wallet, rulesAccepted, onShowRules, onJoinLo
     }
   };
 
-  // When cancel failed and we have a lobby with contractGameId, read on-chain state to show why (platform: SDK getGameStateOnChain)
+  // When cancel failed and we have a lobby with contractGameId, read on-chain state to show why
   useEffect(() => {
     if (!failedCancelLobby || failedCancelLobby.contractGameId == null || !wallet) {
       setContractCancelReason(null);
       return;
     }
+    if (isSolana) {
+      setContractCancelReason("Solana: check Phantom and network. You can remove from list anyway.");
+      return;
+    }
     const provider = getBrowserProvider();
-    const contractAddress = getEscrowAddress();
+    const contractAddress = getEscrowAddressForChain(chain);
     if (!provider || !contractAddress) {
       setContractCancelReason(null);
       return;
@@ -226,12 +284,12 @@ export default function LobbyList({ wallet, rulesAccepted, onShowRules, onJoinLo
     let cancelled = false;
     Promise.all([
       getGameStateOnChain({ provider, contractAddress, gameId: failedCancelLobby.contractGameId }),
-      getContractBalance(),
+      getContractBalanceForChain(chain),
     ])
       .then(([state, balance]) => {
         if (cancelled) return;
         if (!state) {
-          setContractCancelReason("Could not read contract state. Check you're on the correct Monad network and the contract address in .env is correct.");
+          setContractCancelReason("Could not read contract state. Check you're on the correct network and the contract address in .env is correct.");
           return;
         }
         const w = wallet.toLowerCase();
@@ -244,7 +302,7 @@ export default function LobbyList({ wallet, rulesAccepted, onShowRules, onJoinLo
       })
       .catch(() => setContractCancelReason("Could not read contract state. Check you're on the correct Monad network and the contract address in .env is correct."));
     return () => { cancelled = true; };
-  }, [failedCancelLobby?.lobbyId, failedCancelLobby?.contractGameId, wallet]);
+  }, [failedCancelLobby?.lobbyId, failedCancelLobby?.contractGameId, wallet, isSolana, chain]);
 
   const loadLobbies = async () => {
     try {
@@ -260,22 +318,40 @@ export default function LobbyList({ wallet, rulesAccepted, onShowRules, onJoinLo
   };
 
   const cancelLobby = async (lobby) => {
-    if (!wallet || lobby.player1Wallet?.toLowerCase() !== wallet.toLowerCase()) return;
-    const needsOnChain = hasEscrow() && lobby.contractGameId != null;
+    if (!wallet || !walletMatch(lobby.player1Wallet, wallet, chain)) return;
+    const needsOnChain = lobby.contractGameId != null && (isSolana ? hasSolanaEscrow() : chain === "bnb" ? hasBnbEscrow() : hasEscrow());
     setCancellingLobbyId(lobby.lobbyId);
     setCancelError(null);
     setFailedCancelLobby(null);
     setContractCancelReason(null);
     try {
       if (needsOnChain) {
-        const signer = await getBrowserSigner();
-        const contractAddress = getEscrowAddress();
-        if (!signer || !contractAddress) {
-          setCancelError("Wallet or escrow not configured");
-          setCancellingLobbyId(null);
-          return;
+        if (isSolana) {
+          const phantom = getSolanaWallet();
+          const programId = getSolanaProgramId();
+          if (!phantom || !programId) {
+            setCancelError("Phantom or Solana escrow not configured");
+            setCancellingLobbyId(null);
+            return;
+          }
+          const connection = new Connection(getSolanaRpcUrl());
+          await cancelLobbyOnChainSolana({
+            connection,
+            programId: new PublicKey(programId),
+            idl,
+            signer: phantom,
+            gameId: lobby.contractGameId,
+          });
+        } else {
+          const signer = await getBrowserSigner();
+          const contractAddress = getEscrowAddressForChain(chain);
+          if (!signer || !contractAddress) {
+            setCancelError("Wallet or escrow not configured");
+            setCancellingLobbyId(null);
+            return;
+          }
+          await cancelLobbyOnChain({ signer, contractAddress, gameId: lobby.contractGameId });
         }
-        await cancelLobbyOnChain({ signer, contractAddress, gameId: lobby.contractGameId });
       }
       if (!client) {
         setCancelError("Wallet not connected");
@@ -307,7 +383,9 @@ export default function LobbyList({ wallet, rulesAccepted, onShowRules, onJoinLo
   };
 
   const claimRefund = async (lobbyId, contractGameId) => {
-    if (!contractGameId || !wallet || !hasEscrow()) return;
+    if (!contractGameId || !wallet) return;
+    const canRefund = isSolana ? hasSolanaEscrow() : chain === "bnb" ? hasBnbEscrow() : hasEscrow();
+    if (!canRefund) return;
     const gameId = typeof contractGameId === "number" ? contractGameId : parseInt(String(contractGameId), 10);
     if (Number.isNaN(gameId) || gameId < 1) return;
     const signer = await getBrowserSigner();
@@ -320,7 +398,30 @@ export default function LobbyList({ wallet, rulesAccepted, onShowRules, onJoinLo
     setRefundError(null);
     setRefundSuccessId(null);
     try {
-      await cancelLobbyOnChain({ signer, contractAddress, gameId });
+      if (isSolana) {
+        const phantom = getSolanaWallet();
+        const programId = getSolanaProgramId();
+        if (!phantom || !programId) {
+          setRefundError("Phantom or Solana escrow not configured");
+          return;
+        }
+        const connection = new Connection(getSolanaRpcUrl());
+        await cancelLobbyOnChainSolana({
+          connection,
+          programId: new PublicKey(programId),
+          idl,
+          signer: phantom,
+          gameId,
+        });
+      } else {
+        const signer = await getBrowserSigner();
+        const contractAddress = getEscrowAddressForChain(chain);
+        if (!signer || !contractAddress) {
+          setRefundError("Wallet or escrow not configured");
+          return;
+        }
+        await cancelLobbyOnChain({ signer, contractAddress, gameId });
+      }
       setRefundClaimedContractGameIds((prev) => {
         const next = new Set(prev).add(gameId);
         saveRefundClaimedIds(next);
@@ -447,7 +548,7 @@ export default function LobbyList({ wallet, rulesAccepted, onShowRules, onJoinLo
               <li key={l.lobbyId} className="lobby-card lobby-card-my-game">
                 <span className="lobby-card-icon">♟</span>
                 <div className="lobby-card-body">
-                  <span className="lobby-card-bet">Bet: {betWeiToMon(l.betAmount)} MON</span>
+                  <span className="lobby-card-bet">Bet: {formatBet(l.betAmount, chain)} {betLabel}</span>
                   <span className="lobby-card-creator">
                     {l.player1Wallet ? `${l.player1Wallet.slice(0, 6)}…${l.player1Wallet.slice(-4)}` : "—"} vs {l.player2Wallet ? `${l.player2Wallet.slice(0, 6)}…${l.player2Wallet.slice(-4)}` : "—"}
                   </span>
@@ -466,13 +567,13 @@ export default function LobbyList({ wallet, rulesAccepted, onShowRules, onJoinLo
               </li>
             ))}
             {lobbies.map((l) => {
-              const isCreator = wallet && l.player1Wallet?.toLowerCase() === wallet.toLowerCase();
+              const isCreator = wallet && walletMatch(l.player1Wallet, wallet, chain);
               const canCancel = isCreator;
               return (
                 <li key={l.lobbyId} className="lobby-card">
                   <span className="lobby-card-icon">♟</span>
                   <div className="lobby-card-body">
-                    <span className="lobby-card-bet">Bet: {betWeiToMon(l.betAmount)} MON</span>
+                    <span className="lobby-card-bet">Bet: {formatBet(l.betAmount, chain)} {betLabel}</span>
                     <span className="lobby-card-creator">
                       {l.player1Wallet ? `${l.player1Wallet.slice(0, 6)}…${l.player1Wallet.slice(-4)}` : "—"}
                     </span>
@@ -565,7 +666,7 @@ export default function LobbyList({ wallet, rulesAccepted, onShowRules, onJoinLo
                     <li key={l.lobbyId} className="lobby-card lobby-card-live">
                       <span className="lobby-card-icon">♟</span>
                       <div className="lobby-card-body">
-                        <span className="lobby-card-bet">Bet: {betWeiToMon(l.betAmount)} MON</span>
+                        <span className="lobby-card-bet">Bet: {formatBet(l.betAmount, chain)} {betLabel}</span>
                         <span className="lobby-card-creator">
                           {l.player1Wallet ? `${l.player1Wallet.slice(0, 6)}…${l.player1Wallet.slice(-4)}` : "—"} vs {l.player2Wallet ? `${l.player2Wallet.slice(0, 6)}…${l.player2Wallet.slice(-4)}` : "—"}
                         </span>
@@ -619,8 +720,7 @@ export default function LobbyList({ wallet, rulesAccepted, onShowRules, onJoinLo
                 {history.map((l) => {
                   const isCancelled = l.status === "cancelled";
                   const isFinished = l.status === "finished";
-                  const w = wallet.toLowerCase();
-                  const isP1 = l.player1Wallet?.toLowerCase() === w;
+                  const isP1 = walletMatch(l.player1Wallet, wallet, chain);
                   const myColor = isP1 ? "white" : "black";
                   const opponentWallet = isP1 ? l.player2Wallet : l.player1Wallet;
 
@@ -654,7 +754,7 @@ export default function LobbyList({ wallet, rulesAccepted, onShowRules, onJoinLo
                     else if (r) reasonLabel = r.charAt(0).toUpperCase() + r.slice(1);
                   }
 
-                  const canRefund = isCancelled && hasEscrow() && l.contractGameId != null;
+                  const canRefund = isCancelled && l.contractGameId != null && (isSolana ? hasSolanaEscrow() : chain === "bnb" ? hasBnbEscrow() : hasEscrow());
                   const contractId = l.contractGameId != null ? Number(l.contractGameId) : null;
                   const refundAlreadyClaimed = contractId != null && refundClaimedContractGameIds.has(contractId);
 
@@ -667,7 +767,7 @@ export default function LobbyList({ wallet, rulesAccepted, onShowRules, onJoinLo
                       <span className="history-card-icon" aria-hidden>{resultIcon}</span>
                       <div className="lobby-card-body history-card-body">
                         <div className="history-card-top">
-                          <span className="lobby-card-bet history-card-bet">{betWeiToMon(l.betAmount)} MON</span>
+                          <span className="lobby-card-bet history-card-bet">{formatBet(l.betAmount, chain)} {betLabel}</span>
                           {l.contractGameId != null && (
                             <span className="history-game-id">#{l.contractGameId}</span>
                           )}
@@ -738,7 +838,7 @@ export default function LobbyList({ wallet, rulesAccepted, onShowRules, onJoinLo
                     const pnlMon = (() => { try { return formatEther(entry.pnl); } catch { return entry.pnl; } })();
                     const pnlNum = parseFloat(pnlMon);
                     const pnlClass = pnlNum > 0 ? "lb-positive" : pnlNum < 0 ? "lb-negative" : "";
-                    const isMe = wallet && entry.wallet?.toLowerCase() === wallet.toLowerCase();
+                    const isMe = wallet && walletMatch(entry.wallet, wallet, chain);
                     const played = (entry.wins || 0) + (entry.losses || 0) + (entry.draws || 0);
                     return (
                       <tr key={entry.wallet} className={isMe ? "lb-row-me" : ""}>

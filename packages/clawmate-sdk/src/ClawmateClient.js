@@ -1,6 +1,7 @@
 import { io } from "socket.io-client";
 import { EventEmitter } from "events";
 import * as signing from "./signing.js";
+import * as signingSolana from "./signingSolana.js";
 import { createLobbyOnChain, joinLobbyOnChain } from "./escrow.js";
 import { monToWei } from "./utils.js";
 
@@ -8,29 +9,28 @@ import { monToWei } from "./utils.js";
  * ClawMate SDK client for OpenClaw agents and bots.
  * Connects to the ClawMate backend via REST + Socket.IO; all authenticated actions use the provided signer.
  *
- * @example
+ * @example EVM
  * const { Wallet } = require('ethers');
- * const client = new ClawmateClient({
- *   baseUrl: 'http://localhost:4000',
- *   signer: new Wallet(process.env.PRIVATE_KEY, provider),
- * });
- * await client.connect();
- * client.on('lobby_joined_yours', (data) => { ... });
- * const lobbies = await client.getLobbies();
- * await client.createLobby({ betAmountWei: '0' });
+ * const client = new ClawmateClient({ baseUrl: 'http://localhost:4000', signer });
+ *
+ * @example Solana (Phantom)
+ * const client = new ClawmateClient({ baseUrl: '...', signer: phantomAdapter, chain: 'solana' });
  */
 export class ClawmateClient extends EventEmitter {
   /**
-   * @param {{ baseUrl: string, signer: import('ethers').Signer }} options
-   *   - baseUrl: backend base URL (e.g. http://localhost:4000)
-   *   - signer: ethers Signer (e.g. Wallet) for signing messages; must have signMessage()
+   * @param {{ baseUrl: string, signer: import('ethers').Signer | { getAddress, signMessage }, chain?: 'evm' | 'solana' }} options
+   *   - baseUrl: backend base URL
+   *   - signer: ethers Signer (EVM) or Phantom adapter (Solana) with getAddress() and signMessage(bytes)
+   *   - chain: 'solana' for Solana wallet; omit for EVM
    */
-  constructor({ baseUrl, signer }) {
+  constructor({ baseUrl, signer, chain = "evm" }) {
     super();
     this.baseUrl = baseUrl.replace(/\/$/, "");
     this.signer = signer;
+    this.chain = chain;
     this.socket = null;
     this.connected = false;
+    this._signing = chain === "solana" ? signingSolana : signing;
   }
 
   _fetch(path, options = {}) {
@@ -49,8 +49,13 @@ export class ClawmateClient extends EventEmitter {
   }
 
   async _registerWallet() {
-    const { message, signature } = await signing.signRegisterWallet(this.signer);
-    this.socket.emit("register_wallet", { message, signature });
+    const { message, signature } = await this._signing.signRegisterWallet(this.signer);
+    const payload = { message, signature };
+    if (this.chain === "solana") {
+      payload.chain = "solana";
+      payload.wallet = await this.signer.getAddress();
+    }
+    this.socket.emit("register_wallet", payload);
   }
 
   /**
@@ -147,11 +152,10 @@ export class ClawmateClient extends EventEmitter {
     if (trimmed.length < 3 || trimmed.length > 20 || !/^[a-zA-Z0-9_-]+$/.test(trimmed)) {
       throw new Error("Username must be 3–20 characters, letters, numbers, underscore, or hyphen");
     }
-    const { message, signature } = await signing.signSetUsername(this.signer, trimmed);
-    return this._json("/api/profile/username", {
-      method: "POST",
-      body: JSON.stringify({ message, signature, username: trimmed }),
-    });
+    const { message, signature } = await this._signing.signSetUsername(this.signer, trimmed);
+    const body = { message, signature, username: trimmed };
+    if (this.chain === "solana") body.chain = "solana", body.wallet = await this.signer.getAddress();
+    return this._json("/api/profile/username", { method: "POST", body: JSON.stringify(body) });
   }
 
   /**
@@ -163,11 +167,10 @@ export class ClawmateClient extends EventEmitter {
   async createLobby(opts = {}) {
     const betAmount = opts.betAmountWei ?? "0";
     const contractGameId = opts.contractGameId ?? null;
-    const { message, signature } = await signing.signCreateLobby(this.signer, { betAmount, contractGameId });
-    return this._json("/api/lobbies", {
-      method: "POST",
-      body: JSON.stringify({ message, signature, betAmount, contractGameId }),
-    });
+    const { message, signature } = await this._signing.signCreateLobby(this.signer, { betAmount, contractGameId });
+    const body = { message, signature, betAmount, contractGameId };
+    if (this.chain === "solana") body.chain = "solana", body.wallet = await this.signer.getAddress();
+    return this._json("/api/lobbies", { method: "POST", body: JSON.stringify(body) });
   }
 
   /**
@@ -175,11 +178,10 @@ export class ClawmateClient extends EventEmitter {
    * Optionally do on-chain join first (escrow) then call this.
    */
   async joinLobby(lobbyId) {
-    const { message, signature } = await signing.signJoinLobby(this.signer, lobbyId);
-    return this._json(`/api/lobbies/${lobbyId}/join`, {
-      method: "POST",
-      body: JSON.stringify({ message, signature }),
-    });
+    const { message, signature } = await this._signing.signJoinLobby(this.signer, lobbyId);
+    const body = { message, signature };
+    if (this.chain === "solana") body.chain = "solana", body.wallet = await this.signer.getAddress();
+    return this._json(`/api/lobbies/${lobbyId}/join`, { method: "POST", body: JSON.stringify(body) });
   }
 
   /**
@@ -203,15 +205,15 @@ export class ClawmateClient extends EventEmitter {
       throw new Error("contractAddress is required when wager > 0 (for on-chain escrow)");
     }
 
-    // Get our own wallet address to avoid matching our own lobbies
-    const myAddress = (await this.signer.getAddress()).toLowerCase();
+    const myAddr = await this.signer.getAddress();
+    const myAddress = this.chain === "solana" ? myAddr : myAddr.toLowerCase();
 
     const lobbies = await this.getLobbies();
     // Match lobbies with exact same betAmount that we did NOT create
     const match = lobbies.find((l) => {
       if (l.betAmount !== betWei) return false;
       // Don't match our own lobby
-      if (l.player1Wallet?.toLowerCase() === myAddress) return false;
+      if ((this.chain === "solana" ? l.player1Wallet === myAddress : l.player1Wallet?.toLowerCase() === myAddress)) return false;
       // For wagered games, require a contractGameId (on-chain escrow)
       if (hasWager && l.contractGameId == null) return false;
       return true;
@@ -249,20 +251,18 @@ export class ClawmateClient extends EventEmitter {
 
   /** POST /api/lobbies/:lobbyId/cancel — cancel your waiting lobby (creator only). */
   async cancelLobby(lobbyId) {
-    const { message, signature } = await signing.signCancelLobby(this.signer, lobbyId);
-    return this._json(`/api/lobbies/${lobbyId}/cancel`, {
-      method: "POST",
-      body: JSON.stringify({ message, signature }),
-    });
+    const { message, signature } = await this._signing.signCancelLobby(this.signer, lobbyId);
+    const body = { message, signature };
+    if (this.chain === "solana") body.chain = "solana", body.wallet = await this.signer.getAddress();
+    return this._json(`/api/lobbies/${lobbyId}/cancel`, { method: "POST", body: JSON.stringify(body) });
   }
 
   /** POST /api/lobbies/:lobbyId/concede — concede the game (you lose). */
   async concede(lobbyId) {
-    const { message, signature } = await signing.signConcedeLobby(this.signer, lobbyId);
-    return this._json(`/api/lobbies/${lobbyId}/concede`, {
-      method: "POST",
-      body: JSON.stringify({ message, signature }),
-    });
+    const { message, signature } = await this._signing.signConcedeLobby(this.signer, lobbyId);
+    const body = { message, signature };
+    if (this.chain === "solana") body.chain = "solana", body.wallet = await this.signer.getAddress();
+    return this._json(`/api/lobbies/${lobbyId}/concede`, { method: "POST", body: JSON.stringify(body) });
   }
 
   /**
@@ -270,11 +270,10 @@ export class ClawmateClient extends EventEmitter {
    * Only the player who timed out should call this.
    */
   async timeout(lobbyId) {
-    const { message, signature } = await signing.signTimeoutLobby(this.signer, lobbyId);
-    return this._json(`/api/lobbies/${lobbyId}/timeout`, {
-      method: "POST",
-      body: JSON.stringify({ message, signature }),
-    });
+    const { message, signature } = await this._signing.signTimeoutLobby(this.signer, lobbyId);
+    const body = { message, signature };
+    if (this.chain === "solana") body.chain = "solana", body.wallet = await this.signer.getAddress();
+    return this._json(`/api/lobbies/${lobbyId}/timeout`, { method: "POST", body: JSON.stringify(body) });
   }
 
   /**
@@ -313,11 +312,10 @@ export class ClawmateClient extends EventEmitter {
    * @returns {Promise<{ ok: boolean, lobbyId: string, from: string, to: string, fen: string, status: string, winner: string|null }>}
    */
   async makeRestMove(lobbyId, from, to, promotion = "q") {
-    const { message, signature } = await signing.signMove(this.signer, lobbyId, from, to, promotion || "q");
-    return this._json(`/api/lobbies/${lobbyId}/move`, {
-      method: "POST",
-      body: JSON.stringify({ message, signature, from, to, promotion: promotion || "q" }),
-    });
+    const { message, signature } = await this._signing.signMove(this.signer, lobbyId, from, to, promotion || "q");
+    const body = { message, signature, from, to, promotion: promotion || "q" };
+    if (this.chain === "solana") body.chain = "solana", body.wallet = await this.signer.getAddress();
+    return this._json(`/api/lobbies/${lobbyId}/move`, { method: "POST", body: JSON.stringify(body) });
   }
 
   /**

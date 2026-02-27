@@ -3,6 +3,7 @@
 import React from "react";
 import { usePathname, useParams, useRouter } from "next/navigation";
 import { formatEther } from "ethers";
+import { lamportsToSol } from "@/lib/chess-escrow";
 import Link from "next/link";
 import { useChess } from "./ChessContext";
 import Landing from "@/components/chess/Landing";
@@ -22,6 +23,8 @@ export default function ChessApp() {
   const {
     wallet,
     setWallet,
+    chain,
+    setChain,
     socket,
     showRulesModal,
     setShowRulesModal,
@@ -56,6 +59,7 @@ export default function ChessApp() {
       return (
         <LobbyList
           wallet={wallet}
+          chain={chain}
           rulesAccepted={rulesAccepted}
           onShowRules={() => setShowRulesModal(true)}
           onJoinLobby={openGame}
@@ -76,6 +80,7 @@ export default function ChessApp() {
       return (
         <LobbyList
           wallet={wallet}
+          chain={chain}
           rulesAccepted={rulesAccepted}
           onShowRules={() => setShowRulesModal(true)}
           onJoinLobby={openGame}
@@ -93,6 +98,7 @@ export default function ChessApp() {
       return (
         <LobbyList
           wallet={wallet}
+          chain={chain}
           rulesAccepted={rulesAccepted}
           onShowRules={() => setShowRulesModal(true)}
           onJoinLobby={openGame}
@@ -110,6 +116,7 @@ export default function ChessApp() {
       return (
         <LobbyList
           wallet={wallet}
+          chain={chain}
           rulesAccepted={rulesAccepted}
           onShowRules={() => setShowRulesModal(true)}
           onJoinLobby={openGame}
@@ -127,6 +134,7 @@ export default function ChessApp() {
       return (
         <CreateLobby
           wallet={wallet}
+          chain={chain}
           rulesAccepted={rulesAccepted}
           onShowRules={() => setShowRulesModal(true)}
           onCreated={openGame}
@@ -177,7 +185,7 @@ export default function ChessApp() {
                 Play
               </Link>
             )}
-            <WalletBar wallet={wallet} setWallet={setWallet} />
+            <WalletBar wallet={wallet} setWallet={setWallet} chain={chain} setChain={setChain} />
           </nav>
         </header>
 
@@ -192,13 +200,11 @@ export default function ChessApp() {
           <div className="toast toast-bottom-right" role="status">
             <p className="toast-title">Someone joined your lobby</p>
             <p className="toast-desc">
-              Bet: {(() => {
-                try {
-                  return formatEther(toast.betAmount || "0");
-                } catch {
-                  return "0";
-                }
-              })()} MON
+              Bet: {chain === "solana"
+                ? lamportsToSol(toast.betAmount || "0")
+                : (() => {
+                    try { return formatEther(toast.betAmount || "0"); } catch { return "0"; }
+                  })()} {chain === "solana" ? "SOL" : chain === "bnb" ? "tBNB" : "MON"}
             </p>
             <div className="toast-actions">
               <button type="button" className="btn btn-toast-rejoin" onClick={openLobbyFromToast}>

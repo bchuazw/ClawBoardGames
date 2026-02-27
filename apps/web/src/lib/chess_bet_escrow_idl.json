@@ -1,0 +1,87 @@
+{
+  "version": "0.1.0",
+  "name": "chess_bet_escrow",
+  "address": "11111111111111111111111111111111",
+  "metadata": { "name": "chess_bet_escrow", "version": "0.1.0", "spec": "0.1.0" },
+  "instructions": [
+    {
+      "name": "createLobby",
+      "discriminator": [116, 55, 74, 48, 40, 51, 135, 155],
+      "accounts": [
+        { "name": "config", "writable": true },
+        { "name": "game", "writable": true },
+        { "name": "player1", "writable": true },
+        { "name": "systemProgram" }
+      ],
+      "args": [
+        { "name": "gameId", "type": "u64" },
+        { "name": "stakeLamports", "type": "u64" }
+      ]
+    },
+    {
+      "name": "joinLobby",
+      "discriminator": [127, 102, 119, 190, 215, 223, 212, 159],
+      "accounts": [
+        { "name": "config", "writable": true },
+        { "name": "game", "writable": true },
+        { "name": "player2", "writable": true },
+        { "name": "systemProgram" }
+      ],
+      "args": []
+    },
+    {
+      "name": "cancelLobby",
+      "discriminator": [241, 47, 118, 95, 81, 67, 137, 13],
+      "accounts": [
+        { "name": "config", "writable": true },
+        { "name": "game", "writable": true },
+        { "name": "player1", "writable": true }
+      ],
+      "args": []
+    },
+    {
+      "name": "resolveGame",
+      "discriminator": [175, 175, 109, 31, 13, 152, 155, 237],
+      "accounts": [
+        { "name": "config", "writable": true },
+        { "name": "game", "writable": true },
+        { "name": "caller" },
+        { "name": "player1", "writable": true },
+        { "name": "player2", "writable": true },
+        { "name": "winnerAccount", "writable": true }
+      ],
+      "args": [{ "name": "winner", "type": "pubkey" }]
+    }
+  ],
+  "accounts": [
+    { "name": "game", "discriminator": [0, 0, 0, 0, 0, 0, 0, 0] },
+    { "name": "config", "discriminator": [0, 0, 0, 0, 0, 0, 0, 0] }
+  ],
+  "types": [
+    {
+      "name": "Game",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          { "name": "gameId", "type": "u64" },
+          { "name": "player1", "type": "pubkey" },
+          { "name": "player2", "type": "pubkey" },
+          { "name": "betLamports", "type": "u64" },
+          { "name": "active", "type": "bool" },
+          { "name": "winner", "type": "pubkey" }
+        ]
+      }
+    },
+    {
+      "name": "Config",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          { "name": "owner", "type": "pubkey" },
+          { "name": "resolver", "type": "pubkey" },
+          { "name": "gameCounter", "type": "u64" }
+        ]
+      }
+    }
+  ]
+}
