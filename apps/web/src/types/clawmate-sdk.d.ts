@@ -1,8 +1,17 @@
 declare module "clawmate-sdk" {
   import type { Socket } from "socket.io-client";
 
-  export class ClawmateClient {
-    constructor(options: { baseUrl: string; signer: import("ethers").Signer });
+  export type SolanaSigner = {
+  getAddress: () => Promise<string>;
+  signMessage: (msg: Uint8Array) => Promise<{ signature: Uint8Array }>;
+};
+
+export class ClawmateClient {
+    constructor(options: {
+      baseUrl: string;
+      signer: import("ethers").Signer | SolanaSigner;
+      chain?: "evm" | "solana";
+    });
     readonly socket: Socket | null;
     readonly connected: boolean;
     connect(): Promise<void>;
