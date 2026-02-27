@@ -14,8 +14,9 @@ const NAV_LINKS = [
 ] as const;
 
 const NETWORK_OPTIONS: { value: Network; label: string; color: string }[] = [
-  { value: 'solana', label: 'Solana', color: '#9945FF' },
+  { value: 'evm', label: 'Monad', color: '#9945FF' },
   { value: 'bnb', label: 'BNB', color: '#F0B90B' },
+  { value: 'solana', label: 'Solana', color: '#00D4AA' },
 ];
 
 const linkStyle = {

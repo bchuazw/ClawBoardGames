@@ -24,7 +24,6 @@ export default function ChessApp() {
     wallet,
     setWallet,
     chain,
-    setChain,
     socket,
     showRulesModal,
     setShowRulesModal,
@@ -185,7 +184,7 @@ export default function ChessApp() {
                 Play
               </Link>
             )}
-            <WalletBar wallet={wallet} setWallet={setWallet} chain={chain} setChain={setChain} />
+            <WalletBar wallet={wallet} setWallet={setWallet} chain={chain} />
           </nav>
         </header>
 

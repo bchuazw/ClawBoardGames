@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
-export type Network = 'solana' | 'bnb';
+export type Network = 'solana' | 'bnb' | 'evm';
 
 export interface NetworkConfig {
   network: Network;
@@ -27,11 +27,11 @@ export const NETWORK_CONFIGS: Record<Network, NetworkConfig> = {
     gmWsUrl: process.env.NEXT_PUBLIC_GM_SOLANA_WS_URL || 'wss://clawboardgames-gm-solana.onrender.com/ws',
     explorerUrl: 'https://explorer.solana.com',
     label: 'Solana',
-    accentColor: '#9945FF',
+    accentColor: '#00D4AA',
     entryFee: '0.01 SOL',
     currency: 'SOL',
     addressLabel: 'Program',
-    addressValue: process.env.NEXT_PUBLIC_SOLANA_PROGRAM_ID || '',
+    addressValue: process.env.NEXT_PUBLIC_CLAWMATE_SOLANA_ESCROW_PROGRAM_ID || '',
   },
   bnb: {
     network: 'bnb',
@@ -44,6 +44,18 @@ export const NETWORK_CONFIGS: Record<Network, NetworkConfig> = {
     currency: 'BNB',
     addressLabel: 'Contract',
     addressValue: process.env.NEXT_PUBLIC_GM_BNB_SETTLEMENT_ADDRESS || '',
+  },
+  evm: {
+    network: 'evm',
+    gmRestUrl: FALLBACK_BNB_REST,
+    gmWsUrl: FALLBACK_BNB_WS,
+    explorerUrl: 'https://explorer.monad.xyz',
+    label: 'Monad',
+    accentColor: '#9945FF',
+    entryFee: '0.001 MON',
+    currency: 'MON',
+    addressLabel: 'Contract',
+    addressValue: process.env.NEXT_PUBLIC_CLAWMATE_ESCROW_CONTRACT_ADDRESS || '',
   },
 };
 
@@ -64,7 +76,7 @@ export function NetworkProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const saved = typeof window !== 'undefined' ? localStorage.getItem('cbg-network') : null;
-    if (saved === 'bnb' || saved === 'solana') setNetworkState(saved);
+    if (saved === 'bnb' || saved === 'solana' || saved === 'evm') setNetworkState(saved);
   }, []);
 
   const setNetwork = (n: Network) => {

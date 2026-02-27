@@ -27,7 +27,7 @@ const WALLET_STORAGE_KEY = "clawmate_wallet";
 const CHAIN_STORAGE_KEY = "clawmate_chain";
 const USERNAME_REGEX = /^[a-zA-Z0-9_-]{3,20}$/;
 
-export default function WalletBar({ wallet, setWallet, chain, setChain }) {
+export default function WalletBar({ wallet, setWallet, chain }) {
   const { client } = useChess();
   const effectiveChain = chain ?? "evm";
   const [connecting, setConnecting] = useState(false);
@@ -37,16 +37,6 @@ export default function WalletBar({ wallet, setWallet, chain, setChain }) {
   const [nameInput, setNameInput] = useState("");
   const [nameError, setNameError] = useState(null);
   const [savingName, setSavingName] = useState(false);
-
-  // Restore chain from localStorage
-  useEffect(() => {
-    if (setChain) {
-      try {
-        const stored = localStorage.getItem(CHAIN_STORAGE_KEY);
-        if (stored === "solana" || stored === "evm" || stored === "bnb") setChain(stored);
-      } catch (_) {}
-    }
-  }, [setChain]);
 
   // Restore wallet from localStorage on load (no popup; only reconnects if wallet is still unlocked/connected)
   useEffect(() => {
@@ -58,13 +48,15 @@ export default function WalletBar({ wallet, setWallet, chain, setChain }) {
       try { return localStorage.getItem(WALLET_STORAGE_KEY); } catch { return null; }
     })();
     if (!stored) return;
-    if (storedChain === "solana") {
+    // Restore only if stored chain matches current network (chain comes from navbar)
+    if (effectiveChain === "solana") {
+      if (storedChain !== "solana") return;
       const solana = getSolanaWallet();
       if (solana && solana.publicKey?.toBase58?.() === stored) setWallet(stored);
       else try { localStorage.removeItem(WALLET_STORAGE_KEY); } catch (_) {}
       return;
     }
-    if (storedChain === "evm" || storedChain === "bnb" || !storedChain) {
+    if ((effectiveChain === "evm" || effectiveChain === "bnb") && storedChain === effectiveChain) {
       if (!window.ethereum) return;
       window.ethereum
         .request({ method: "eth_accounts" })
@@ -79,7 +71,7 @@ export default function WalletBar({ wallet, setWallet, chain, setChain }) {
           try { localStorage.removeItem(WALLET_STORAGE_KEY); } catch (_) {}
         });
     }
-  }, []);
+  }, [effectiveChain, setWallet]);
 
   // Sync when user switches account in wallet (e.g. MetaMask) — EVM & BNB
   useEffect(() => {
@@ -127,11 +119,10 @@ export default function WalletBar({ wallet, setWallet, chain, setChain }) {
           return;
         }
         setWallet(addr);
-        try { if (addr) localStorage.setItem(WALLET_STORAGE_KEY, addr); } catch (_) {}
-        if (setChain) {
-          setChain("solana");
-          try { localStorage.setItem(CHAIN_STORAGE_KEY, "solana"); } catch (_) {}
-        }
+        try {
+          if (addr) localStorage.setItem(WALLET_STORAGE_KEY, addr);
+          localStorage.setItem(CHAIN_STORAGE_KEY, "solana");
+        } catch (_) {}
       } else {
         if (!window.ethereum) {
           setError("No wallet found. Install MetaMask or a compatible wallet to play.");
@@ -158,11 +149,10 @@ export default function WalletBar({ wallet, setWallet, chain, setChain }) {
         }
         const account = accounts[0];
         setWallet(account);
-        try { if (account) localStorage.setItem(WALLET_STORAGE_KEY, account); } catch (_) {}
-        if (setChain) {
-          setChain(effectiveChain);
-          try { localStorage.setItem(CHAIN_STORAGE_KEY, effectiveChain); } catch (_) {}
-        }
+        try {
+          if (account) localStorage.setItem(WALLET_STORAGE_KEY, account);
+          localStorage.setItem(CHAIN_STORAGE_KEY, effectiveChain);
+        } catch (_) {}
       }
     } catch (e) {
       setError(e?.message || "Connection failed");
@@ -226,29 +216,6 @@ export default function WalletBar({ wallet, setWallet, chain, setChain }) {
 
   return (
     <div className="wallet-bar">
-      {setChain && (
-        <select
-          className="wallet-chain-select"
-          value={effectiveChain}
-          onChange={(e) => {
-            const v = e.target.value;
-            if (v === "solana" || v === "evm" || v === "bnb") {
-              setChain(v);
-              setWallet(null);
-              try {
-                localStorage.setItem(CHAIN_STORAGE_KEY, v);
-                localStorage.removeItem(WALLET_STORAGE_KEY);
-              } catch (_) {}
-            }
-          }}
-          disabled={!!wallet}
-          title={wallet ? "Disconnect to switch chain" : "Select network"}
-        >
-          <option value="evm">Monad (EVM)</option>
-          <option value="bnb">BNB Testnet</option>
-          <option value="solana">Solana</option>
-        </select>
-      )}
       {error && <span className="wallet-error">{error}</span>}
       {wallet ? (
         <>

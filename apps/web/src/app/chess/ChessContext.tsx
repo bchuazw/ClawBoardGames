@@ -1,11 +1,12 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { io, type Socket } from "socket.io-client";
 import { ClawmateClient } from "clawmate-sdk";
 import { getApiUrl } from "@/lib/chess-api";
 import { getBrowserSigner, getSolanaSigner } from "@/lib/chess-signer";
+import { useNetwork } from "@/context/NetworkContext";
 
 const CURRENT_GAME_KEY = "clawmate_current_game";
 const RULES_ACCEPTED_KEY = "clawmate_rules_accepted";
@@ -28,8 +29,8 @@ function saveRulesAccepted() {
 type ChessContextValue = {
   wallet: string | null;
   setWallet: (w: string | null) => void;
+  /** Derived from navbar network: evm=Monad, bnb=BNB, solana=Solana */
   chain: "evm" | "solana" | "bnb";
-  setChain: (c: "evm" | "solana" | "bnb") => void;
   /** ClawMate SDK client (platform logic). Null when wallet not connected. */
   client: ClawmateClient | null;
   /** Socket from client; same as client?.socket. Kept for components that expect socket. */
@@ -58,7 +59,6 @@ const initialContext: ChessContextValue = {
   wallet: null,
   setWallet: () => {},
   chain: "evm",
-  setChain: () => {},
   client: null,
   socket: null,
   showRulesModal: false,
@@ -89,22 +89,16 @@ export function useChess() {
   return ctx;
 }
 
-function loadChain(): "evm" | "solana" | "bnb" {
-  if (typeof window === "undefined") return "evm";
-  try {
-    const s = localStorage.getItem("clawmate_chain");
-    if (s === "solana" || s === "bnb") return s;
-    return "evm";
-  } catch {
-    return "evm";
-  }
+function networkToChain(network: "evm" | "solana" | "bnb"): "evm" | "solana" | "bnb" {
+  return network;
 }
 
 export function ChessProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
+  const { network } = useNetwork();
+  const chain = networkToChain(network);
   const [wallet, setWallet] = useState<string | null>(null);
-  const [chain, setChain] = useState<"evm" | "solana" | "bnb">(loadChain);
   const [client, setClient] = useState<ClawmateClient | null>(null);
   const [showRulesModal, setShowRulesModal] = useState(false);
   const [rulesAccepted, setRulesAccepted] = useState(loadRulesAccepted);
@@ -114,6 +108,15 @@ export function ChessProvider({ children }: { children: React.ReactNode }) {
   const [rawSocket, setRawSocket] = useState<Socket | null>(null);
   const isInGame = pathname?.startsWith("/chess/game/") ?? false;
   const socket = client?.socket ?? rawSocket;
+
+  // Disconnect wallet when user switches network in navbar (different chains need different wallets)
+  const prevNetworkRef = useRef(network);
+  useEffect(() => {
+    if (prevNetworkRef.current !== network) {
+      prevNetworkRef.current = network;
+      setWallet(null);
+    }
+  }, [network]);
 
   // Raw socket for spectate / read-only when wallet not connected
   useEffect(() => {
@@ -265,7 +268,6 @@ export function ChessProvider({ children }: { children: React.ReactNode }) {
     wallet,
     setWallet,
     chain,
-    setChain,
     client,
     socket,
     showRulesModal,
