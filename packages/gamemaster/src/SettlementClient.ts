@@ -1,9 +1,10 @@
 import { ethers, Contract, Wallet, Provider, JsonRpcProvider } from "ethers";
+import { ISettlementClient, GameInfo, CheckpointInfo } from "./ISettlementClient";
 
 /**
- * Client for interacting with MonopolySettlement contract from the GM server.
+ * EVM client for interacting with MonopolySettlement contract from the GM server.
  */
-export class SettlementClient {
+export class SettlementClient implements ISettlementClient {
   private contract: Contract;
   private wallet: Wallet;
 

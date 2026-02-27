@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useNetwork } from '@/context/NetworkContext';
 
 const SUB_LINKS = [
   { href: '/monopoly/watch', label: 'Spectate' },
@@ -11,6 +12,7 @@ const SUB_LINKS = [
 
 export default function MonopolyLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { config } = useNetwork();
   const isMonopolyRoot = pathname === '/monopoly' || pathname === '/monopoly/';
   const isUnderMonopoly = pathname?.startsWith('/monopoly');
 
@@ -41,12 +43,12 @@ export default function MonopolyLayout({ children }: { children: React.ReactNode
                 gap: 6,
                 fontSize: 14,
                 fontWeight: 600,
-                color: '#D4A84B',
+                color: 'var(--accent-gold)',
                 textDecoration: 'none',
                 padding: '8px 14px',
                 borderRadius: 8,
-                background: 'rgba(212,168,75,0.12)',
-                border: '1px solid rgba(212,168,75,0.3)',
+                background: 'var(--border)',
+                border: '1px solid var(--border-bright)',
                 marginRight: 8,
               }}
             >
@@ -62,7 +64,7 @@ export default function MonopolyLayout({ children }: { children: React.ReactNode
                 style={{
                   fontSize: 14,
                   fontWeight: isActive ? 600 : 500,
-                  color: isActive ? '#D4A84B' : 'var(--text-secondary)',
+                  color: isActive ? 'var(--accent-gold)' : 'var(--text-secondary)',
                   textDecoration: 'none',
                   padding: '4px 0',
                 }}
@@ -71,6 +73,11 @@ export default function MonopolyLayout({ children }: { children: React.ReactNode
               </Link>
             );
           })}
+          {config.addressValue && (
+            <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+              {config.addressLabel}: {config.addressValue.length > 16 ? config.addressValue.slice(0, 8) + '...' + config.addressValue.slice(-4) : config.addressValue}
+            </span>
+          )}
         </div>
       )}
       {children}

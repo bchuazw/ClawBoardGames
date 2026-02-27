@@ -22,7 +22,10 @@
     "e2e:bsc-testnet": "node scripts/e2e-bsc-testnet.js",
     "create-wallets:4agent": "node scripts/create-4agent-wallets.js",
     "fund-wallets:4agent": "node scripts/fund-4agent-wallets.js",
-    "e2e:testnet-phase5": "node scripts/e2e-testnet-phase5.js"
+    "e2e:testnet-phase5": "node scripts/e2e-testnet-phase5.js",
+    "build:solana": "cd contracts-solana && anchor build",
+    "test:solana": "cd contracts-solana && anchor test",
+    "e2e:solana-devnet": "npx ts-node scripts/solana-devnet-smoke.ts"
   },
   "license": "MIT"
 }

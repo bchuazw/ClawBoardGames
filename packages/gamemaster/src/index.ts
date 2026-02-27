@@ -3,28 +3,42 @@ import { WebSocketServer, WebSocket } from "ws";
 import { createServer } from "http";
 import { Orchestrator } from "./Orchestrator";
 import { SettlementClient } from "./SettlementClient";
+import { ISettlementClient } from "./ISettlementClient";
 import dotenv from "dotenv";
 
 dotenv.config();
 
 const PORT = parseInt(process.env.PORT || "3001", 10);
 const LOCAL_MODE = process.env.LOCAL_MODE === "true";
+const NETWORK = (process.env.NETWORK || "bnb").toLowerCase() as "bnb" | "solana";
 const RPC_URL = process.env.RPC_URL || "https://data-seed-prebsc-1-s1.binance.org:8545";
 const SETTLEMENT_ADDRESS = process.env.SETTLEMENT_ADDRESS || "";
 const GM_PRIVATE_KEY = process.env.GM_PRIVATE_KEY || "";
+const SOLANA_RPC_URL = process.env.SOLANA_RPC_URL || "https://api.devnet.solana.com";
+const SOLANA_PROGRAM_ID = process.env.SOLANA_PROGRAM_ID || "";
+const GM_SOLANA_KEYPAIR = process.env.GM_SOLANA_KEYPAIR || "";
 const OPEN_GAME_TARGET = parseInt(process.env.OPEN_GAME_TARGET || "10", 10);
 const OPEN_GAME_REPLENISH_INTERVAL_MS = parseInt(process.env.OPEN_GAME_REPLENISH_INTERVAL_MS || "300000", 10); // 5 min
 
-let settlement: SettlementClient | null = null;
+let settlement: ISettlementClient | null = null;
 
 if (LOCAL_MODE) {
   console.log("[GM Server] Running in LOCAL_MODE (no blockchain)");
+} else if (NETWORK === "solana") {
+  if (!SOLANA_PROGRAM_ID || !GM_SOLANA_KEYPAIR) {
+    console.error("NETWORK=solana requires SOLANA_PROGRAM_ID and GM_SOLANA_KEYPAIR. Use LOCAL_MODE=true for testing.");
+    process.exit(1);
+  }
+  const { SolanaSettlementClient } = require("./SolanaSettlementClient");
+  settlement = new SolanaSettlementClient(SOLANA_RPC_URL, SOLANA_PROGRAM_ID, GM_SOLANA_KEYPAIR);
+  console.log(`[GM Server] NETWORK=solana, program=${SOLANA_PROGRAM_ID}`);
 } else {
   if (!SETTLEMENT_ADDRESS || !GM_PRIVATE_KEY) {
     console.error("Missing SETTLEMENT_ADDRESS or GM_PRIVATE_KEY. Use LOCAL_MODE=true for testing.");
     process.exit(1);
   }
   settlement = new SettlementClient(RPC_URL, SETTLEMENT_ADDRESS, GM_PRIVATE_KEY);
+  console.log(`[GM Server] NETWORK=bnb, contract=${SETTLEMENT_ADDRESS}`);
 }
 
 // ========== Setup ==========
@@ -43,15 +57,16 @@ app.use((_req, res, next) => {
   next();
 });
 
-// Health check (includes settlementAddress in on-chain mode for frontend to show contract)
 app.get("/health", (_req, res) => {
   const payload: Record<string, unknown> = {
     status: "ok",
     mode: LOCAL_MODE ? "local" : "on-chain",
+    network: LOCAL_MODE ? "local" : NETWORK,
     activeGames: orchestrator.getActiveGames(),
     gmAddress: settlement?.address || "local-mode",
   };
-  if (!LOCAL_MODE && SETTLEMENT_ADDRESS) payload.settlementAddress = SETTLEMENT_ADDRESS;
+  if (!LOCAL_MODE && NETWORK === "bnb" && SETTLEMENT_ADDRESS) payload.settlementAddress = SETTLEMENT_ADDRESS;
+  if (!LOCAL_MODE && NETWORK === "solana" && SOLANA_PROGRAM_ID) payload.programId = SOLANA_PROGRAM_ID;
   res.json(payload);
 });
 

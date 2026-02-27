@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-
-const DEFAULT_GM_REST = process.env.NEXT_PUBLIC_GM_REST_URL || 'https://clawboardgames-gm.onrender.com';
+import { useNetwork } from '@/context/NetworkContext';
 
 function truncateAddress(addr: string): string {
   if (!addr || addr.length < 12) return addr;
@@ -18,10 +17,13 @@ interface HistoryEntry {
 }
 
 export default function HistoryPage() {
-  const [gmRestUrl, setGmRestUrl] = useState(DEFAULT_GM_REST);
+  const { config: networkConfig } = useNetwork();
+  const [gmRestUrl, setGmRestUrl] = useState(networkConfig.gmRestUrl);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => { setGmRestUrl(networkConfig.gmRestUrl); }, [networkConfig.gmRestUrl]);
 
   useEffect(() => {
     setLoading(true);
@@ -73,7 +75,7 @@ export default function HistoryPage() {
             type="text"
             value={gmRestUrl}
             onChange={(e) => setGmRestUrl(e.target.value)}
-            placeholder={DEFAULT_GM_REST}
+            placeholder={networkConfig.gmRestUrl}
             style={{
               width: '100%',
               maxWidth: 320,

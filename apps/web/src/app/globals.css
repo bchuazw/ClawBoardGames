@@ -72,6 +72,27 @@ iframe { max-width: 100%; }
   --font-body: 'DM Sans', system-ui, sans-serif;
 }
 
+/* ========== NETWORK THEMES ========== */
+
+/* Solana (default): purple accents */
+[data-network="solana"] {
+  --accent-gold: #9945FF;
+  --border: rgba(153, 69, 255, 0.1);
+  --border-bright: rgba(153, 69, 255, 0.3);
+  --bg-primary: #0C0F2A;
+  --bg-secondary: #0F1340;
+  --bg-card: rgba(15, 19, 64, 0.8);
+  --bg-card-solid: #0F1340;
+  --bg-card-hover: #151E50;
+}
+
+/* BNB Chain: yellow/gold accents */
+[data-network="bnb"] {
+  --accent-gold: #F0B90B;
+  --border: rgba(240, 185, 11, 0.1);
+  --border-bright: rgba(240, 185, 11, 0.3);
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 5px;
@@ -80,11 +101,12 @@ iframe { max-width: 100%; }
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(212, 168, 75, 0.2);
+  background: var(--border-bright);
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(212, 168, 75, 0.4);
+  background: var(--accent-gold);
+  opacity: 0.5;
 }
 
 /* Animations */
@@ -327,8 +349,8 @@ a:hover { text-decoration: underline; }
   .landing-section h2 { font-size: 28px !important; }
   .landing-footer { padding: 20px 16px !important; }
 }
-/* Nav links: no underline on hover, gold highlight */
-.nav-link:hover { color: #D4A84B !important; text-decoration: none; }
+/* Nav links: no underline on hover, accent highlight */
+.nav-link:hover { color: var(--accent-gold) !important; text-decoration: none; }
 
 /* Nav mobile: show hamburger, hide links; drawer slides down */
 .nav-mobile-toggle { display: none !important; }

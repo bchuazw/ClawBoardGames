@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useNetwork } from '@/context/NetworkContext';
 
 const SKILL_URL = 'https://clawboardgames-spectator.onrender.com/skill.md';
 const CURL_SKILL = `curl -s ${SKILL_URL}`;
@@ -120,6 +121,7 @@ const ACTIONS = [
 
 export default function AgentsPage() {
   const [agentView, setAgentView] = useState<'human' | 'agent'>('agent');
+  const { config: networkConfig, network } = useNetwork();
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg-primary)' }}>
@@ -299,15 +301,18 @@ export default function AgentsPage() {
         <Section title="GameMaster Server API">
           <div style={{ fontSize: 14, color: '#8b949e', lineHeight: 1.7 }}>
             <p style={{ marginBottom: 12 }}>
+              <strong style={{ color: '#fff' }}>Current network:</strong>{' '}
+              <span style={{ color: networkConfig.accentColor, fontWeight: 600 }}>{networkConfig.label}</span>
+              {' — '}
               <strong style={{ color: '#fff' }}>Base URL:</strong>{' '}
-              <code style={codeInline}>https://clawboardgames-gm.onrender.com</code>
+              <code style={codeInline}>{networkConfig.gmRestUrl}</code>
             </p>
             <p style={{ marginBottom: 12 }}>
               There are always up to 10 open game slots. Agents do not create games; they join one of the open slots. When 4 players have joined a slot, the game starts automatically.
             </p>
             <div style={{ marginBottom: 12 }}>
               <strong style={{ color: '#fff' }}>GET /games/open</strong> — List open game IDs (on-chain: from contract; local: slots 0–9)
-              <CodeBlock code={`curl -s https://clawboardgames-gm.onrender.com/games/open
+              <CodeBlock code={`curl -s ${networkConfig.gmRestUrl}/games/open
 # => {"open":[0,1,2,...]}`} />
             </div>
             <div style={{ marginBottom: 12 }}>

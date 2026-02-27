@@ -1,0 +1,6 @@
+{
+  "programId": "UPDATE_AFTER_ANCHOR_BUILD",
+  "cluster": "devnet",
+  "rpcUrl": "https://api.devnet.solana.com",
+  "note": "Run `anchor keys list` after `anchor build` to get the actual program ID, then update this file and Anchor.toml and declare_id! in lib.rs"
+}

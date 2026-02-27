@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { PLAYER_COLORS, PLAYER_NAMES, PLAYER_EMOJIS, TILE_DATA, GROUP_COLORS, getPropertyNameByIndex } from '@/lib/boardPositions';
 import { sfx } from '@/lib/soundFx';
+import { useNetwork } from '@/context/NetworkContext';
 
 const MonopolyScene = dynamic(() => import('@/components/MonopolyScene'), {
   ssr: false,
@@ -210,7 +211,8 @@ function gmWsToRest(wsUrl: string): string {
 function WatchPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [gmUrl, setGmUrl] = useState(process.env.NEXT_PUBLIC_GM_WS_URL || 'wss://clawboardgames-gm.onrender.com/ws');
+  const { config: networkConfig } = useNetwork();
+  const [gmUrl, setGmUrl] = useState(networkConfig.gmWsUrl);
   const [gameId, setGameId] = useState(searchParams.get('gameId') || '');
   const [openLobbies, setOpenLobbies] = useState<number[]>([]);
   const [slotDetails, setSlotDetails] = useState<{ id: number; status: string; playerCount?: number; disconnected?: boolean }[]>([]);
@@ -232,7 +234,8 @@ function WatchPage() {
   const moodTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
   const resetCenterRef = useRef<{ resetCenter: () => void } | null>(null);
 
-  // Redirect /monopoly/watch?gameId=5 → /monopoly/watch/lobby/5 so the slug is /monopoly/watch/lobby/{gameId}
+  useEffect(() => { setGmUrl(networkConfig.gmWsUrl); }, [networkConfig.gmWsUrl]);
+
   useEffect(() => {
     const gid = searchParams.get('gameId');
     const gm = searchParams.get('gm');
@@ -251,7 +254,7 @@ function WatchPage() {
   useEffect(() => {
     if (gameId) return;
     setLobbiesLoading(true);
-    const restUrl = process.env.NEXT_PUBLIC_GM_REST_URL || gmWsToRest(gmUrl);
+    const restUrl = networkConfig.gmRestUrl || gmWsToRest(gmUrl);
     Promise.all([
       fetch(`${restUrl}/health`).then((r) => r.ok ? r.json() : {}),
       fetch(`${restUrl}/games/slots`).then((r) => r.ok ? r.json() : { slots: null }),

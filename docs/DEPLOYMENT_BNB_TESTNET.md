@@ -1,5 +1,7 @@
 # BNB Testnet deployment reference
 
+> **Multi-network:** ClawBoardGames supports both **Solana** (default) and **BNB Chain**. This document covers the BNB deployment. See [DEPLOYMENT_SOLANA.md](DEPLOYMENT_SOLANA.md) for Solana. The GM is deployed as two separate services (one per network). The frontend uses a network dropdown to switch between them.
+
 **Use this document as the single source of truth for the current BNB Testnet deployment.** Update it when you redeploy or change URLs.
 
 ---

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
+import { useNetwork, Network } from '@/context/NetworkContext';
 
 const NAV_LINKS = [
   { href: '/', label: 'Home' },
@@ -11,6 +12,11 @@ const NAV_LINKS = [
   { href: '/avalon', label: 'Avalon' },
   { href: '/terms', label: 'Terms' },
 ] as const;
+
+const NETWORK_OPTIONS: { value: Network; label: string; color: string }[] = [
+  { value: 'solana', label: 'Solana', color: '#9945FF' },
+  { value: 'bnb', label: 'BNB', color: '#F0B90B' },
+];
 
 const linkStyle = {
   fontSize: 14,
@@ -25,7 +31,9 @@ const linkStyle = {
 export function Nav({ variant = 'default' }: { variant?: 'default' | 'compact' }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { network, setNetwork } = useNetwork();
   const isCompact = variant === 'compact';
+  const currentNetworkOption = NETWORK_OPTIONS.find(o => o.value === network) || NETWORK_OPTIONS[0];
 
   const isMonopolyPath = pathname === '/monopoly' || pathname?.startsWith('/monopoly/');
 
@@ -79,36 +87,33 @@ export function Nav({ variant = 'default' }: { variant?: 'default' | 'compact' }
               letterSpacing: '-0.02em',
             }}
           >
-            <span style={{ color: '#D4A84B' }}>Claw</span>
+            <span style={{ color: 'var(--accent-gold)' }}>Claw</span>
             <span style={{ color: '#fff' }}>BoardGames</span>
           </span>
         </Link>
         <div className="nav-links" style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-          {/* Home */}
           <Link
             href="/"
             style={{
               ...linkStyle,
-              color: pathname === '/' ? '#D4A84B' : 'var(--text-secondary)',
+              color: pathname === '/' ? 'var(--accent-gold)' : 'var(--text-secondary)',
               fontWeight: pathname === '/' ? 600 : 500,
             }}
             className="nav-link"
           >
             Home
           </Link>
-          {/* Monopoly — single link to /monopoly (sub-nav is in monopoly layout) */}
           <Link
             href="/monopoly"
             style={{
               ...linkStyle,
-              color: isMonopolyPath ? '#D4A84B' : 'var(--text-secondary)',
+              color: isMonopolyPath ? 'var(--accent-gold)' : 'var(--text-secondary)',
               fontWeight: isMonopolyPath ? 600 : 500,
             }}
             className="nav-link"
           >
             Monopoly
           </Link>
-          {/* Chess, Avalon, Terms */}
           {NAV_LINKS.filter((l) => l.href !== '/').map(({ href, label }) => {
             const isActive = pathname === href || pathname?.startsWith(href + '/');
             return (
@@ -117,7 +122,7 @@ export function Nav({ variant = 'default' }: { variant?: 'default' | 'compact' }
                 href={href}
                 style={{
                   ...linkStyle,
-                  color: isActive ? '#D4A84B' : 'var(--text-secondary)',
+                  color: isActive ? 'var(--accent-gold)' : 'var(--text-secondary)',
                   fontWeight: isActive ? 600 : 500,
                 }}
                 className="nav-link"
@@ -126,6 +131,39 @@ export function Nav({ variant = 'default' }: { variant?: 'default' | 'compact' }
             </Link>
           );
         })}
+          <div style={{ position: 'relative', marginLeft: 8 }}>
+            <select
+              value={network}
+              onChange={(e) => setNetwork(e.target.value as Network)}
+              style={{
+                appearance: 'none',
+                background: `rgba(${currentNetworkOption.color === '#9945FF' ? '153,69,255' : '240,185,11'},0.12)`,
+                border: `1px solid ${currentNetworkOption.color}55`,
+                color: currentNetworkOption.color,
+                borderRadius: 8,
+                padding: '6px 28px 6px 10px',
+                fontSize: 12,
+                fontWeight: 600,
+                fontFamily: 'var(--font-mono)',
+                cursor: 'pointer',
+                outline: 'none',
+                letterSpacing: '0.04em',
+              }}
+            >
+              {NETWORK_OPTIONS.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+            <span style={{
+              position: 'absolute',
+              right: 8,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              pointerEvents: 'none',
+              fontSize: 10,
+              color: currentNetworkOption.color,
+            }}>▼</span>
+          </div>
         </div>
         <button
           type="button"
@@ -158,7 +196,7 @@ export function Nav({ variant = 'default' }: { variant?: 'default' | 'compact' }
             padding: '14px 24px',
             fontSize: 16,
             fontWeight: pathname === '/' ? 600 : 500,
-            color: pathname === '/' ? '#D4A84B' : 'var(--text-secondary)',
+            color: pathname === '/' ? 'var(--accent-gold)' : 'var(--text-secondary)',
             textDecoration: 'none',
             borderBottom: '1px solid rgba(255,255,255,0.06)',
           }}
@@ -172,8 +210,8 @@ export function Nav({ variant = 'default' }: { variant?: 'default' | 'compact' }
             display: 'block',
             padding: '14px 24px',
             fontSize: 16,
-            fontWeight: pathname === '/monopoly' || pathname?.startsWith('/monopoly/') ? 600 : 500,
-            color: pathname === '/monopoly' || pathname?.startsWith('/monopoly/') ? '#D4A84B' : 'var(--text-secondary)',
+            fontWeight: isMonopolyPath ? 600 : 500,
+            color: isMonopolyPath ? 'var(--accent-gold)' : 'var(--text-secondary)',
             textDecoration: 'none',
             borderBottom: '1px solid rgba(255,255,255,0.06)',
           }}
@@ -192,7 +230,7 @@ export function Nav({ variant = 'default' }: { variant?: 'default' | 'compact' }
                 padding: '14px 24px',
                 fontSize: 16,
                 fontWeight: isActive ? 600 : 500,
-                color: isActive ? '#D4A84B' : 'var(--text-secondary)',
+                color: isActive ? 'var(--accent-gold)' : 'var(--text-secondary)',
                 textDecoration: 'none',
                 borderBottom: '1px solid rgba(255,255,255,0.06)',
               }}
@@ -202,6 +240,30 @@ export function Nav({ variant = 'default' }: { variant?: 'default' | 'compact' }
             </Link>
           );
         })}
+        <div style={{ padding: '14px 24px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+          <select
+            value={network}
+            onChange={(e) => setNetwork(e.target.value as Network)}
+            style={{
+              appearance: 'none',
+              background: `rgba(${currentNetworkOption.color === '#9945FF' ? '153,69,255' : '240,185,11'},0.12)`,
+              border: `1px solid ${currentNetworkOption.color}55`,
+              color: currentNetworkOption.color,
+              borderRadius: 8,
+              padding: '8px 28px 8px 12px',
+              fontSize: 14,
+              fontWeight: 600,
+              fontFamily: 'var(--font-mono)',
+              cursor: 'pointer',
+              outline: 'none',
+              width: '100%',
+            }}
+          >
+            {NETWORK_OPTIONS.map(opt => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        </div>
       </div>
     </nav>
   );

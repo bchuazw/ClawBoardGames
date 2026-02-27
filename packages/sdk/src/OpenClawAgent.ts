@@ -7,6 +7,35 @@ export interface AgentPolicy {
   decide(snapshot: GameSnapshot, legalActions: GameAction[]): GameAction;
 }
 
+export interface BnbAgentConfig {
+  chain: "bnb";
+  /** Agent's private key (hex string). */
+  privateKey: string;
+  /** RPC URL (BNB Chain Testnet / Mainnet). */
+  rpcUrl: string;
+  /** MonopolySettlement contract address. */
+  settlementAddress: string;
+  /** GM WebSocket URL (e.g. ws://localhost:3001/ws). */
+  gmWsUrl: string;
+  /** Agent policy: decides what to do each turn. */
+  policy: AgentPolicy;
+}
+
+export interface SolanaAgentConfig {
+  chain: "solana";
+  /** Agent's keypair as a JSON byte array string, e.g. "[1,2,3,...]". */
+  keypairJson: string;
+  /** Solana RPC URL (e.g. https://api.devnet.solana.com). */
+  rpcUrl: string;
+  /** Deployed Anchor program ID. */
+  programId: string;
+  /** GM WebSocket URL. */
+  gmWsUrl: string;
+  /** Agent policy: decides what to do each turn. */
+  policy: AgentPolicy;
+}
+
+/** Legacy config (BNB only, no `chain` field) for backward compatibility. */
 export interface AgentConfig {
   /** Agent's private key (hex string). */
   privateKey: string;
@@ -19,6 +48,8 @@ export interface AgentConfig {
   /** Agent policy: decides what to do each turn. */
   policy: AgentPolicy;
 }
+
+export type UnifiedAgentConfig = BnbAgentConfig | SolanaAgentConfig | AgentConfig;
 
 /** Response from GM GET /games/:gameId (lobby status, settlement, winner). */
 export interface GameStatusFromGM {
@@ -62,25 +93,38 @@ export interface GameStateFromGM {
  * Usage (local): getOpenGameIds() returns [0..9]; connectAndPlay(gameId) with no deposit/reveal.
  */
 export class OpenClawAgent {
-  private settlement: SettlementClient;
-  private config: AgentConfig;
+  private settlement: SettlementClient | { address: string; generateSecret(): any; depositAndCommit(gameId: number): Promise<string>; revealSeed(gameId: number): Promise<string>; withdraw(gameId: number): Promise<string>; getGame(gameId: number): Promise<any> };
+  private _config: UnifiedAgentConfig;
   private ws: WebSocket | null = null;
   private latestSnapshot: GameSnapshot | null = null;
   private gameActive = false;
+  private _chain: "bnb" | "solana";
 
-  constructor(config: AgentConfig) {
-    this.config = config;
-    this.settlement = new SettlementClient(config.rpcUrl, config.settlementAddress, config.privateKey);
+  constructor(config: UnifiedAgentConfig) {
+    this._config = config;
+
+    if ("chain" in config && config.chain === "solana") {
+      this._chain = "solana";
+      const { SolanaSettlementClient } = require("./SolanaSettlementClient");
+      this.settlement = new SolanaSettlementClient(config.rpcUrl, config.programId, config.keypairJson);
+    } else {
+      this._chain = "bnb";
+      const c = config as AgentConfig | BnbAgentConfig;
+      this.settlement = new SettlementClient(c.rpcUrl, c.settlementAddress, c.privateKey);
+    }
   }
 
-  /** Agent's wallet address. */
+  get chain(): "bnb" | "solana" { return this._chain; }
+
+  /** Agent's wallet address (EVM hex or Solana base58). */
   get address(): string {
     return this.settlement.address;
   }
 
   private gmRestBase(): string {
-    const protocol = this.config.gmWsUrl.startsWith("wss://") ? "https" : "http";
-    return this.config.gmWsUrl.replace(/^wss?:\/\//, `${protocol}://`).replace(/\/ws.*$/, "");
+    const wsUrl = this._config.gmWsUrl;
+    const protocol = wsUrl.startsWith("wss://") ? "https" : "http";
+    return wsUrl.replace(/^wss?:\/\//, `${protocol}://`).replace(/\/ws.*$/, "");
   }
 
   /**
@@ -154,7 +198,7 @@ export class OpenClawAgent {
    */
   connectAndPlay(gameId: number): Promise<GameSnapshot> {
     return new Promise((resolve, reject) => {
-      const url = `${this.config.gmWsUrl}?gameId=${gameId}&address=${this.address}`;
+      const url = `${this._config.gmWsUrl}?gameId=${gameId}&address=${this.address}`;
       this.ws = new WebSocket(url);
       this.gameActive = true;
 
@@ -255,7 +299,7 @@ export class OpenClawAgent {
         this.latestSnapshot = msg.snapshot;
         const actions: GameAction[] = msg.legalActions;
         if (actions.length > 0) {
-          const action = this.config.policy.decide(msg.snapshot, actions);
+          const action = this._config.policy.decide(msg.snapshot, actions);
           this.sendAction(action);
         }
         break;

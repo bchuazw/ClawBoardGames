@@ -1,6 +1,6 @@
 import { MonopolyEngine, GameAction, GameEvent, GameSnapshot, GameStatus, Phase } from "@clawboardgames/engine";
 import { WebSocket } from "ws";
-import { SettlementClient } from "./SettlementClient";
+import { ISettlementClient } from "./ISettlementClient";
 import { ethers } from "ethers";
 
 const TURN_TIMEOUT_MS = 10_000; // 10 seconds per agent response
@@ -10,7 +10,7 @@ export interface GameProcessConfig {
   gameId: number;
   players: [string, string, string, string];
   diceSeed: string;
-  settlement: SettlementClient | null; // null in LOCAL_MODE
+  settlement: ISettlementClient | null; // null in LOCAL_MODE
   onEnd?: () => void; // called when game ends (e.g. to replace slot with new Lobby)
 }
 

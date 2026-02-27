@@ -1,5 +1,5 @@
 import { GameProcess, GameProcessConfig } from "./GameProcess";
-import { SettlementClient } from "./SettlementClient";
+import { ISettlementClient } from "./ISettlementClient";
 import { WebSocket } from "ws";
 import { keccak256, toUtf8Bytes } from "ethers";
 
@@ -58,12 +58,12 @@ export class Orchestrator {
   private games: Map<number, GameProcess> = new Map();
   /** Local mode only: slots 0..NUM_LOCAL_SLOTS-1, each Lobby or GameProcess */
   private slots: Map<number, LocalSlot> = new Map();
-  private settlement: SettlementClient | null;
+  private settlement: ISettlementClient | null;
   private nextLocalGameId: number;
   /** Called when an on-chain game ends (so caller can replenish open games). */
   onGameEnd?: () => void;
 
-  constructor(settlement: SettlementClient | null) {
+  constructor(settlement: ISettlementClient | null) {
     this.settlement = settlement;
     this.nextLocalGameId = NUM_LOCAL_SLOTS; // 10+ for createLocalGame-created games
     if (!settlement) {

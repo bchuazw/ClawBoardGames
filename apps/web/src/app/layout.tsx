@@ -3,6 +3,7 @@ import "./globals.css";
 import { Nav } from "@/components/Nav";
 import { BackgroundMusic } from "@/components/BackgroundMusic";
 import { ViewportClamp } from "@/components/ViewportClamp";
+import { NetworkProvider } from "@/context/NetworkContext";
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -21,7 +22,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" data-network="solana">
       <head>
         <link
           href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Orbitron:wght@400;500;600;700&display=swap"
@@ -38,12 +39,14 @@ export default function RootLayout({
         display: "flex",
         flexDirection: "column",
       }}>
-        <ViewportClamp />
-        <BackgroundMusic />
-        <Nav />
-        <div className="page-content" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-          {children}
-        </div>
+        <NetworkProvider>
+          <ViewportClamp />
+          <BackgroundMusic />
+          <Nav />
+          <div className="page-content" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+            {children}
+          </div>
+        </NetworkProvider>
       </body>
     </html>
   );
