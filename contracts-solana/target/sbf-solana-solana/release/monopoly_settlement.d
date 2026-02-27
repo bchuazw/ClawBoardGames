@@ -1,0 +1,1 @@
+/Users/ryanongwx/Desktop/clawopoly/ClawBoardGames/contracts-solana/target/sbf-solana-solana/release/monopoly_settlement.so: /Users/ryanongwx/Desktop/clawopoly/ClawBoardGames/contracts-solana/programs/monopoly-settlement/src/lib.rs

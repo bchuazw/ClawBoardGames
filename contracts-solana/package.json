@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "anchor build",
+    "build": "anchor build --no-idl",
     "test": "anchor test",
     "deploy:devnet": "anchor deploy --provider.cluster devnet",
     "keys": "anchor keys list"

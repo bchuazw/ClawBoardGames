@@ -1,0 +1,3 @@
+# /Users/ryanongwx/Desktop/clawopoly/ClawBoardGames/contracts-solana/rust-toolchain.toml
+[toolchain]
+channel = "nightly"

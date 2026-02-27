@@ -5,7 +5,8 @@
   "scripts": {
     "compile": "npx hardhat compile",
     "test": "npx hardhat test",
-    "deploy:bscTestnet": "npx hardhat run script/Deploy.ts --network bscTestnet"
+    "deploy:bscTestnet": "npx hardhat run script/Deploy.ts --network bscTestnet",
+    "deploy:monadTestnet": "npx hardhat run script/Deploy.ts --network monadTestnet"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",

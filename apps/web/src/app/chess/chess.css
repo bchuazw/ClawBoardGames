@@ -438,8 +438,8 @@
   max-height: none !important;
 }
 
-/* Landing page — fills viewport; chessboard strip pinned to bottom */
-.landing.clawgig-style {
+/* Landing page — fills viewport; chessboard strip pinned to bottom. Scoped so Home→Chess→Home doesn't change home layout */
+.chess-app-wrap .landing.clawgig-style {
   flex: 1 1 auto !important;
   min-height: 0 !important;
   overflow: hidden;
@@ -456,7 +456,7 @@
   position: relative;
 }
 
-.landing-hero {
+.chess-app-wrap .landing-hero {
   flex: 1 1 auto !important;
   min-height: 0 !important;
   max-width: 640px;
@@ -470,7 +470,7 @@
   flex-direction: column !important;
 }
 
-.landing-title {
+.chess-app-wrap .landing-title {
   margin: 0 0 16px;
   font-size: 2.75rem;
   letter-spacing: 0.02em;
@@ -483,21 +483,21 @@
   filter: drop-shadow(0 0 12px rgba(34, 211, 238, 0.5)) drop-shadow(0 0 12px var(--neon-pink-glow));
 }
 
-.landing-subtitle {
+.chess-app-wrap .landing-subtitle {
   margin: 0 0 12px;
   font-size: 1.2rem;
   color: #ffffff;
   font-weight: 500;
 }
 
-.landing-desc {
+.chess-app-wrap .landing-desc {
   margin: 0 0 12px !important;
   line-height: 1.7;
   color: var(--text-dim);
   font-size: 1rem;
 }
 
-.btn-play {
+.chess-app-wrap .btn-play {
   padding: 14px 36px;
   font-size: 1.05rem;
   font-weight: 600;
@@ -511,14 +511,14 @@
   box-shadow: 0 0 16px rgba(34, 211, 238, 0.2);
 }
 
-.btn-play:hover {
+.chess-app-wrap .btn-play:hover {
   opacity: 0.95;
   transform: translateY(-1px);
   background: rgba(34, 211, 238, 0.35);
   box-shadow: 0 0 24px var(--neon-blue-glow);
 }
 
-.landing-actions {
+.chess-app-wrap .landing-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
@@ -530,7 +530,7 @@
   padding: 0 !important;
 }
 
-.btn-rules {
+.chess-app-wrap .btn-rules {
   padding: 14px 36px;
   font-size: 1.05rem;
   font-weight: 600;
@@ -543,12 +543,12 @@
   transition: opacity 0.2s, background 0.2s;
 }
 
-.btn-rules:hover {
+.chess-app-wrap .btn-rules:hover {
   background: var(--accent-primary-dim);
   opacity: 0.95;
 }
 
-.landing-cards {
+.chess-app-wrap .landing-cards {
   flex-shrink: 0 !important;
   flex-grow: 0 !important;
   max-width: 900px;
@@ -561,7 +561,7 @@
   gap: 16px;
 }
 
-.landing-card {
+.chess-app-wrap .landing-card {
   padding: 24px;
   border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -570,12 +570,12 @@
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
 }
 
-.landing-card:hover {
+.chess-app-wrap .landing-card:hover {
   border-color: rgba(34, 211, 238, 0.35);
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25), 0 0 20px rgba(34, 211, 238, 0.08);
 }
 
-.landing-card-icon {
+.chess-app-wrap .landing-card-icon {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -586,7 +586,7 @@
   line-height: 1;
 }
 
-.landing-card-logo {
+.chess-app-wrap .landing-card-logo {
   position: relative;
   display: flex;
   align-items: center;
@@ -596,13 +596,13 @@
   margin-bottom: 12px;
   color: var(--text);
 }
-.landing-card-logo-img {
+.chess-app-wrap .landing-card-logo-img {
   width: 3rem;
   height: 3rem;
   object-fit: contain;
   display: block;
 }
-.landing-card-logo-fallback {
+.chess-app-wrap .landing-card-logo-fallback {
   position: absolute;
   inset: 0;
   display: flex;
@@ -615,14 +615,14 @@
   line-height: 1.1;
 }
 
-.landing-card h3 {
+.chess-app-wrap .landing-card h3 {
   margin: 0 0 8px;
   font-size: 1.1rem;
   font-weight: 600;
   color: var(--text);
 }
 
-.landing-card p {
+.chess-app-wrap .landing-card p {
   margin: 0;
   font-size: 0.9rem;
   line-height: 1.5;
@@ -630,7 +630,7 @@
 }
 
 /* Horizon chess board — fixed at bottom of page, full width */
-.landing-horizon {
+.chess-app-wrap .landing-horizon {
   position: absolute !important;
   bottom: 0 !important;
   left: 50% !important;
@@ -648,7 +648,7 @@
 }
 
 /* Fade matches chess page gradient bottom (#0C1B3A) so no visible strip */
-.landing-horizon-fade {
+.chess-app-wrap .landing-horizon-fade {
   position: absolute;
   inset: 0;
   background: linear-gradient(
@@ -662,7 +662,7 @@
   z-index: 1;
 }
 
-.landing-horizon-board {
+.chess-app-wrap .landing-horizon-board {
   position: absolute;
   bottom: 0;
   left: 0;
@@ -681,15 +681,15 @@
     inset 0 0 60px rgba(0, 0, 0, 0.4);
 }
 
-.landing-horizon-square {
+.chess-app-wrap .landing-horizon-square {
   border-radius: 1px;
 }
 
-.landing-horizon-square.light {
+.chess-app-wrap .landing-horizon-square.light {
   background: rgba(80, 85, 100, 0.5);
 }
 
-.landing-horizon-square.dark {
+.chess-app-wrap .landing-horizon-square.dark {
   background: rgba(34, 211, 238, 0.15);
   border: 1px solid rgba(34, 211, 238, 0.12);
 }
@@ -2288,46 +2288,46 @@ a.btn {
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  .landing.clawgig-style {
+  .chess-app-wrap .landing.clawgig-style {
     padding: 24px 16px 0;
   }
-  .landing-title {
+  .chess-app-wrap .landing-title {
     font-size: 2rem;
     margin-bottom: 12px;
   }
-  .landing-subtitle {
+  .chess-app-wrap .landing-subtitle {
     font-size: 1rem;
     margin-bottom: 12px;
   }
-  .landing-desc {
+  .chess-app-wrap .landing-desc {
     font-size: 0.9rem;
     margin-bottom: 0 !important;
   }
-  .landing-actions {
+  .chess-app-wrap .landing-actions {
     gap: 10px;
     margin: 0 !important;
     margin-bottom: 0 !important;
   }
-  .btn-play,
-  .btn-rules,
-  a.btn.btn-rules {
+  .chess-app-wrap .btn-play,
+  .chess-app-wrap .btn-rules,
+  .chess-app-wrap a.btn.btn-rules {
     padding: 12px 24px;
     font-size: 0.95rem;
     min-height: 44px;
   }
-  .landing-cards {
+  .chess-app-wrap .landing-cards {
     gap: 16px;
     padding: 0 16px;
     margin: 8px auto 0 !important;
     margin-top: 8px !important;
   }
-  .landing-card {
+  .chess-app-wrap .landing-card {
     padding: 20px;
   }
-  .landing-card h3 {
+  .chess-app-wrap .landing-card h3 {
     font-size: 1rem;
   }
-  .landing-card p {
+  .chess-app-wrap .landing-card p {
     font-size: 0.85rem;
   }
   .modal {
@@ -2384,52 +2384,52 @@ a.btn {
   .wallet-addr {
     max-width: 72px;
   }
-  .landing.clawgig-style {
+  .chess-app-wrap .landing.clawgig-style {
     padding: 20px 12px 0;
   }
-  .landing-hero {
+  .chess-app-wrap .landing-hero {
     margin-bottom: 0 !important;
   }
-  .landing-title {
+  .chess-app-wrap .landing-title {
     font-size: 1.65rem;
     margin-bottom: 8px;
   }
-  .landing-subtitle {
+  .chess-app-wrap .landing-subtitle {
     font-size: 0.95rem;
   }
-  .landing-desc {
+  .chess-app-wrap .landing-desc {
     font-size: 0.85rem;
     margin-bottom: 0 !important;
   }
-  .landing-actions {
+  .chess-app-wrap .landing-actions {
     flex-direction: column;
     width: 100%;
     max-width: 280px;
     margin: 0 auto !important;
     margin-bottom: 0 !important;
   }
-  .landing-actions .btn-play,
-  .landing-actions .btn-rules,
-  .landing-actions a.btn {
+  .chess-app-wrap .landing-actions .btn-play,
+  .chess-app-wrap .landing-actions .btn-rules,
+  .chess-app-wrap .landing-actions a.btn {
     width: 100%;
     justify-content: center;
   }
-  .landing-cards {
+  .chess-app-wrap .landing-cards {
     grid-template-columns: repeat(3, 1fr);
     gap: 10px;
     padding: 0 12px;
     margin: 12px auto 0 !important;
     margin-top: 12px !important;
   }
-  .landing-card {
+  .chess-app-wrap .landing-card {
     padding: 16px;
   }
-  .landing-horizon {
+  .chess-app-wrap .landing-horizon {
     min-height: 70px;
     height: 70px;
     max-height: 70px;
   }
-  .landing.clawgig-style {
+  .chess-app-wrap .landing.clawgig-style {
     padding-bottom: 70px;
   }
   /* Game view: stack turn tiles, compact meta */

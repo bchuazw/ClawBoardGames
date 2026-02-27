@@ -193,47 +193,49 @@ pub mod monopoly_settlement {
         ctx: Context<DepositAndCommit>,
         secret_hash: [u8; 32],
     ) -> Result<()> {
-        let game = &mut ctx.accounts.game;
-        require!(
-            game.status == GameStatus::Open || game.status == GameStatus::Depositing,
-            SettlementError::InvalidGameStatus
-        );
-        require!(secret_hash != [0u8; 32], SettlementError::EmptyCommitHash);
-
         let player_key = ctx.accounts.player.key();
+        let (game_id, deposit_count) = {
+            let game = &mut ctx.accounts.game;
+            require!(
+                game.status == GameStatus::Open || game.status == GameStatus::Depositing,
+                SettlementError::InvalidGameStatus
+            );
+            require!(secret_hash != [0u8; 32], SettlementError::EmptyCommitHash);
 
-        for i in 0..NUM_PLAYERS {
-            if game.players[i] == player_key && game.commit_hashes[i] != [0u8; 32] {
-                return Err(SettlementError::AlreadyDeposited.into());
-            }
-        }
-
-        let player_idx = if game.status == GameStatus::Open {
-            let mut idx = None;
             for i in 0..NUM_PLAYERS {
-                if game.players[i] == Pubkey::default() {
-                    idx = Some(i);
-                    break;
+                if game.players[i] == player_key && game.commit_hashes[i] != [0u8; 32] {
+                    return Err(SettlementError::AlreadyDeposited.into());
                 }
             }
-            idx.ok_or(SettlementError::NoEmptySlot)?
-        } else {
-            let mut idx = None;
-            for i in 0..NUM_PLAYERS {
-                if game.players[i] == player_key {
-                    idx = Some(i);
-                    break;
+
+            let player_idx = if game.status == GameStatus::Open {
+                let mut idx = None;
+                for i in 0..NUM_PLAYERS {
+                    if game.players[i] == Pubkey::default() {
+                        idx = Some(i);
+                        break;
+                    }
                 }
+                idx.ok_or(SettlementError::NoEmptySlot)?
+            } else {
+                let mut idx = None;
+                for i in 0..NUM_PLAYERS {
+                    if game.players[i] == player_key {
+                        idx = Some(i);
+                        break;
+                    }
+                }
+                idx.ok_or(SettlementError::NotAPlayer)?
+            };
+
+            if game.status == GameStatus::Open {
+                game.players[player_idx] = player_key;
             }
-            idx.ok_or(SettlementError::NotAPlayer)?
+
+            game.commit_hashes[player_idx] = secret_hash;
+            game.deposit_count += 1;
+            (game.game_id, game.deposit_count)
         };
-
-        if game.status == GameStatus::Open {
-            game.players[player_idx] = player_key;
-        }
-
-        game.commit_hashes[player_idx] = secret_hash;
-        game.deposit_count += 1;
 
         system_program::transfer(
             CpiContext::new(
@@ -247,12 +249,13 @@ pub mod monopoly_settlement {
         )?;
 
         emit!(DepositAndCommitEvent {
-            game_id: game.game_id,
+            game_id,
             player: player_key,
             commit_hash: secret_hash,
         });
 
-        if game.deposit_count == NUM_PLAYERS as u8 {
+        if deposit_count == NUM_PLAYERS as u8 {
+            let game = &mut ctx.accounts.game;
             let clock = Clock::get()?;
             game.status = GameStatus::Revealing;
             game.reveal_deadline = clock.unix_timestamp + REVEAL_TIMEOUT;
@@ -382,18 +385,21 @@ pub mod monopoly_settlement {
     }
 
     pub fn withdraw(ctx: Context<Withdraw>) -> Result<()> {
-        let game = &mut ctx.accounts.game;
-        require!(
-            game.status == GameStatus::Settled,
-            SettlementError::InvalidGameStatus
-        );
-        require!(
-            ctx.accounts.winner.key() == game.winner,
-            SettlementError::NotWinner
-        );
-        require!(!game.winner_paid, SettlementError::AlreadyPaid);
+        let (game_id, winner) = {
+            let game = &mut ctx.accounts.game;
+            require!(
+                game.status == GameStatus::Settled,
+                SettlementError::InvalidGameStatus
+            );
+            require!(
+                ctx.accounts.winner.key() == game.winner,
+                SettlementError::NotWinner
+            );
+            require!(!game.winner_paid, SettlementError::AlreadyPaid);
 
-        game.winner_paid = true;
+            game.winner_paid = true;
+            (game.game_id, game.winner)
+        };
 
         let total_pot = ENTRY_FEE * NUM_PLAYERS as u64;
         let winner_share = total_pot * WINNER_BPS / 10_000;
@@ -422,8 +428,8 @@ pub mod monopoly_settlement {
             .try_borrow_mut_lamports()? += platform_share;
 
         emit!(Withdrawn {
-            game_id: game.game_id,
-            winner: game.winner,
+            game_id,
+            winner,
             amount: winner_share,
         });
 
@@ -431,19 +437,28 @@ pub mod monopoly_settlement {
     }
 
     pub fn void_game(ctx: Context<VoidGame>) -> Result<()> {
-        let game = &mut ctx.accounts.game;
-        let clock = Clock::get()?;
+        let (game_id, to_refund) = {
+            let game = &mut ctx.accounts.game;
+            let clock = Clock::get()?;
 
-        require!(
-            game.status == GameStatus::Revealing
-                && clock.unix_timestamp > game.reveal_deadline,
-            SettlementError::CannotVoid
-        );
+            require!(
+                game.status == GameStatus::Revealing
+                    && clock.unix_timestamp > game.reveal_deadline,
+                SettlementError::CannotVoid
+            );
 
-        game.status = GameStatus::Voided;
+            game.status = GameStatus::Voided;
+            let to_refund: Vec<Pubkey> = ctx
+                .remaining_accounts
+                .iter()
+                .filter(|r| is_player(game, &r.key()) && has_deposit(game, &r.key()))
+                .map(|r| r.key())
+                .collect();
+            (game.game_id, to_refund)
+        };
 
         for remaining in ctx.remaining_accounts.iter() {
-            if is_player(game, &remaining.key()) && has_deposit(game, &remaining.key()) {
+            if to_refund.contains(&remaining.key()) {
                 **ctx
                     .accounts
                     .game
@@ -453,32 +468,39 @@ pub mod monopoly_settlement {
             }
         }
 
-        emit!(GameVoided {
-            game_id: game.game_id,
-        });
+        emit!(GameVoided { game_id });
 
         Ok(())
     }
 
     pub fn cancel_game(ctx: Context<CancelGame>) -> Result<()> {
-        let game = &mut ctx.accounts.game;
-        let clock = Clock::get()?;
+        let (game_id, to_refund) = {
+            let game = &mut ctx.accounts.game;
+            let clock = Clock::get()?;
 
-        require!(
-            (game.status == GameStatus::Depositing || game.status == GameStatus::Open)
-                && clock.unix_timestamp > game.created_at + DEPOSIT_TIMEOUT,
-            SettlementError::CannotCancel
-        );
+            require!(
+                (game.status == GameStatus::Depositing || game.status == GameStatus::Open)
+                    && clock.unix_timestamp > game.created_at + DEPOSIT_TIMEOUT,
+                SettlementError::CannotCancel
+            );
 
-        if game.status == GameStatus::Open {
-            let platform = &mut ctx.accounts.platform;
-            remove_from_open_games(platform, game.game_id);
-        }
+            if game.status == GameStatus::Open {
+                let platform = &mut ctx.accounts.platform;
+                remove_from_open_games(platform, game.game_id);
+            }
 
-        game.status = GameStatus::Voided;
+            game.status = GameStatus::Voided;
+            let to_refund: Vec<Pubkey> = ctx
+                .remaining_accounts
+                .iter()
+                .filter(|r| has_deposit(game, &r.key()))
+                .map(|r| r.key())
+                .collect();
+            (game.game_id, to_refund)
+        };
 
         for remaining in ctx.remaining_accounts.iter() {
-            if has_deposit(game, &remaining.key()) {
+            if to_refund.contains(&remaining.key()) {
                 **ctx
                     .accounts
                     .game
@@ -488,27 +510,34 @@ pub mod monopoly_settlement {
             }
         }
 
-        emit!(GameVoided {
-            game_id: game.game_id,
-        });
+        emit!(GameVoided { game_id });
 
         Ok(())
     }
 
     pub fn emergency_void(ctx: Context<EmergencyVoid>) -> Result<()> {
-        let game = &mut ctx.accounts.game;
-        let clock = Clock::get()?;
+        let (game_id, to_refund) = {
+            let game = &mut ctx.accounts.game;
+            let clock = Clock::get()?;
 
-        require!(
-            game.status == GameStatus::Started
-                && clock.unix_timestamp > game.started_at + GAME_TIMEOUT,
-            SettlementError::CannotEmergencyVoid
-        );
+            require!(
+                game.status == GameStatus::Started
+                    && clock.unix_timestamp > game.started_at + GAME_TIMEOUT,
+                SettlementError::CannotEmergencyVoid
+            );
 
-        game.status = GameStatus::Voided;
+            game.status = GameStatus::Voided;
+            let to_refund: Vec<Pubkey> = ctx
+                .remaining_accounts
+                .iter()
+                .filter(|r| is_player(game, &r.key()))
+                .map(|r| r.key())
+                .collect();
+            (game.game_id, to_refund)
+        };
 
         for remaining in ctx.remaining_accounts.iter() {
-            if is_player(game, &remaining.key()) {
+            if to_refund.contains(&remaining.key()) {
                 **ctx
                     .accounts
                     .game
@@ -518,9 +547,7 @@ pub mod monopoly_settlement {
             }
         }
 
-        emit!(GameVoided {
-            game_id: game.game_id,
-        });
+        emit!(GameVoided { game_id });
 
         Ok(())
     }

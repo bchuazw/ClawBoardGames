@@ -39,11 +39,12 @@ const config: HardhatUserConfig = {
       chainId: 56,
       accounts: process.env.DEPLOYER_KEY ? [process.env.DEPLOYER_KEY] : [],
     },
-  },
-  etherscan: {
-    apiKey: {
-      bscTestnet: process.env.BSCSCAN_API_KEY || "",
-      bsc: process.env.BSCSCAN_API_KEY || "",
+
+    // ✅ add this:
+    monadTestnet: {
+      url: process.env.MONAD_TESTNET_RPC || "https://testnet-rpc.monad.xyz",
+      chainId: 10143, // Monad testnet chain ID
+      accounts: process.env.DEPLOYER_KEY ? [process.env.DEPLOYER_KEY] : [],
     },
   },
 };
