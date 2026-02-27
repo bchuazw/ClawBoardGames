@@ -255,11 +255,13 @@ function WatchPage() {
     if (gameId) return;
     setLobbiesLoading(true);
     const restUrl = networkConfig.gmRestUrl || gmWsToRest(gmUrl);
+    const chainParam = `chain=${networkConfig.network}`;
+    const q = (path: string) => `${restUrl}${path}${path.includes("?") ? "&" : "?"}${chainParam}`;
     Promise.all([
-      fetch(`${restUrl}/health`).then((r) => r.ok ? r.json() : {}),
-      fetch(`${restUrl}/games/slots`).then((r) => r.ok ? r.json() : { slots: null }),
-      fetch(`${restUrl}/games/open`).then((r) => r.json()),
-      fetch(`${restUrl}/games`).then((r) => r.ok ? r.json() : { games: [] }),
+      fetch(q("/health")).then((r) => r.ok ? r.json() : {}),
+      fetch(q("/games/slots")).then((r) => r.ok ? r.json() : { slots: null }),
+      fetch(q("/games/open")).then((r) => r.json()),
+      fetch(q("/games")).then((r) => r.ok ? r.json() : { games: [] }),
     ])
       .then(([healthData, slotsData, openData, gamesData]: [
         { settlementAddress?: string },
@@ -301,7 +303,7 @@ function WatchPage() {
         setSlotDetails(Array.from({ length: SLOT_COUNT }, (_, i) => ({ id: i, status: 'empty' as const })));
       })
       .finally(() => setLobbiesLoading(false));
-  }, [gameId, gmUrl]);
+  }, [gameId, gmUrl, networkConfig.gmRestUrl, networkConfig.network]);
 
   function updateMoods(evts: GameEvent[]) {
     const newMoods = { ...moods };
@@ -356,7 +358,7 @@ function WatchPage() {
     disconnect();
     setGameId(gid);
     sfx.init();
-    const ws = new WebSocket(`${gmUrl}?gameId=${gid}`);
+    const ws = new WebSocket(`${gmUrl}?gameId=${gid}&chain=${networkConfig.network}`);
     wsRef.current = ws;
     ws.onopen = () => setConnected(true);
     ws.onclose = () => setConnected(false);
@@ -440,7 +442,7 @@ function WatchPage() {
         setNotification({ text: `\uD83C\uDFC6 GAME OVER \u2014 ${PLAYER_NAMES[msg.winner] || 'P' + msg.winner} wins!`, color: '#FFD54F' });
       }
     };
-  }, [gameId, gmUrl]);
+  }, [gameId, gmUrl, networkConfig.network]);
 
   const connectToLobby = useCallback((lobbyId: number) => {
     setGameId(String(lobbyId));

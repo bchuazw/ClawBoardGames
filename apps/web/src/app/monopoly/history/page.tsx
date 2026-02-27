@@ -17,7 +17,7 @@ interface HistoryEntry {
 }
 
 export default function HistoryPage() {
-  const { config: networkConfig } = useNetwork();
+  const { config: networkConfig, network } = useNetwork();
   const [gmRestUrl, setGmRestUrl] = useState(networkConfig.gmRestUrl);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -28,7 +28,8 @@ export default function HistoryPage() {
   useEffect(() => {
     setLoading(true);
     setError(null);
-    fetch(`${gmRestUrl}/games/history`)
+    const url = `${gmRestUrl}/games/history?chain=${network}`;
+    fetch(url)
       .then((r) => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();
@@ -41,7 +42,7 @@ export default function HistoryPage() {
         setHistory([]);
       })
       .finally(() => setLoading(false));
-  }, [gmRestUrl]);
+  }, [gmRestUrl, network]);
 
   return (
     <div style={{

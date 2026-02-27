@@ -8,42 +8,58 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
+export type Chain = "solana" | "bnb" | "evm";
+
 const PORT = parseInt(process.env.PORT || "3001", 10);
 const LOCAL_MODE = process.env.LOCAL_MODE === "true";
-const NETWORK = (process.env.NETWORK || "bnb").toLowerCase() as "bnb" | "solana";
-const RPC_URL = process.env.RPC_URL || "https://data-seed-prebsc-1-s1.binance.org:8545";
-const SETTLEMENT_ADDRESS = process.env.SETTLEMENT_ADDRESS || "";
-const GM_PRIVATE_KEY = process.env.GM_PRIVATE_KEY || "";
+const OPEN_GAME_TARGET = parseInt(process.env.OPEN_GAME_TARGET || "10", 10);
+const OPEN_GAME_REPLENISH_INTERVAL_MS = parseInt(process.env.OPEN_GAME_REPLENISH_INTERVAL_MS || "300000", 10);
+
+// Solana
 const SOLANA_RPC_URL = process.env.SOLANA_RPC_URL || "https://api.devnet.solana.com";
 const SOLANA_PROGRAM_ID = process.env.SOLANA_PROGRAM_ID || "";
 const GM_SOLANA_KEYPAIR = process.env.GM_SOLANA_KEYPAIR || "";
-const OPEN_GAME_TARGET = parseInt(process.env.OPEN_GAME_TARGET || "10", 10);
-const OPEN_GAME_REPLENISH_INTERVAL_MS = parseInt(process.env.OPEN_GAME_REPLENISH_INTERVAL_MS || "300000", 10); // 5 min
 
-let settlement: ISettlementClient | null = null;
+// BNB
+const BNB_RPC_URL = process.env.RPC_URL || process.env.BNB_RPC_URL || "https://data-seed-prebsc-1-s1.binance.org:8545";
+const BNB_SETTLEMENT_ADDRESS = process.env.SETTLEMENT_ADDRESS || process.env.BNB_SETTLEMENT_ADDRESS || "";
+const BNB_GM_PRIVATE_KEY = process.env.BNB_GM_PRIVATE_KEY || process.env.GM_PRIVATE_KEY || "";
 
-if (LOCAL_MODE) {
-  console.log("[GM Server] Running in LOCAL_MODE (no blockchain)");
-} else if (NETWORK === "solana") {
-  if (!SOLANA_PROGRAM_ID || !GM_SOLANA_KEYPAIR) {
-    console.error("NETWORK=solana requires SOLANA_PROGRAM_ID and GM_SOLANA_KEYPAIR. Use LOCAL_MODE=true for testing.");
-    process.exit(1);
+// Monad (EVM)
+const EVM_RPC_URL = process.env.MONAD_RPC_URL || process.env.EVM_RPC_URL || "https://rpc.monad.xyz";
+const EVM_SETTLEMENT_ADDRESS = process.env.MONAD_SETTLEMENT_ADDRESS || process.env.EVM_SETTLEMENT_ADDRESS || "";
+const EVM_GM_PRIVATE_KEY = process.env.MONAD_GM_PRIVATE_KEY || process.env.EVM_GM_PRIVATE_KEY || "";
+
+const settlements = new Map<Chain, ISettlementClient>();
+
+if (!LOCAL_MODE) {
+  if (SOLANA_PROGRAM_ID && GM_SOLANA_KEYPAIR) {
+    const { SolanaSettlementClient } = require("./SolanaSettlementClient");
+    settlements.set("solana", new SolanaSettlementClient(SOLANA_RPC_URL, SOLANA_PROGRAM_ID, GM_SOLANA_KEYPAIR));
+    console.log(`[GM Server] Solana: program=${SOLANA_PROGRAM_ID}`);
   }
-  const { SolanaSettlementClient } = require("./SolanaSettlementClient");
-  settlement = new SolanaSettlementClient(SOLANA_RPC_URL, SOLANA_PROGRAM_ID, GM_SOLANA_KEYPAIR);
-  console.log(`[GM Server] NETWORK=solana, program=${SOLANA_PROGRAM_ID}`);
-} else {
-  if (!SETTLEMENT_ADDRESS || !GM_PRIVATE_KEY) {
-    console.error("Missing SETTLEMENT_ADDRESS or GM_PRIVATE_KEY. Use LOCAL_MODE=true for testing.");
-    process.exit(1);
+  if (BNB_SETTLEMENT_ADDRESS && BNB_GM_PRIVATE_KEY) {
+    settlements.set("bnb", new SettlementClient(BNB_RPC_URL, BNB_SETTLEMENT_ADDRESS, BNB_GM_PRIVATE_KEY));
+    console.log(`[GM Server] BNB: contract=${BNB_SETTLEMENT_ADDRESS}`);
   }
-  settlement = new SettlementClient(RPC_URL, SETTLEMENT_ADDRESS, GM_PRIVATE_KEY);
-  console.log(`[GM Server] NETWORK=bnb, contract=${SETTLEMENT_ADDRESS}`);
+  if (EVM_SETTLEMENT_ADDRESS && EVM_GM_PRIVATE_KEY) {
+    settlements.set("evm", new SettlementClient(EVM_RPC_URL, EVM_SETTLEMENT_ADDRESS, EVM_GM_PRIVATE_KEY));
+    console.log(`[GM Server] Monad (EVM): contract=${EVM_SETTLEMENT_ADDRESS}`);
+  }
+}
+
+const chains = Array.from(settlements.keys());
+
+function getChain(req: express.Request): Chain | null {
+  const chain = (req.query.chain as string)?.toLowerCase();
+  if (chain && (chain === "solana" || chain === "bnb" || chain === "evm")) return chain as Chain;
+  if (chains.length === 1) return chains[0];
+  return null;
 }
 
 // ========== Setup ==========
 
-const orchestrator = new Orchestrator(settlement);
+const orchestrator = new Orchestrator(settlements);
 
 const app = express();
 app.use(express.json());
@@ -57,55 +73,73 @@ app.use((_req, res, next) => {
   next();
 });
 
-app.get("/health", (_req, res) => {
+app.get("/health", (req, res) => {
+  const chain = getChain(req);
   const payload: Record<string, unknown> = {
     status: "ok",
     mode: LOCAL_MODE ? "local" : "on-chain",
-    network: LOCAL_MODE ? "local" : NETWORK,
-    activeGames: orchestrator.getActiveGames(),
-    gmAddress: settlement?.address || "local-mode",
+    chains: chains,
+    activeGames: orchestrator.getActiveGames(chain ?? undefined),
   };
-  if (!LOCAL_MODE && NETWORK === "bnb" && SETTLEMENT_ADDRESS) payload.settlementAddress = SETTLEMENT_ADDRESS;
-  if (!LOCAL_MODE && NETWORK === "solana" && SOLANA_PROGRAM_ID) payload.programId = SOLANA_PROGRAM_ID;
+  if (chain && settlements.has(chain)) {
+    const s = settlements.get(chain)!;
+    payload.gmAddress = s.address;
+    if (chain === "bnb" && BNB_SETTLEMENT_ADDRESS) payload.settlementAddress = BNB_SETTLEMENT_ADDRESS;
+    if (chain === "evm" && EVM_SETTLEMENT_ADDRESS) payload.settlementAddress = EVM_SETTLEMENT_ADDRESS;
+    if (chain === "solana" && SOLANA_PROGRAM_ID) payload.programId = SOLANA_PROGRAM_ID;
+  } else if (chains.length > 0) {
+    payload.gmAddress = settlements.get(chains[0])!.address;
+  }
   res.json(payload);
 });
 
-// List active games (and which are running with all agents disconnected)
-app.get("/games", (_req, res) => {
-  const games = orchestrator.getActiveGames();
-  const disconnected = games.filter((id) => {
-    const p = orchestrator.getGameProcess(id);
-    return p?.allAgentsDisconnected === true;
-  });
+app.get("/games", (req, res) => {
+  const chain = getChain(req);
+  const { games, disconnected } = orchestrator.getGamesAndDisconnected(chain ?? undefined);
   res.json({ games, disconnected });
 });
 
-// List open game IDs (any agent can join). On-chain: from contract; local: from orchestrator slots.
-app.get("/games/open", async (_req, res) => {
-  try {
-    if (LOCAL_MODE) {
+app.get("/games/open", async (req, res) => {
+  const chain = getChain(req);
+  if (LOCAL_MODE) {
+    try {
       const open = orchestrator.getOpenSlotIds();
       return res.json({ open });
+    } catch (err: any) {
+      return res.status(500).json({ error: err?.message || "Failed to get open games" });
     }
-    const open = await settlement!.getOpenGameIds();
+  }
+  if (!chain || !settlements.has(chain)) {
+    return res.status(400).json({ error: chains.length === 0 ? "No chains configured" : `chain required: one of ${chains.join(", ")}` });
+  }
+  try {
+    const open = await settlements.get(chain)!.getOpenGameIds();
     res.json({ open });
   } catch (err: any) {
     res.status(500).json({ error: err?.message || "Failed to get open games" });
   }
 });
 
-// Slot/lobby details for spectate UI (local: waiting X/4 or active; on-chain: open IDs as open).
-app.get("/games/slots", async (_req, res) => {
-  try {
-    if (LOCAL_MODE) {
+app.get("/games/slots", async (req, res) => {
+  if (LOCAL_MODE) {
+    try {
       const slots = orchestrator.getSlotDetails();
       return res.json({ slots });
+    } catch (err: any) {
+      return res.status(500).json({ error: err?.message || "Failed to get slots" });
     }
-    const open = await settlement!.getOpenGameIds();
+  }
+  const chain = getChain(req);
+  if (!chain || !settlements.has(chain)) {
+    return res.status(400).json({ error: chains.length === 0 ? "No chains configured" : `chain required: one of ${chains.join(", ")}` });
+  }
+  try {
+    const settlement = settlements.get(chain)!;
+    const open = await settlement.getOpenGameIds();
     const slots = await Promise.all(
       open.map(async (id: number) => {
         try {
-          const game = await settlement!.getGame(id);
+          const game = await settlement.getGame(id);
           return { id, status: "open" as const, playerCount: game.depositCount };
         } catch {
           return { id, status: "open" as const };
@@ -118,29 +152,25 @@ app.get("/games/slots", async (_req, res) => {
   }
 });
 
-// Contract status enum: SETTLED = 5
 const STATUS_SETTLED = 5;
 const HISTORY_LIMIT = 100;
 
-// Past settled games for history page (on-chain only; from contract).
-app.get("/games/history", async (_req, res) => {
+app.get("/games/history", async (req, res) => {
+  if (LOCAL_MODE) return res.json({ history: [] });
+  const chain = getChain(req);
+  if (!chain || !settlements.has(chain)) {
+    return res.status(400).json({ error: chains.length === 0 ? "No chains configured" : `chain required: one of ${chains.join(", ")}` });
+  }
   try {
-    if (LOCAL_MODE) {
-      return res.json({ history: [] });
-    }
-    const total = await settlement!.getGameCount();
+    const settlement = settlements.get(chain)!;
+    const total = await settlement.getGameCount();
     if (total === 0) return res.json({ history: [] });
     const start = Math.max(0, total - HISTORY_LIMIT);
     const entries: { gameId: number; winner: string; players: string[]; status: number }[] = [];
     for (let gameId = start; gameId < total; gameId++) {
-      const g = await settlement!.getGame(gameId);
+      const g = await settlement.getGame(gameId);
       if (g.status === STATUS_SETTLED && g.winner) {
-        entries.push({
-          gameId,
-          winner: g.winner,
-          players: g.players,
-          status: g.status,
-        });
+        entries.push({ gameId, winner: g.winner, players: g.players, status: g.status });
       }
     }
     entries.reverse();
@@ -150,14 +180,15 @@ app.get("/games/history", async (_req, res) => {
   }
 });
 
-// In-progress game state (round, turn, snapshot). Only available while the GM has the game running. Use to see if a game is progressing.
 app.get("/games/:gameId/state", (req, res) => {
+  const chain: Chain = LOCAL_MODE ? "bnb" : (getChain(req) ?? "bnb");
+  if (!LOCAL_MODE && !settlements.has(chain)) {
+    return res.status(400).json({ error: `chain required: one of ${chains.join(", ")}` });
+  }
   try {
     const gameId = parseInt(req.params.gameId, 10);
-    if (isNaN(gameId) || gameId < 0) {
-      return res.status(400).json({ error: "Invalid gameId" });
-    }
-    const process = orchestrator.getGameProcess(gameId);
+    if (isNaN(gameId) || gameId < 0) return res.status(400).json({ error: "Invalid gameId" });
+    const process = orchestrator.getGameProcess(chain, gameId);
     if (!process || !process.isRunning) {
       return res.status(404).json({ running: false, message: "No active game process for this gameId" });
     }
@@ -168,17 +199,18 @@ app.get("/games/:gameId/state", (req, res) => {
   }
 });
 
-// Single game status by ID (on-chain only). Use to check any game and whether settlement has concluded.
-// Must be after /games/history so "history" is not treated as a gameId.
 app.get("/games/:gameId", async (req, res) => {
+  const chain = getChain(req);
+  if (!chain || !settlements.has(chain)) {
+    return res.status(400).json({ error: `chain required: one of ${chains.join(", ")}` });
+  }
   try {
     const gameId = parseInt(req.params.gameId, 10);
-    if (isNaN(gameId) || gameId < 0) {
-      return res.status(400).json({ error: "Invalid gameId" });
-    }
-    if (LOCAL_MODE || !settlement) {
+    if (isNaN(gameId) || gameId < 0) return res.status(400).json({ error: "Invalid gameId" });
+    if (LOCAL_MODE || !settlements.has(chain)) {
       return res.status(400).json({ error: "Single game lookup only in on-chain mode" });
     }
+    const settlement = settlements.get(chain)!;
     const g = await settlement.getGame(gameId);
     const settled = g.status === STATUS_SETTLED;
     res.json({
@@ -197,7 +229,6 @@ app.get("/games/:gameId", async (req, res) => {
   }
 });
 
-// Create a local game (deprecated in local mode: use slots 0..9 instead; kept for backward compatibility)
 app.post("/games/create", (req, res) => {
   try {
     const { players, diceSeed } = req.body;
@@ -205,7 +236,6 @@ app.post("/games/create", (req, res) => {
       res.status(400).json({ error: "Provide exactly 4 player addresses in 'players' array" });
       return;
     }
-    // Validate addresses - strict hex in on-chain mode, any string in local mode
     for (const p of players) {
       if (typeof p !== "string" || p.length === 0) {
         res.status(400).json({ error: `Invalid address: ${p}` });
@@ -216,10 +246,7 @@ app.post("/games/create", (req, res) => {
         return;
       }
     }
-    const gameId = orchestrator.createLocalGame(
-      players as [string, string, string, string],
-      diceSeed,
-    );
+    const gameId = orchestrator.createLocalGame(players as [string, string, string, string], diceSeed);
     console.log(`[GM Server] Created local game ${gameId}`);
     res.json({ success: true, gameId });
   } catch (err: any) {
@@ -227,46 +254,51 @@ app.post("/games/create", (req, res) => {
   }
 });
 
-// Manually spawn a game from chain (non-local mode)
 app.post("/games/:gameId/spawn", async (req, res) => {
+  const chain = getChain(req);
+  if (!chain || !settlements.has(chain)) {
+    return res.status(400).json({ error: `chain required: one of ${chains.join(", ")}` });
+  }
   try {
     const gameId = parseInt(req.params.gameId, 10);
-    await orchestrator.spawnGame(gameId);
+    await orchestrator.spawnGame(chain, gameId);
     res.json({ success: true, gameId });
   } catch (err: any) {
     res.status(400).json({ error: err.message });
   }
 });
 
-// Replenish open games (on-chain only): create until count >= OPEN_GAME_TARGET
-async function replenishOpenGames(): Promise<{ created: number; openCount: number }> {
+async function replenishOpenGames(chain?: Chain): Promise<{ created: number; openCount: number }> {
   const result = { created: 0, openCount: 0 };
-  if (LOCAL_MODE || !settlement) return result;
-  try {
-    const open = await settlement.getOpenGameIds();
-    result.openCount = open.length;
-    if (open.length >= OPEN_GAME_TARGET) return result;
-    const toCreate = OPEN_GAME_TARGET - open.length;
-    console.log(`[GM Server] Replenishing open games: ${open.length} -> ${OPEN_GAME_TARGET} (creating ${toCreate})`);
-    for (let i = 0; i < toCreate; i++) {
-      await settlement.createOpenGame();
-      result.created++;
-      console.log(`[GM Server] Created open game ${i + 1}/${toCreate}`);
+  if (LOCAL_MODE) return result;
+  const toReplenish = chain ? (settlements.has(chain) ? [chain] : []) : chains;
+  for (const c of toReplenish) {
+    const settlement = settlements.get(c)!;
+    try {
+      const open = await settlement.getOpenGameIds();
+      result.openCount += open.length;
+      if (open.length >= OPEN_GAME_TARGET) continue;
+      const toCreate = OPEN_GAME_TARGET - open.length;
+      console.log(`[GM Server] Replenishing ${c}: ${open.length} -> ${OPEN_GAME_TARGET} (creating ${toCreate})`);
+      for (let i = 0; i < toCreate; i++) {
+        await settlement.createOpenGame();
+        result.created++;
+      }
+      result.openCount += toCreate;
+    } catch (err: any) {
+      console.error(`[GM Server] replenishOpenGames ${c} error:`, err?.message || err);
     }
-    result.openCount = open.length + result.created;
-  } catch (err: any) {
-    console.error("[GM Server] replenishOpenGames error:", err?.message || err);
   }
   return result;
 }
 
-// Trigger replenish on demand (fill empty lobbies)
-app.post("/games/replenish", async (_req, res) => {
-  if (LOCAL_MODE || !settlement) {
+app.post("/games/replenish", async (req, res) => {
+  const chain = getChain(req);
+  if (LOCAL_MODE || settlements.size === 0) {
     return res.status(400).json({ error: "Replenish only in on-chain mode" });
   }
   try {
-    const result = await replenishOpenGames();
+    const result = await replenishOpenGames(chain ?? undefined);
     res.json({ ok: true, created: result.created, openCount: result.openCount });
   } catch (err: any) {
     res.status(500).json({ error: err?.message || "Replenish failed" });
@@ -279,10 +311,10 @@ const server = createServer(app);
 const wss = new WebSocketServer({ server, path: "/ws" });
 
 wss.on("connection", (socket: WebSocket, req) => {
-  // Parse query: /ws?gameId=0&address=0x1234...
   const url = new URL(req.url || "", `http://localhost:${PORT}`);
   const gameIdStr = url.searchParams.get("gameId");
   const address = url.searchParams.get("address") || undefined;
+  const chain = (url.searchParams.get("chain") || "").toLowerCase() as Chain;
 
   if (!gameIdStr) {
     socket.send(JSON.stringify({ type: "error", message: "Missing gameId" }));
@@ -291,7 +323,14 @@ wss.on("connection", (socket: WebSocket, req) => {
   }
 
   const gameId = parseInt(gameIdStr, 10);
-  orchestrator.handleConnection(socket, gameId, address).catch((err) => {
+  const effectiveChain: Chain = (chain === "solana" || chain === "bnb" || chain === "evm") ? chain : (chains.length === 1 ? chains[0] : "bnb");
+  if (chains.length > 1 && chain !== "solana" && chain !== "bnb" && chain !== "evm") {
+    socket.send(JSON.stringify({ type: "error", message: `chain required: one of ${chains.join(", ")}` }));
+    socket.close();
+    return;
+  }
+
+  orchestrator.handleConnection(socket, effectiveChain, gameId, address).catch((err) => {
     console.error("[GM Server] handleConnection error:", err);
     socket.send(JSON.stringify({ type: "error", message: err?.message || "Connection failed" }));
     socket.close();
@@ -305,19 +344,19 @@ server.listen(PORT, () => {
   if (LOCAL_MODE) {
     console.log(`[GM Server] LOCAL_MODE active — POST /games/create to start a game`);
   } else {
-    console.log(`[GM Server] Settlement: ${SETTLEMENT_ADDRESS}`);
-    console.log(`[GM Server] GM Signer: ${settlement!.address}`);
+    for (const c of chains) {
+      console.log(`[GM Server] ${c}: ${settlements.get(c)!.address}`);
+    }
   }
   orchestrator.startListening();
 });
 
-// Cleanup every 5 minutes
 setInterval(() => orchestrator.cleanup(), 5 * 60 * 1000);
 
-if (!LOCAL_MODE && settlement) {
-  replenishOpenGames(); // run once on startup
+if (!LOCAL_MODE && settlements.size > 0) {
+  replenishOpenGames();
   setInterval(replenishOpenGames, OPEN_GAME_REPLENISH_INTERVAL_MS);
-  orchestrator.onGameEnd = replenishOpenGames; // when a game ends, top up open lobbies
+  orchestrator.onGameEnd = (c?: Chain) => replenishOpenGames(c);
 }
 
-export { app, server, orchestrator };
+export { app, server, orchestrator, chains, settlements };

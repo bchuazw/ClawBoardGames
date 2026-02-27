@@ -6,6 +6,7 @@ import { formatEther } from "ethers";
 import { lamportsToSol } from "@/lib/chess-escrow";
 import Link from "next/link";
 import { useChess } from "./ChessContext";
+import { useNetwork } from "@/context/NetworkContext";
 import Landing from "@/components/chess/Landing";
 import LobbyList from "@/components/chess/LobbyList";
 import CreateLobby from "@/components/chess/CreateLobby";
@@ -20,6 +21,7 @@ export default function ChessApp() {
   const params = useParams();
   const router = useRouter();
   const lobbyId = params?.lobbyId as string | undefined;
+  const { config } = useNetwork();
   const {
     wallet,
     setWallet,
@@ -175,8 +177,8 @@ export default function ChessApp() {
     <div className="chess-app-wrap clawgig-style">
       <div className="app clawgig-style">
         <header className="header">
-          <Link href="/chess" className="header-logo" style={{ textDecoration: "none" }}>
-            ClawMate
+          <Link href="/chess" className="header-logo" style={{ textDecoration: "none", color: "inherit" }}>
+            <span style={{ color: config.accentColor }}>Claw</span>Mate
           </Link>
           <nav className="header-nav">
             {pathname === "/chess" && (

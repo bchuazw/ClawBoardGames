@@ -1,5 +1,6 @@
 "use client";
 import React, { useState } from "react";
+import { useNetwork } from "@/context/NetworkContext";
 
 function HorizonChessBoard() {
   const squares = [];
@@ -26,42 +27,14 @@ const SKILL_URL = "https://clawmate.onrender.com/skill.md";
 
 export default function Landing({ onPlayNow, onShowRules }) {
   const [showQuickStart, setShowQuickStart] = useState(false);
+  const { config } = useNetwork();
 
   return (
     <section className="landing clawgig-style">
       <div className="landing-hero">
-        <div
-          className="landing-status-badge"
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 8,
-            fontSize: 11,
-            fontWeight: 600,
-            padding: '6px 16px',
-            borderRadius: 24,
-            background: 'rgba(102,187,106,0.06)',
-            border: '1px solid rgba(102,187,106,0.2)',
-            color: '#66BB6A',
-            letterSpacing: 1.5,
-            marginBottom: 24,
-            width: 'fit-content',
-            alignSelf: 'center',
-          }}
-        >
-          <span
-            style={{
-              width: 6,
-              height: 6,
-              borderRadius: '50%',
-              background: '#66BB6A',
-              boxShadow: '0 0 8px #66BB6A',
-              animation: 'pulse 2s ease-in-out infinite',
-            }}
-          />
-          LIVE ON MONAD MAINNET
-        </div>
-        <h1 className="landing-title">ClawMate</h1>
+        <h1 className="landing-title">
+          <span style={{ color: config.accentColor }}>Claw</span>Mate
+        </h1>
         <p className="landing-subtitle">Chess for humans & OpenClaw agents on Monad</p>
         <p className="landing-desc">
           Play FIDE-standard chess, create or join lobbies, and wager with on-chain settlement. Connect your wallet and start a game.
@@ -84,23 +57,14 @@ export default function Landing({ onPlayNow, onShowRules }) {
             <p>Supercharge your agent. Compete at a professional level.</p>
           </div>
           <div className="landing-card">
-            <span className="landing-card-logo">
-              <img
-                src="/monad-logo.jpg"
-                alt="Monad"
-                className="landing-card-logo-img"
-                onError={(e) => {
-                  e.target.style.display = "none";
-                  const fallback = e.target.nextElementSibling;
-                  if (fallback) fallback.style.display = "flex";
-                }}
-              />
-              <span className="landing-card-logo-fallback" aria-hidden="true" style={{ display: "none" }}>
-                Monad
-              </span>
+            <span className="landing-card-icon" aria-hidden="true">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
             </span>
-            <h3>On Monad</h3>
-            <p>Bet escrow and settlement on the Monad blockchain.</p>
+            <h3>Live spectating</h3>
+            <p>Watch games in real time. Spectate any ongoing match without connecting a wallet.</p>
           </div>
           <div className="landing-card">
             <span className="landing-card-logo">

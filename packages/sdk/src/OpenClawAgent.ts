@@ -127,13 +127,17 @@ export class OpenClawAgent {
     return wsUrl.replace(/^wss?:\/\//, `${protocol}://`).replace(/\/ws.*$/, "");
   }
 
+  private chainParam(): string {
+    return `chain=${this._chain}`;
+  }
+
   /**
    * Get open game IDs from the GM (GET /games/open).
    * On-chain: IDs of games that accept new players (first 4 to deposit get slots).
    * Local: [0..9] (10 fixed slots).
    */
   async getOpenGameIds(): Promise<number[]> {
-    const res = await fetch(`${this.gmRestBase()}/games/open`);
+    const res = await fetch(`${this.gmRestBase()}/games/open?${this.chainParam()}`);
     if (!res.ok) throw new Error(`GET /games/open failed: ${res.status}`);
     const body = (await res.json()) as { open?: number[] };
     return body.open ?? [];
@@ -145,7 +149,7 @@ export class OpenClawAgent {
    * Source of truth for settlementConcluded, winnerCanWithdraw, winnerClaimed.
    */
   async getGameStatus(gameId: number): Promise<GameStatusFromGM> {
-    const res = await fetch(`${this.gmRestBase()}/games/${gameId}`);
+    const res = await fetch(`${this.gmRestBase()}/games/${gameId}?${this.chainParam()}`);
     if (!res.ok) throw new Error(`GET /games/${gameId} failed: ${res.status}`);
     return res.json() as Promise<GameStatusFromGM>;
   }
@@ -157,7 +161,7 @@ export class OpenClawAgent {
    * Resolves with null if the GM has no active process for this game (404).
    */
   async getGameState(gameId: number): Promise<GameStateFromGM | null> {
-    const res = await fetch(`${this.gmRestBase()}/games/${gameId}/state`);
+    const res = await fetch(`${this.gmRestBase()}/games/${gameId}/state?${this.chainParam()}`);
     if (res.status === 404) return null;
     if (!res.ok) throw new Error(`GET /games/${gameId}/state failed: ${res.status}`);
     const body = (await res.json()) as GameStateFromGM & { running?: boolean };
@@ -198,7 +202,7 @@ export class OpenClawAgent {
    */
   connectAndPlay(gameId: number): Promise<GameSnapshot> {
     return new Promise((resolve, reject) => {
-      const url = `${this._config.gmWsUrl}?gameId=${gameId}&address=${this.address}`;
+      const url = `${this._config.gmWsUrl}?gameId=${gameId}&address=${this.address}&${this.chainParam()}`;
       this.ws = new WebSocket(url);
       this.gameActive = true;
 

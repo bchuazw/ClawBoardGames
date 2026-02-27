@@ -5,6 +5,8 @@ import { keccak256, toUtf8Bytes } from "ethers";
 
 const NUM_LOCAL_SLOTS = 10;
 
+export type Chain = "solana" | "bnb" | "evm";
+
 /** Lobby: holds 0–4 (address, WebSocket) until 4th joins, then becomes a game. */
 interface LobbyEntry {
   address: string;
@@ -49,24 +51,29 @@ class Lobby {
 
 type LocalSlot = Lobby | GameProcess;
 
+function gameKey(chain: Chain, gameId: number): string {
+  return `${chain}:${gameId}`;
+}
+
 /**
- * Orchestrator: manages all active game processes.
- * In local mode: 10 fixed slots (0..9), each a Lobby or GameProcess. Game auto-starts at 4/4.
- * In on-chain mode: games Map keyed by gameId; listens for GameStarted to spawn.
+ * Orchestrator: manages all active game processes across multiple chains.
+ * In local mode: 10 fixed slots (0..9), each a Lobby or GameProcess.
+ * In on-chain mode: games Map keyed by "chain:gameId"; listens for GameStarted per chain.
  */
 export class Orchestrator {
-  private games: Map<number, GameProcess> = new Map();
-  /** Local mode only: slots 0..NUM_LOCAL_SLOTS-1, each Lobby or GameProcess */
+  /** On-chain: key = "chain:gameId" */
+  private games: Map<string, GameProcess> = new Map();
+  /** Local mode only: slots 0..NUM_LOCAL_SLOTS-1 */
   private slots: Map<number, LocalSlot> = new Map();
-  private settlement: ISettlementClient | null;
+  private settlements: Map<Chain, ISettlementClient>;
   private nextLocalGameId: number;
-  /** Called when an on-chain game ends (so caller can replenish open games). */
-  onGameEnd?: () => void;
+  /** Called when an on-chain game ends (chain passed for replenish). */
+  onGameEnd?: (chain?: Chain) => void;
 
-  constructor(settlement: ISettlementClient | null) {
-    this.settlement = settlement;
-    this.nextLocalGameId = NUM_LOCAL_SLOTS; // 10+ for createLocalGame-created games
-    if (!settlement) {
+  constructor(settlements: Map<Chain, ISettlementClient>) {
+    this.settlements = settlements;
+    this.nextLocalGameId = NUM_LOCAL_SLOTS;
+    if (settlements.size === 0) {
       for (let i = 0; i < NUM_LOCAL_SLOTS; i++) {
         this.slots.set(i, new Lobby(i));
       }
@@ -75,30 +82,33 @@ export class Orchestrator {
 
   /** Start listening for new game events (skipped in local mode). */
   startListening(): void {
-    if (!this.settlement) {
+    if (this.settlements.size === 0) {
       console.log("[Orchestrator] LOCAL_MODE: Skipping chain event listener");
       return;
     }
     console.log("[Orchestrator] Listening for GameStarted events...");
-    this.settlement.onGameStarted(async (gameId, diceSeed) => {
-      console.log(`[Orchestrator] GameStarted: gameId=${gameId}, diceSeed=${diceSeed}`);
-      await this.spawnGame(gameId, diceSeed);
-    });
+    for (const [chain, settlement] of this.settlements) {
+      settlement.onGameStarted(async (gameId, diceSeed) => {
+        console.log(`[Orchestrator] GameStarted ${chain}: gameId=${gameId}, diceSeed=${diceSeed}`);
+        await this.spawnGame(chain, gameId, diceSeed);
+      });
+    }
   }
 
   /** Spawn a new game process (reads game info from chain). */
-  async spawnGame(gameId: number, diceSeed?: string): Promise<GameProcess> {
-    if (this.games.has(gameId)) {
-      console.log(`[Orchestrator] Game ${gameId} already running`);
-      return this.games.get(gameId)!;
+  async spawnGame(chain: Chain, gameId: number, diceSeed?: string): Promise<GameProcess> {
+    const key = gameKey(chain, gameId);
+    if (this.games.has(key)) {
+      console.log(`[Orchestrator] Game ${chain}:${gameId} already running`);
+      return this.games.get(key)!;
     }
 
-    if (!this.settlement) {
-      throw new Error("Cannot spawnGame from chain in LOCAL_MODE. Use createLocalGame instead.");
+    const settlement = this.settlements.get(chain);
+    if (!settlement) {
+      throw new Error(`No settlement for chain ${chain}`);
     }
 
-    // Read game info from chain
-    const gameInfo = await this.settlement.getGame(gameId);
+    const gameInfo = await settlement.getGame(gameId);
     const seed = diceSeed || gameInfo.diceSeed;
     const players = gameInfo.players as [string, string, string, string];
 
@@ -106,16 +116,15 @@ export class Orchestrator {
       gameId,
       players,
       diceSeed: seed,
-      settlement: this.settlement,
-      onEnd: () => this.onGameEnd?.(),
+      settlement,
+      onEnd: () => this.onGameEnd?.(chain),
     };
 
-    // Check if there's a checkpoint to recover from
-    const checkpoint = await this.settlement.getCheckpoint(gameId);
+    const checkpoint = await settlement.getCheckpoint(gameId);
     let process: GameProcess;
 
     if (checkpoint.round > 0) {
-      console.log(`[Orchestrator] Recovering game ${gameId} from checkpoint round ${checkpoint.round}`);
+      console.log(`[Orchestrator] Recovering game ${chain}:${gameId} from checkpoint round ${checkpoint.round}`);
       process = GameProcess.fromCheckpoint(
         config,
         checkpoint.playersPacked,
@@ -126,15 +135,11 @@ export class Orchestrator {
       process = new GameProcess(config);
     }
 
-    this.games.set(gameId, process);
-    console.log(`[Orchestrator] Game ${gameId} spawned (${this.games.size} active)`);
+    this.games.set(key, process);
+    console.log(`[Orchestrator] Game ${chain}:${gameId} spawned (${this.games.size} active)`);
     return process;
   }
 
-  /**
-   * Create a local game (no chain interaction).
-   * Returns the assigned gameId.
-   */
   createLocalGame(players: [string, string, string, string], diceSeed?: string): number {
     const gameId = this.nextLocalGameId++;
     const seed = diceSeed || keccak256(toUtf8Bytes(`local-game-${gameId}-${Date.now()}`));
@@ -147,15 +152,15 @@ export class Orchestrator {
     };
 
     const process = new GameProcess(config);
-    this.games.set(gameId, process);
+    this.games.set(gameKey("bnb", gameId), process); // local games use dummy chain key
     console.log(`[Orchestrator] Local game ${gameId} created for players: ${players.map(p => p.slice(0, 10)).join(", ")}`);
     return gameId;
   }
 
   /** Route a WebSocket connection to the right game or lobby. */
-  async handleConnection(socket: WebSocket, gameId: number, address?: string): Promise<void> {
+  async handleConnection(socket: WebSocket, chain: Chain, gameId: number, address?: string): Promise<void> {
     // Local mode: slots 0..9 are lobbies or in-progress games
-    if (!this.settlement && gameId >= 0 && gameId < NUM_LOCAL_SLOTS) {
+    if (this.settlements.size === 0 && gameId >= 0 && gameId < NUM_LOCAL_SLOTS) {
       const slot = this.slots.get(gameId)!;
       if (slot instanceof Lobby) {
         if (!address) {
@@ -206,15 +211,15 @@ export class Orchestrator {
       return;
     }
 
-    // Local mode: gameId >= 10 from createLocalGame
-    let process = this.games.get(gameId);
+    let process = this.games.get(gameKey(chain, gameId));
+    const settlement = this.settlements.get(chain);
 
-    if (!process && this.settlement) {
+    if (!process && settlement) {
       try {
-        const gameInfo = await this.settlement.getGame(gameId);
-        if (gameInfo.status >= 4) { // STARTED or later (OPEN=1, DEPOSITING=2, REVEALING=3)
-          await this.spawnGame(gameId);
-          process = this.games.get(gameId);
+        const gameInfo = await settlement.getGame(gameId);
+        if (gameInfo.status >= 4) {
+          await this.spawnGame(chain, gameId);
+          process = this.games.get(gameKey(chain, gameId))!;
         }
       } catch (_) {
         /* ignore */
@@ -222,7 +227,7 @@ export class Orchestrator {
     }
 
     if (!process) {
-      socket.send(JSON.stringify({ type: "error", message: `Game ${gameId} not found` }));
+      socket.send(JSON.stringify({ type: "error", message: `Game ${chain}:${gameId} not found` }));
       socket.close();
       return;
     }
@@ -238,25 +243,37 @@ export class Orchestrator {
     }
   }
 
-  /** Get all active game IDs. In local mode returns [0..9] (slot ids). */
-  getActiveGames(): number[] {
-    if (!this.settlement) {
+  getActiveGames(chain?: Chain): number[] {
+    if (this.settlements.size === 0) {
       return Array.from({ length: NUM_LOCAL_SLOTS }, (_, i) => i);
     }
-    return Array.from(this.games.keys());
+    const keys = Array.from(this.games.keys());
+    if (chain) {
+      return keys.filter(k => k.startsWith(chain + ":")).map(k => parseInt(k.split(":")[1], 10));
+    }
+    return keys.map(k => parseInt(k.split(":")[1], 10));
   }
 
-  /** Get open slot IDs (local mode: [0..9]; on-chain: from contract via GET /games/open). */
+  getGamesAndDisconnected(chain?: Chain): { games: number[]; disconnected: number[] } {
+    const games = this.getActiveGames(chain);
+    const disconnected = games.filter((id) => {
+      const c: Chain | undefined = chain ?? (Array.from(this.games.keys()).find(k => k.endsWith(":" + id))?.split(":")[0] as Chain);
+      if (!c) return false;
+      const p = this.getGameProcess(c, id);
+      return p?.allAgentsDisconnected === true;
+    });
+    return { games, disconnected };
+  }
+
   getOpenSlotIds(): number[] {
-    if (!this.settlement) {
+    if (this.settlements.size === 0) {
       return Array.from({ length: NUM_LOCAL_SLOTS }, (_, i) => i);
     }
     return [];
   }
 
-  /** Get slot details for UI (local mode only): id, status (waiting|active), playerCount for waiting lobbies, disconnected for active. */
   getSlotDetails(): { id: number; status: "waiting" | "active"; playerCount?: number; disconnected?: boolean }[] {
-    if (this.settlement) return [];
+    if (this.settlements.size > 0) return [];
     const out: { id: number; status: "waiting" | "active"; playerCount?: number; disconnected?: boolean }[] = [];
     for (let i = 0; i < NUM_LOCAL_SLOTS; i++) {
       const slot = this.slots.get(i);
@@ -273,21 +290,19 @@ export class Orchestrator {
     return out;
   }
 
-  /** Get the running game process for a gameId, if any (on-chain: from games Map; local: from slots when it's a GameProcess). */
-  getGameProcess(gameId: number): GameProcess | null {
-    if (this.settlement) {
-      const p = this.games.get(gameId);
-      return p && p.isRunning ? p : null;
+  getGameProcess(chain: Chain, gameId: number): GameProcess | null {
+    if (this.settlements.size === 0) {
+      const slot = this.slots.get(gameId);
+      return slot instanceof GameProcess && slot.isRunning ? slot : null;
     }
-    const slot = this.slots.get(gameId);
-    return slot instanceof GameProcess && slot.isRunning ? slot : null;
+    const p = this.games.get(gameKey(chain, gameId));
+    return p && p.isRunning ? p : null;
   }
 
-  /** Clean up finished games (on-chain only; local slots are reset via onEnd). */
   cleanup(): void {
-    for (const [id, process] of this.games) {
+    for (const [key, process] of this.games) {
       if (!process.isRunning) {
-        this.games.delete(id);
+        this.games.delete(key);
       }
     }
   }

@@ -13,6 +13,12 @@ const NAV_LINKS = [
   { href: '/terms', label: 'Terms' },
 ] as const;
 
+function hexToRgb(hex: string): string {
+  const m = hex.match(/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i);
+  if (!m) return '153,69,255';
+  return `${parseInt(m[1], 16)},${parseInt(m[2], 16)},${parseInt(m[3], 16)}`;
+}
+
 const NETWORK_OPTIONS: { value: Network; label: string; color: string }[] = [
   { value: 'evm', label: 'Monad', color: '#9945FF' },
   { value: 'bnb', label: 'BNB', color: '#F0B90B' },
@@ -88,7 +94,7 @@ export function Nav({ variant = 'default' }: { variant?: 'default' | 'compact' }
               letterSpacing: '-0.02em',
             }}
           >
-            <span style={{ color: 'var(--accent-gold)' }}>Claw</span>
+            <span style={{ color: currentNetworkOption.color }}>Claw</span>
             <span style={{ color: '#fff' }}>BoardGames</span>
           </span>
         </Link>
@@ -97,7 +103,7 @@ export function Nav({ variant = 'default' }: { variant?: 'default' | 'compact' }
             href="/"
             style={{
               ...linkStyle,
-              color: pathname === '/' ? 'var(--accent-gold)' : 'var(--text-secondary)',
+              color: pathname === '/' ? currentNetworkOption.color : 'var(--text-secondary)',
               fontWeight: pathname === '/' ? 600 : 500,
             }}
             className="nav-link"
@@ -108,7 +114,7 @@ export function Nav({ variant = 'default' }: { variant?: 'default' | 'compact' }
             href="/monopoly"
             style={{
               ...linkStyle,
-              color: isMonopolyPath ? 'var(--accent-gold)' : 'var(--text-secondary)',
+              color: isMonopolyPath ? currentNetworkOption.color : 'var(--text-secondary)',
               fontWeight: isMonopolyPath ? 600 : 500,
             }}
             className="nav-link"
@@ -123,7 +129,7 @@ export function Nav({ variant = 'default' }: { variant?: 'default' | 'compact' }
                 href={href}
                 style={{
                   ...linkStyle,
-                  color: isActive ? 'var(--accent-gold)' : 'var(--text-secondary)',
+                  color: isActive ? currentNetworkOption.color : 'var(--text-secondary)',
                   fontWeight: isActive ? 600 : 500,
                 }}
                 className="nav-link"
@@ -138,7 +144,7 @@ export function Nav({ variant = 'default' }: { variant?: 'default' | 'compact' }
               onChange={(e) => setNetwork(e.target.value as Network)}
               style={{
                 appearance: 'none',
-                background: `rgba(${currentNetworkOption.color === '#9945FF' ? '153,69,255' : '240,185,11'},0.12)`,
+                background: `rgba(${hexToRgb(currentNetworkOption.color)},0.12)`,
                 border: `1px solid ${currentNetworkOption.color}55`,
                 color: currentNetworkOption.color,
                 borderRadius: 8,
@@ -197,7 +203,7 @@ export function Nav({ variant = 'default' }: { variant?: 'default' | 'compact' }
             padding: '14px 24px',
             fontSize: 16,
             fontWeight: pathname === '/' ? 600 : 500,
-            color: pathname === '/' ? 'var(--accent-gold)' : 'var(--text-secondary)',
+            color: pathname === '/' ? currentNetworkOption.color : 'var(--text-secondary)',
             textDecoration: 'none',
             borderBottom: '1px solid rgba(255,255,255,0.06)',
           }}
@@ -212,7 +218,7 @@ export function Nav({ variant = 'default' }: { variant?: 'default' | 'compact' }
             padding: '14px 24px',
             fontSize: 16,
             fontWeight: isMonopolyPath ? 600 : 500,
-            color: isMonopolyPath ? 'var(--accent-gold)' : 'var(--text-secondary)',
+            color: isMonopolyPath ? currentNetworkOption.color : 'var(--text-secondary)',
             textDecoration: 'none',
             borderBottom: '1px solid rgba(255,255,255,0.06)',
           }}
@@ -231,7 +237,7 @@ export function Nav({ variant = 'default' }: { variant?: 'default' | 'compact' }
                 padding: '14px 24px',
                 fontSize: 16,
                 fontWeight: isActive ? 600 : 500,
-                color: isActive ? 'var(--accent-gold)' : 'var(--text-secondary)',
+                color: isActive ? currentNetworkOption.color : 'var(--text-secondary)',
                 textDecoration: 'none',
                 borderBottom: '1px solid rgba(255,255,255,0.06)',
               }}
@@ -247,7 +253,7 @@ export function Nav({ variant = 'default' }: { variant?: 'default' | 'compact' }
             onChange={(e) => setNetwork(e.target.value as Network)}
             style={{
               appearance: 'none',
-              background: `rgba(${currentNetworkOption.color === '#9945FF' ? '153,69,255' : '240,185,11'},0.12)`,
+              background: `rgba(${hexToRgb(currentNetworkOption.color)},0.12)`,
               border: `1px solid ${currentNetworkOption.color}55`,
               color: currentNetworkOption.color,
               borderRadius: 8,

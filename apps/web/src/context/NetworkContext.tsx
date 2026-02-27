@@ -17,14 +17,14 @@ export interface NetworkConfig {
   addressValue: string;
 }
 
-const FALLBACK_BNB_REST = process.env.NEXT_PUBLIC_GM_REST_URL || 'https://clawboardgames-gm.onrender.com';
-const FALLBACK_BNB_WS = process.env.NEXT_PUBLIC_GM_WS_URL || 'wss://clawboardgames-gm.onrender.com/ws';
+const GM_REST = process.env.NEXT_PUBLIC_GM_REST_URL || 'https://clawboardgames-gm.onrender.com';
+const GM_WS = process.env.NEXT_PUBLIC_GM_WS_URL || 'wss://clawboardgames-gm.onrender.com/ws';
 
 export const NETWORK_CONFIGS: Record<Network, NetworkConfig> = {
   solana: {
     network: 'solana',
-    gmRestUrl: process.env.NEXT_PUBLIC_GM_SOLANA_REST_URL || 'https://clawboardgames-gm-solana.onrender.com',
-    gmWsUrl: process.env.NEXT_PUBLIC_GM_SOLANA_WS_URL || 'wss://clawboardgames-gm-solana.onrender.com/ws',
+    gmRestUrl: process.env.NEXT_PUBLIC_GM_SOLANA_REST_URL || GM_REST,
+    gmWsUrl: process.env.NEXT_PUBLIC_GM_SOLANA_WS_URL || GM_WS,
     explorerUrl: 'https://explorer.solana.com',
     label: 'Solana',
     accentColor: '#00D4AA',
@@ -35,8 +35,8 @@ export const NETWORK_CONFIGS: Record<Network, NetworkConfig> = {
   },
   bnb: {
     network: 'bnb',
-    gmRestUrl: process.env.NEXT_PUBLIC_GM_BNB_REST_URL || FALLBACK_BNB_REST,
-    gmWsUrl: process.env.NEXT_PUBLIC_GM_BNB_WS_URL || FALLBACK_BNB_WS,
+    gmRestUrl: process.env.NEXT_PUBLIC_GM_BNB_REST_URL || GM_REST,
+    gmWsUrl: process.env.NEXT_PUBLIC_GM_BNB_WS_URL || GM_WS,
     explorerUrl: 'https://testnet.bscscan.com',
     label: 'BNB Chain',
     accentColor: '#F0B90B',
@@ -47,8 +47,8 @@ export const NETWORK_CONFIGS: Record<Network, NetworkConfig> = {
   },
   evm: {
     network: 'evm',
-    gmRestUrl: FALLBACK_BNB_REST,
-    gmWsUrl: FALLBACK_BNB_WS,
+    gmRestUrl: process.env.NEXT_PUBLIC_GM_EVM_REST_URL || GM_REST,
+    gmWsUrl: process.env.NEXT_PUBLIC_GM_EVM_WS_URL || GM_WS,
     explorerUrl: 'https://explorer.monad.xyz',
     label: 'Monad',
     accentColor: '#9945FF',

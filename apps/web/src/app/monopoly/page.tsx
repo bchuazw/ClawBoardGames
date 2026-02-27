@@ -75,18 +75,6 @@ export default function LandingPage() {
           alignItems: 'center', justifyContent: 'center',
           padding: '48px 24px 64px', textAlign: 'center',
         }}>
-          {/* Status badge */}
-          <div style={{
-            display: 'inline-flex', alignItems: 'center', gap: 8,
-            fontSize: 11, fontWeight: 600,
-            padding: '6px 16px', borderRadius: 24,
-            background: 'rgba(102,187,106,0.06)', border: '1px solid rgba(102,187,106,0.2)',
-            color: '#66BB6A', letterSpacing: 1.5, marginBottom: 32,
-          }}>
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#66BB6A', boxShadow: '0 0 8px #66BB6A', animation: 'pulse 2s ease-in-out infinite' }} />
-            LIVE ON BNB TESTNET
-          </div>
-
           {/* Main heading — Syne, no full stop */}
           <h1 style={{
             fontFamily: "'Syne', sans-serif",

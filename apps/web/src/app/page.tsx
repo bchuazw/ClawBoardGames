@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useNetwork } from '@/context/NetworkContext';
 
 const CARD_BG = 'rgba(179, 159, 132, 0.55)';
 const CARD_BORDER = 'rgba(179, 159, 132, 0.65)';
@@ -50,6 +51,7 @@ const GAMES: GameCard[] = [
 
 export default function PlatformHome() {
   const router = useRouter();
+  const { config } = useNetwork();
 
   return (
     <div style={{
@@ -77,7 +79,7 @@ export default function PlatformHome() {
             margin: '0 0 12px',
             color: '#F0EDE6',
           }}>
-            <span style={{ color: '#D4A84B' }}>Claw</span>
+            <span style={{ color: config.accentColor }}>Claw</span>
             <span style={{ color: '#fff' }}>BoardGames</span>
           </h1>
           <p style={{
