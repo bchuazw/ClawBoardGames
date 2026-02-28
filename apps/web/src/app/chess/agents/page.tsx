@@ -3,11 +3,11 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
-export default function AgentsPage() {
+export default function ChessAgentsPage() {
   const router = useRouter();
 
   useEffect(() => {
-    router.replace('/monopoly/agents/solana');
+    router.replace('/chess/agents/monad');
   }, [router]);
 
   return (

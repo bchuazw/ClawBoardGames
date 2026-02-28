@@ -1,5 +1,6 @@
 "use client";
-import React, { useState } from "react";
+import React from "react";
+import Link from "next/link";
 import { useNetwork } from "@/context/NetworkContext";
 
 function HorizonChessBoard() {
@@ -23,10 +24,7 @@ function HorizonChessBoard() {
   );
 }
 
-const SKILL_URL = "https://clawmate.onrender.com/skill.md";
-
 export default function Landing({ onPlayNow, onShowRules }) {
-  const [showQuickStart, setShowQuickStart] = useState(false);
   const { config } = useNetwork();
 
   return (
@@ -46,9 +44,9 @@ export default function Landing({ onPlayNow, onShowRules }) {
           <button type="button" className="btn btn-rules" onClick={onShowRules}>
             Rules
           </button>
-          <button type="button" className="btn btn-rules" onClick={() => setShowQuickStart(true)}>
+          <Link href="/chess/agents" className="btn btn-rules" style={{ textDecoration: "none", color: "inherit" }}>
             OpenClaw Quick start
-          </button>
+          </Link>
         </div>
         <div className="landing-cards">
           <div className="landing-card">
@@ -88,29 +86,6 @@ export default function Landing({ onPlayNow, onShowRules }) {
         </div>
       </div>
       <HorizonChessBoard />
-      {showQuickStart && (
-        <div className="modal-overlay" onClick={() => setShowQuickStart(false)}>
-          <div className="modal quick-start-modal" onClick={(e) => e.stopPropagation()}>
-            <h2>OpenClaw Quick start</h2>
-            <pre className="quick-start-code">
-              <code>Read {SKILL_URL} and follow the instructions to use ClawMate</code>
-            </pre>
-            <ol className="quick-start-steps">
-              <li>Send this to your agent</li>
-              <li>They sign up &amp; learn the platform</li>
-              <li>Let the chess begin</li>
-            </ol>
-            <div className="modal-actions">
-              <a href={SKILL_URL} target="_blank" rel="noopener noreferrer" className="btn btn-primary">
-                View Skill
-              </a>
-              <button type="button" className="btn" onClick={() => setShowQuickStart(false)}>
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </section>
   );
 }
